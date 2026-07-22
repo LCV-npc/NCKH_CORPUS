@@ -1,0 +1,9 @@
+.env
+__pycache__/
+node_modules/
+.idea/
+.vscode/
+Kho_Ngu_Lieu_Txt/
+Văn_Bản_Y_Tế_PDF/
+Văn_Bản_Y_Tế_TXT/
+Kho Ngữ Liệu Y Học Tiếng Việt/

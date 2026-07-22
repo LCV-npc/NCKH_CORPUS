@@ -1,0 +1,21 @@
+✅ (1) Chức năng cào bài báo & ghi log:
+
+Code đáp ứng: Module core/scraper.py (hàm run_scraping) thực hiện cào bài báo từ trang web y khoa theo khoảng năm (start_year, end_year).
+Lưu trữ: File PDF được tự động tải về thư mục Văn_Bản_Y_Tế_PDF.
+Nhật ký: Sau mỗi lần crawl, tiến trình ghi nhận vào bảng crawl_logs trong CSDL MySQL (tổng số link, số bài thành công, trùng lặp, lỗi), sau đó hiển thị lên tab Nhật ký thu thập trên giao diện.
+✅ (2) Chức năng tách nội dung file PDF thành .txt:
+
+Code đáp ứng: Nằm ở api/extract-pdf và module core/pdf_pipeline.py.
+Kết quả: Khi upload PDF lên (thông qua giao diện Tách nội dung PDF), module pdfplumber sẽ phân tích bố cục, cắt riêng từng thành phần (Tóm tắt, Giới thiệu, Phương pháp...) và tạo ra các file .txt tương ứng nằm gọn gàng trong thư mục Kho_Ngu_Lieu_Txt.
+✅ (3) Xây dựng từ điển ICD-10VN & chuẩn hóa tiếng Việt:
+
+Code đáp ứng: Module core/ner_dict.py.
+Kết quả: Đọc trực tiếp từ file Excel ICD-10 và file PDF y học cổ truyền. Hệ thống tự động làm sạch (lowercase), và đặc biệt có hàm chuẩn hóa dấu tiếng Việt nghiêm ngặt (đưa vị trí bỏ dấu về chuẩn quy định, ví dụ: òa, ủi, thủy, hòa) để từ điển không bị lỗi khi so khớp.
+Log hệ thống cũng đã xác nhận tạo thành công 13.905 thuật ngữ.
+✅ (4) Phương pháp so khớp khái niệm (NER):
+
+Code đáp ứng: Nằm trong hàm run_ner() thuộc core/ner_engine.py.
+Phương pháp: Hệ thống sử dụng 2 kỹ thuật song song:
+Exact Match (Khớp chính xác): Tìm đúng từ có trong từ điển.
+Noun Phrase (Cụm danh từ): Dùng thư viện trích xuất cụm danh từ của văn bản, sau đó dùng thuật toán độ đo Jaccard / Levenshtein để khớp linh hoạt các cụm từ bị đảo ngữ hoặc thiếu từ.
+Kết quả được highlight màu đỏ/cam trực tiếp trên văn bản của tab Gán nhãn văn bản.
