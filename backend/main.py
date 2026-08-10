@@ -38,6 +38,24 @@ app.add_middleware(
 api_routes.init_router(db_config, OUTPUT_FOLDER)
 app.include_router(api_routes.router)
 
+# ── Migration: đảm bảo crawl_logs có cột status ──────────────
+try:
+    import mysql.connector
+    _conn = mysql.connector.connect(**db_config)
+    _cur = _conn.cursor()
+    _cur.execute(
+        "SELECT COUNT(*) FROM information_schema.columns "
+        "WHERE table_schema=%s AND table_name='crawl_logs' AND column_name='status'",
+        (db_config["database"],)
+    )
+    if _cur.fetchone()[0] == 0:
+        _cur.execute("ALTER TABLE crawl_logs ADD COLUMN status VARCHAR(20) DEFAULT 'completed'")
+        _conn.commit()
+    _cur.close()
+    _conn.close()
+except Exception:
+    pass
+
 # ── Entry point ───────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn

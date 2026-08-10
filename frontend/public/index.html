@@ -6,7 +6,7 @@
     <title>MedNLP Studio — Hệ thống Quản lý Ngữ liệu Y học</title>
     <meta name="description" content="Nền tảng NLP y học tiếng Việt: thu thập, xử lý, gán nhãn và quản lý từ điển thuật ngữ y tế">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="index.css?v=4.4">
 </head>
 <body>
 
@@ -148,19 +148,7 @@
                 </div>
                 <div class="kpi-sparkline" id="spark-articles"></div>
             </div>
-            <div class="kpi-card kpi-dict">
-                <div class="kpi-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                    </svg>
-                </div>
-                <div class="kpi-body">
-                    <div class="kpi-value" id="kpi-dict">—</div>
-                    <div class="kpi-label">Thuật ngữ từ điển</div>
-                    <div class="kpi-change" id="kpi-dict-sub">Kích thước từ điển</div>
-                </div>
-            </div>
+
             <div class="kpi-card kpi-labeled">
                 <div class="kpi-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -187,40 +175,7 @@
             </div>
         </div>
 
-        <!-- Charts Row -->
-        <div class="charts-row">
-            <!-- Top Concepts Bar Chart -->
-            <div class="chart-card chart-wide">
-                <div class="chart-header">
-                    <div>
-                        <div class="chart-title">Thuật ngữ phổ biến nhất</div>
-                        <div class="chart-sub">Top 10 thực thể y tế xuất hiện nhiều nhất</div>
-                    </div>
-                    <div class="chart-filters">
-                        <button class="filter-btn active" onclick="filterConcepts('')" id="filter-all">Tất cả</button>
-                        <button class="filter-btn" onclick="filterConcepts('DISEASE')" id="filter-disease">Bệnh lý</button>
-                        <button class="filter-btn" onclick="filterConcepts('SYMPTOM')" id="filter-symptom">Triệu chứng</button>
-                    </div>
-                </div>
-                <div class="bar-chart-container" id="barChartContainer">
-                    <div class="chart-empty">Đang tải dữ liệu...</div>
-                </div>
-            </div>
 
-            <!-- Entity Type Donut -->
-            <div class="chart-card chart-narrow">
-                <div class="chart-header">
-                    <div>
-                        <div class="chart-title">Phân bố loại thực thể</div>
-                        <div class="chart-sub">Tỷ lệ theo nhãn NER</div>
-                    </div>
-                </div>
-                <div class="donut-container">
-                    <canvas id="donutCanvas" width="200" height="200"></canvas>
-                    <div class="donut-legend" id="donutLegend"></div>
-                </div>
-            </div>
-        </div>
 
         <!-- Recent Articles -->
         <div class="section-card">
@@ -342,12 +297,7 @@
                         </div>
                     </div>
 
-                    <div class="progress-bar-wrap">
-                        <div class="progress-bar-track">
-                            <div class="progress-bar-fill" id="progFill" style="width:0%"></div>
-                        </div>
-                        <span class="progress-pct" id="progPct">0%</span>
-                    </div>
+
 
                     <div class="progress-msg" id="progressMsg">Nhấn nút để bắt đầu thu thập dữ liệu</div>
                 </div>
@@ -431,14 +381,12 @@
                     <!-- Toolbar -->
                     <div class="label-toolbar">
                         <div class="toolbar-left">
-                            <button class="btn-ner active" id="btnNer" onclick="toggleNer()">
-                                <span>🏷️</span> Bật gán nhãn
-                            </button>
+                            <button class="btn-ner active" id="btnNer" onclick="toggleNer()">Bật gán nhãn</button>
                             <button class="btn-primary-sm" id="btnAiNer" onclick="runAiNer()" style="margin-left:8px; display:none;">
-                                <span>✨</span> Gán nhãn bằng AI
+                                Gán nhãn bằng AI
                             </button>
                             <button class="btn-save-ner" id="btnSaveNer" onclick="saveCurrentHighlight()" style="display:none; margin-left:8px;">
-                                <span>💾</span> Lưu kết quả
+                                Lưu kết quả
                             </button>
                         </div>
                         <div class="toolbar-right">
@@ -467,21 +415,21 @@
                         <div class="entities-title">Thực thể đã tìm thấy</div>
                         <div class="entities-grid" id="entitiesGrid"></div>
                         <div class="entities-actions">
-                            <button class="btn-outline-sm" onclick="saveToDict()">📚 Thêm vào từ điển</button>
+                            <button class="btn-outline-sm" onclick="saveToDict()">Thêm vào từ điển</button>
                             <span class="save-status" id="saveDictStatus"></span>
                         </div>
                     </div>
 
                     <!-- AI Comparison Panel -->
                     <div class="entities-panel" id="aiPanel" style="display:none; border-color: var(--primary);">
-                        <div class="entities-title" style="color: var(--primary);">✨ So sánh Kết quả AI và Từ Điển</div>
+                        <div class="entities-title" style="color: var(--primary);">So sánh kết quả AI và từ điển</div>
                         <div id="aiComparisonBody" style="font-size: 13px; line-height: 1.5;"></div>
                     </div>
 
 
                     <!-- Preprocessing Log -->
                     <div class="preproc-panel" id="preprocPanel" style="display:none">
-                        <div class="preproc-title">⚙️ Nhật ký tiền xử lý</div>
+                        <div class="preproc-title">Nhật ký tiền xử lý</div>
                         <div class="preproc-body" id="preprocBody"></div>
                     </div>
                 </div>
@@ -535,9 +483,7 @@
                     <!-- Toolbar -->
                     <div class="label-toolbar">
                         <div class="toolbar-left">
-                            <button class="btn-primary-sm" id="btnRunAiNer" onclick="runAiLabel()">
-                                <span>✨</span> Gán nhãn bằng AI
-                            </button>
+                            <button class="btn-primary-sm" id="btnRunAiNer" onclick="runAiLabel()">Gán nhãn bằng AI</button>
                         </div>
                     </div>
 
@@ -582,7 +528,7 @@
                 <div class="panel-sub">Lịch sử các lần cào dữ liệu</div>
             </div>
             <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-                <button class="btn-primary-sm" onclick="verifyData()">🔍 Kiểm chứng Dữ liệu</button>
+                <button class="btn-primary-sm" onclick="verifyData()">Kiểm chứng dữ liệu</button>
             </div>
 
             <div class="dict-table-wrap" style="margin-top: 16px;">
@@ -591,7 +537,8 @@
                         <tr>
                             <th style="width:120px">Ngày</th>
                             <th>Nguồn (URL)</th>
-                            <th style="width:100px; text-align:center;">Trạng thái</th>
+                            <th style="width:80px; text-align:center;">Từ năm</th>
+                            <th style="width:80px; text-align:center;">Đến năm</th>
                             <th style="width:100px; text-align:center;">Tổng bài</th>
                             <th style="width:100px; text-align:center;">Thành công</th>
                             <th style="width:100px; text-align:center;">Trùng lặp</th>
@@ -695,6 +642,6 @@
 <!-- TOAST NOTIFICATION -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="script.js?v=4.0"></script>
+<script src="script.js?v=4.4"></script>
 </body>
 </html>

@@ -1,0 +1,4121 @@
+{
+  "schema_version": "1.0",
+  "dictionary_version": "2026.08.09-v1",
+  "kind": "yhct_clinical_forms",
+  "source": {
+    "file": "PhuLuc1.pdf",
+    "sha256": "c42d09e85b7a5f10f40a340aef6661ef0a5a2cc2921172d9aae22c5521ce0a5f",
+    "pages": 11
+  },
+  "counts": {
+    "all": 228,
+    "base": 38,
+    "clinical_forms": 190
+  },
+  "entries": [
+    {
+      "id": "YHCT:6500000",
+      "record_type": "base",
+      "common_code": "6500000",
+      "canonical_term": "Đau cột sống thắt lưng (Yêu thống)",
+      "yhhd_term": "Đau cột sống thắt lưng",
+      "yhct_term": "Yêu thống",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M54.5",
+      "code": "U62.392.5",
+      "display_code": "U62.392.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500001",
+      "record_type": "clinical_form",
+      "common_code": "6500001",
+      "canonical_term": "Thể hàn thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.5.01",
+      "display_code": "U62.392.5.01",
+      "parent_id": "YHCT:6500000",
+      "parent_yhhd_term": "Đau cột sống thắt lưng",
+      "parent_yhct_term": "Yêu thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500002",
+      "record_type": "clinical_form",
+      "common_code": "6500002",
+      "canonical_term": "Thể thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.5.02",
+      "display_code": "U62.392.5.02",
+      "parent_id": "YHCT:6500000",
+      "parent_yhhd_term": "Đau cột sống thắt lưng",
+      "parent_yhct_term": "Yêu thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500003",
+      "record_type": "clinical_form",
+      "common_code": "6500003",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.5.03",
+      "display_code": "U62.392.5.03",
+      "parent_id": "YHCT:6500000",
+      "parent_yhhd_term": "Đau cột sống thắt lưng",
+      "parent_yhct_term": "Yêu thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500004",
+      "record_type": "clinical_form",
+      "common_code": "6500004",
+      "canonical_term": "Thể can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.5.04",
+      "display_code": "U62.392.5.04",
+      "parent_id": "YHCT:6500000",
+      "parent_yhhd_term": "Đau cột sống thắt lưng",
+      "parent_yhct_term": "Yêu thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500005",
+      "record_type": "clinical_form",
+      "common_code": "6500005",
+      "canonical_term": "Thể thận dương hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.5.05",
+      "display_code": "U62.392.5.05",
+      "parent_id": "YHCT:6500000",
+      "parent_yhhd_term": "Đau cột sống thắt lưng",
+      "parent_yhct_term": "Yêu thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500006",
+      "record_type": "clinical_form",
+      "common_code": "6500006",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.5.06",
+      "display_code": "U62.392.5.06",
+      "parent_id": "YHCT:6500000",
+      "parent_yhhd_term": "Đau cột sống thắt lưng",
+      "parent_yhct_term": "Yêu thống",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500007",
+      "record_type": "base",
+      "common_code": "6500007",
+      "canonical_term": "Thoái hoá khớp gối (Hạc tất phong)",
+      "yhhd_term": "Thoái hoá khớp gối",
+      "yhct_term": "Hạc tất phong",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M17",
+      "code": "U62.261",
+      "display_code": "U62.261",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500008",
+      "record_type": "clinical_form",
+      "common_code": "6500008",
+      "canonical_term": "Thể phong hàn thấp tý",
+      "category": "Đông Y / YHCT",
+      "code": "U62.261.01",
+      "display_code": "U62.261.01",
+      "parent_id": "YHCT:6500007",
+      "parent_yhhd_term": "Thoái hoá khớp gối",
+      "parent_yhct_term": "Hạc tất phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500009",
+      "record_type": "clinical_form",
+      "common_code": "6500009",
+      "canonical_term": "Thể phong hàn thấp tý kèm can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.261.02",
+      "display_code": "U62.261.02",
+      "parent_id": "YHCT:6500007",
+      "parent_yhhd_term": "Thoái hoá khớp gối",
+      "parent_yhct_term": "Hạc tất phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500010",
+      "record_type": "clinical_form",
+      "common_code": "6500010",
+      "canonical_term": "Thể phong thấp nhiệt kèm can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.261.03",
+      "display_code": "U62.261.03",
+      "parent_id": "YHCT:6500007",
+      "parent_yhhd_term": "Thoái hoá khớp gối",
+      "parent_yhct_term": "Hạc tất phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500011",
+      "record_type": "clinical_form",
+      "common_code": "6500011",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.261.04",
+      "display_code": "U62.261.04",
+      "parent_id": "YHCT:6500007",
+      "parent_yhhd_term": "Thoái hoá khớp gối",
+      "parent_yhct_term": "Hạc tất phong",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500012",
+      "record_type": "base",
+      "common_code": "6500012",
+      "canonical_term": "Gút (thống phong) (Thống phong)",
+      "yhhd_term": "Gút (thống phong)",
+      "yhct_term": "Thống phong",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M10",
+      "code": "U62.371",
+      "display_code": "U62.371",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500013",
+      "record_type": "clinical_form",
+      "common_code": "6500013",
+      "canonical_term": "Thể phong thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U62.371.01",
+      "display_code": "U62.371.01",
+      "parent_id": "YHCT:6500012",
+      "parent_yhhd_term": "Gút (thống phong)",
+      "parent_yhct_term": "Thống phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500014",
+      "record_type": "clinical_form",
+      "common_code": "6500014",
+      "canonical_term": "Thể phong hàn thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.371.02",
+      "display_code": "U62.371.02",
+      "parent_id": "YHCT:6500012",
+      "parent_yhhd_term": "Gút (thống phong)",
+      "parent_yhct_term": "Thống phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500015",
+      "record_type": "clinical_form",
+      "common_code": "6500015",
+      "canonical_term": "Thể đàm ứ trở trệ",
+      "category": "Đông Y / YHCT",
+      "code": "U62.371.03",
+      "display_code": "U62.371.03",
+      "parent_id": "YHCT:6500012",
+      "parent_yhhd_term": "Gút (thống phong)",
+      "parent_yhct_term": "Thống phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500016",
+      "record_type": "clinical_form",
+      "common_code": "6500016",
+      "canonical_term": "Thể can thận lưỡng hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.371.04",
+      "display_code": "U62.371.04",
+      "parent_id": "YHCT:6500012",
+      "parent_yhhd_term": "Gút (thống phong)",
+      "parent_yhct_term": "Thống phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 1
+      }
+    },
+    {
+      "id": "YHCT:6500017",
+      "record_type": "clinical_form",
+      "common_code": "6500017",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.371.05",
+      "display_code": "U62.371.05",
+      "parent_id": "YHCT:6500012",
+      "parent_yhhd_term": "Gút (thống phong)",
+      "parent_yhct_term": "Thống phong",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500018",
+      "record_type": "base",
+      "common_code": "6500018",
+      "canonical_term": "Viêm khớp dạng thấp huyết thanh dương tính (Chứng tý)",
+      "yhhd_term": "Viêm khớp dạng thấp huyết thanh dương tính",
+      "yhct_term": "Chứng tý",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M05",
+      "code": "U62.021",
+      "display_code": "U62.021",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500019",
+      "record_type": "clinical_form",
+      "common_code": "6500019",
+      "canonical_term": "Thể phong thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.021.01",
+      "display_code": "U62.021.01",
+      "parent_id": "YHCT:6500018",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh dương tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500020",
+      "record_type": "clinical_form",
+      "common_code": "6500020",
+      "canonical_term": "Thể hàn thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.021.02",
+      "display_code": "U62.021.02",
+      "parent_id": "YHCT:6500018",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh dương tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500021",
+      "record_type": "clinical_form",
+      "common_code": "6500021",
+      "canonical_term": "Thể phong thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U62.021.03",
+      "display_code": "U62.021.03",
+      "parent_id": "YHCT:6500018",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh dương tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500022",
+      "record_type": "clinical_form",
+      "common_code": "6500022",
+      "canonical_term": "Thể can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.021.04",
+      "display_code": "U62.021.04",
+      "parent_id": "YHCT:6500018",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh dương tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500023",
+      "record_type": "clinical_form",
+      "common_code": "6500023",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.021.05",
+      "display_code": "U62.021.05",
+      "parent_id": "YHCT:6500018",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh dương tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500024",
+      "record_type": "base",
+      "common_code": "6500024",
+      "canonical_term": "Viêm khớp dạng thấp khác (Chứng tý)",
+      "yhhd_term": "Viêm khớp dạng thấp khác",
+      "yhct_term": "Chứng tý",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M06",
+      "code": "U62.031",
+      "display_code": "U62.031",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500025",
+      "record_type": "clinical_form",
+      "common_code": "6500025",
+      "canonical_term": "Thể phong thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.01",
+      "display_code": "U62.031.01",
+      "parent_id": "YHCT:6500024",
+      "parent_yhhd_term": "Viêm khớp dạng thấp khác",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500026",
+      "record_type": "clinical_form",
+      "common_code": "6500026",
+      "canonical_term": "Thể hàn thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.02",
+      "display_code": "U62.031.02",
+      "parent_id": "YHCT:6500024",
+      "parent_yhhd_term": "Viêm khớp dạng thấp khác",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500027",
+      "record_type": "clinical_form",
+      "common_code": "6500027",
+      "canonical_term": "Thể phong thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.03",
+      "display_code": "U62.031.03",
+      "parent_id": "YHCT:6500024",
+      "parent_yhhd_term": "Viêm khớp dạng thấp khác",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500028",
+      "record_type": "clinical_form",
+      "common_code": "6500028",
+      "canonical_term": "Thể can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.04",
+      "display_code": "U62.031.04",
+      "parent_id": "YHCT:6500024",
+      "parent_yhhd_term": "Viêm khớp dạng thấp khác",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500029",
+      "record_type": "clinical_form",
+      "common_code": "6500029",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.05",
+      "display_code": "U62.031.05",
+      "parent_id": "YHCT:6500024",
+      "parent_yhhd_term": "Viêm khớp dạng thấp khác",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500030",
+      "record_type": "base",
+      "common_code": "6500030",
+      "canonical_term": "Viêm khớp dạng thấp huyết thanh âm tính (Chứng tý)",
+      "yhhd_term": "Viêm khớp dạng thấp huyết thanh âm tính",
+      "yhct_term": "Chứng tý",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M06.0",
+      "code": "U62.031.0",
+      "display_code": "U62.031.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500031",
+      "record_type": "clinical_form",
+      "common_code": "6500031",
+      "canonical_term": "Thể phong thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.0.01",
+      "display_code": "U62.031.0.01",
+      "parent_id": "YHCT:6500030",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh âm tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500032",
+      "record_type": "clinical_form",
+      "common_code": "6500032",
+      "canonical_term": "Thể hàn thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.0.02",
+      "display_code": "U62.031.0.02",
+      "parent_id": "YHCT:6500030",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh âm tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500033",
+      "record_type": "clinical_form",
+      "common_code": "6500033",
+      "canonical_term": "Thể phong thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.0.03",
+      "display_code": "U62.031.0.03",
+      "parent_id": "YHCT:6500030",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh âm tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500034",
+      "record_type": "clinical_form",
+      "common_code": "6500034",
+      "canonical_term": "Thể can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.0.04",
+      "display_code": "U62.031.0.04",
+      "parent_id": "YHCT:6500030",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh âm tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500035",
+      "record_type": "clinical_form",
+      "common_code": "6500035",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.031.0.05",
+      "display_code": "U62.031.0.05",
+      "parent_id": "YHCT:6500030",
+      "parent_yhhd_term": "Viêm khớp dạng thấp huyết thanh âm tính",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500036",
+      "record_type": "base",
+      "common_code": "6500036",
+      "canonical_term": "Hội chứng cánh tay cổ (Kiên tý)",
+      "yhhd_term": "Hội chứng cánh tay cổ",
+      "yhct_term": "Kiên tý",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M53.1",
+      "code": "U62.291",
+      "display_code": "U62.291",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500037",
+      "record_type": "clinical_form",
+      "common_code": "6500037",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U62.291.01",
+      "display_code": "U62.291.01",
+      "parent_id": "YHCT:6500036",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Kiên tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500038",
+      "record_type": "clinical_form",
+      "common_code": "6500038",
+      "canonical_term": "Thể phong thấp nhiệt tý",
+      "category": "Đông Y / YHCT",
+      "code": "U62.291.02",
+      "display_code": "U62.291.02",
+      "parent_id": "YHCT:6500036",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Kiên tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500039",
+      "record_type": "clinical_form",
+      "common_code": "6500039",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U62.291.03",
+      "display_code": "U62.291.03",
+      "parent_id": "YHCT:6500036",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Kiên tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 2
+      }
+    },
+    {
+      "id": "YHCT:6500040",
+      "record_type": "clinical_form",
+      "common_code": "6500040",
+      "canonical_term": "Thể can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.291.04",
+      "display_code": "U62.291.04",
+      "parent_id": "YHCT:6500036",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Kiên tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500041",
+      "record_type": "clinical_form",
+      "common_code": "6500041",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.291.05",
+      "display_code": "U62.291.05",
+      "parent_id": "YHCT:6500036",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Kiên tý",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500042",
+      "record_type": "base",
+      "common_code": "6500042",
+      "canonical_term": "Hội chứng cánh tay cổ (Chứng tý)",
+      "yhhd_term": "Hội chứng cánh tay cổ",
+      "yhct_term": "Chứng tý",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M53.1",
+      "code": "U62.292",
+      "display_code": "U62.292",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500043",
+      "record_type": "clinical_form",
+      "common_code": "6500043",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U62.292.01",
+      "display_code": "U62.292.01",
+      "parent_id": "YHCT:6500042",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500044",
+      "record_type": "clinical_form",
+      "common_code": "6500044",
+      "canonical_term": "Thể phong thấp nhiệt tý",
+      "category": "Đông Y / YHCT",
+      "code": "U62.292.02",
+      "display_code": "U62.292.02",
+      "parent_id": "YHCT:6500042",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500045",
+      "record_type": "clinical_form",
+      "common_code": "6500045",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U62.292.03",
+      "display_code": "U62.292.03",
+      "parent_id": "YHCT:6500042",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500046",
+      "record_type": "clinical_form",
+      "common_code": "6500046",
+      "canonical_term": "Thể can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.292.04",
+      "display_code": "U62.292.04",
+      "parent_id": "YHCT:6500042",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500047",
+      "record_type": "clinical_form",
+      "common_code": "6500047",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.292.05",
+      "display_code": "U62.292.05",
+      "parent_id": "YHCT:6500042",
+      "parent_yhhd_term": "Hội chứng cánh tay cổ",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500048",
+      "record_type": "base",
+      "common_code": "6500048",
+      "canonical_term": "Bệnh Tăng huyết áp vô căn (Huyễn vựng)",
+      "yhhd_term": "Bệnh Tăng huyết áp vô căn",
+      "yhct_term": "Huyễn vựng",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "I10",
+      "code": "U58.091",
+      "display_code": "U58.091",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500049",
+      "record_type": "clinical_form",
+      "common_code": "6500049",
+      "canonical_term": "Thể can dương thư ng cang",
+      "category": "Đông Y / YHCT",
+      "code": "U58.091.01",
+      "display_code": "U58.091.01",
+      "parent_id": "YHCT:6500048",
+      "parent_yhhd_term": "Bệnh Tăng huyết áp vô căn",
+      "parent_yhct_term": "Huyễn vựng",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500050",
+      "record_type": "clinical_form",
+      "common_code": "6500050",
+      "canonical_term": "Thể can thận âm hư",
+      "category": "Đông Y / YHCT",
+      "code": "U58.091.02",
+      "display_code": "U58.091.02",
+      "parent_id": "YHCT:6500048",
+      "parent_yhhd_term": "Bệnh Tăng huyết áp vô căn",
+      "parent_yhct_term": "Huyễn vựng",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500051",
+      "record_type": "clinical_form",
+      "common_code": "6500051",
+      "canonical_term": "Thể âm dương lưỡng hư",
+      "category": "Đông Y / YHCT",
+      "code": "U58.091.03",
+      "display_code": "U58.091.03",
+      "parent_id": "YHCT:6500048",
+      "parent_yhhd_term": "Bệnh Tăng huyết áp vô căn",
+      "parent_yhct_term": "Huyễn vựng",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500052",
+      "record_type": "clinical_form",
+      "common_code": "6500052",
+      "canonical_term": "Thể đàm thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U58.091.04",
+      "display_code": "U58.091.04",
+      "parent_id": "YHCT:6500048",
+      "parent_yhhd_term": "Bệnh Tăng huyết áp vô căn",
+      "parent_yhct_term": "Huyễn vựng",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500053",
+      "record_type": "clinical_form",
+      "common_code": "6500053",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U58.091.05",
+      "display_code": "U58.091.05",
+      "parent_id": "YHCT:6500048",
+      "parent_yhhd_term": "Bệnh Tăng huyết áp vô căn",
+      "parent_yhct_term": "Huyễn vựng",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500054",
+      "record_type": "base",
+      "common_code": "6500054",
+      "canonical_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác (Chứng đàm)",
+      "yhhd_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác",
+      "yhct_term": "Chứng đàm",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "E78",
+      "code": "U53.151",
+      "display_code": "U53.151",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500055",
+      "record_type": "clinical_form",
+      "common_code": "6500055",
+      "canonical_term": "Thể tỳ hư đàm thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U53.151.01",
+      "display_code": "U53.151.01",
+      "parent_id": "YHCT:6500054",
+      "parent_yhhd_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác",
+      "parent_yhct_term": "Chứng đàm",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500056",
+      "record_type": "clinical_form",
+      "common_code": "6500056",
+      "canonical_term": "Thể tỳ thận dương hư",
+      "category": "Đông Y / YHCT",
+      "code": "U53.151.02",
+      "display_code": "U53.151.02",
+      "parent_id": "YHCT:6500054",
+      "parent_yhhd_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác",
+      "parent_yhct_term": "Chứng đàm",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500057",
+      "record_type": "clinical_form",
+      "common_code": "6500057",
+      "canonical_term": "Thể can thận âm hư",
+      "category": "Đông Y / YHCT",
+      "code": "U53.151.03",
+      "display_code": "U53.151.03",
+      "parent_id": "YHCT:6500054",
+      "parent_yhhd_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác",
+      "parent_yhct_term": "Chứng đàm",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500058",
+      "record_type": "clinical_form",
+      "common_code": "6500058",
+      "canonical_term": "Thể can uất tỳ hư",
+      "category": "Đông Y / YHCT",
+      "code": "U53.151.04",
+      "display_code": "U53.151.04",
+      "parent_id": "YHCT:6500054",
+      "parent_yhhd_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác",
+      "parent_yhct_term": "Chứng đàm",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500059",
+      "record_type": "clinical_form",
+      "common_code": "6500059",
+      "canonical_term": "Thể thấp nhiệt nội kết",
+      "category": "Đông Y / YHCT",
+      "code": "U53.151.05",
+      "display_code": "U53.151.05",
+      "parent_id": "YHCT:6500054",
+      "parent_yhhd_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác",
+      "parent_yhct_term": "Chứng đàm",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500060",
+      "record_type": "clinical_form",
+      "common_code": "6500060",
+      "canonical_term": "Thể khí trệ huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U53.151.06",
+      "display_code": "U53.151.06",
+      "parent_id": "YHCT:6500054",
+      "parent_yhhd_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác",
+      "parent_yhct_term": "Chứng đàm",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 3
+      }
+    },
+    {
+      "id": "YHCT:6500061",
+      "record_type": "clinical_form",
+      "common_code": "6500061",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U53.151.07",
+      "display_code": "U53.151.07",
+      "parent_id": "YHCT:6500054",
+      "parent_yhhd_term": "Rối loạn chuyển hoá lipoprotein và tình trạng tăng lipid máu khác",
+      "parent_yhct_term": "Chứng đàm",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500062",
+      "record_type": "base",
+      "common_code": "6500062",
+      "canonical_term": "Bệnh dây thần kinh mặt (Khẩu nhãn oa tà)",
+      "yhhd_term": "Bệnh dây thần kinh mặt",
+      "yhct_term": "Khẩu nhãn oa tà",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "G51",
+      "code": "U55.561",
+      "display_code": "U55.561",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500063",
+      "record_type": "clinical_form",
+      "common_code": "6500063",
+      "canonical_term": "Thể phong hàn ở kinh lạc",
+      "category": "Đông Y / YHCT",
+      "code": "U55.561.01",
+      "display_code": "U55.561.01",
+      "parent_id": "YHCT:6500062",
+      "parent_yhhd_term": "Bệnh dây thần kinh mặt",
+      "parent_yhct_term": "Khẩu nhãn oa tà",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500064",
+      "record_type": "clinical_form",
+      "common_code": "6500064",
+      "canonical_term": "Thể phong nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U55.561.02",
+      "display_code": "U55.561.02",
+      "parent_id": "YHCT:6500062",
+      "parent_yhhd_term": "Bệnh dây thần kinh mặt",
+      "parent_yhct_term": "Khẩu nhãn oa tà",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500065",
+      "record_type": "clinical_form",
+      "common_code": "6500065",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U55.561.03",
+      "display_code": "U55.561.03",
+      "parent_id": "YHCT:6500062",
+      "parent_yhhd_term": "Bệnh dây thần kinh mặt",
+      "parent_yhct_term": "Khẩu nhãn oa tà",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500066",
+      "record_type": "clinical_form",
+      "common_code": "6500066",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U55.561.04",
+      "display_code": "U55.561.04",
+      "parent_id": "YHCT:6500062",
+      "parent_yhhd_term": "Bệnh dây thần kinh mặt",
+      "parent_yhct_term": "Khẩu nhãn oa tà",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500067",
+      "record_type": "base",
+      "common_code": "6500067",
+      "canonical_term": "Đau thần kinh liên sườn (Hiếp thống)",
+      "yhhd_term": "Đau thần kinh liên sườn",
+      "yhct_term": "Hiếp thống",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "G58",
+      "code": "U55.541",
+      "display_code": "U55.541",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500068",
+      "record_type": "clinical_form",
+      "common_code": "6500068",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U55.541.01",
+      "display_code": "U55.541.01",
+      "parent_id": "YHCT:6500067",
+      "parent_yhhd_term": "Đau thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500069",
+      "record_type": "clinical_form",
+      "common_code": "6500069",
+      "canonical_term": "Thể can khí uất kết",
+      "category": "Đông Y / YHCT",
+      "code": "U55.541.02",
+      "display_code": "U55.541.02",
+      "parent_id": "YHCT:6500067",
+      "parent_yhhd_term": "Đau thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500070",
+      "record_type": "clinical_form",
+      "common_code": "6500070",
+      "canonical_term": "Thể can uất hóa hỏa",
+      "category": "Đông Y / YHCT",
+      "code": "U55.541.03",
+      "display_code": "U55.541.03",
+      "parent_id": "YHCT:6500067",
+      "parent_yhhd_term": "Đau thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500071",
+      "record_type": "clinical_form",
+      "common_code": "6500071",
+      "canonical_term": "Thể tà uất thiếu dương",
+      "category": "Đông Y / YHCT",
+      "code": "U55.541.04",
+      "display_code": "U55.541.04",
+      "parent_id": "YHCT:6500067",
+      "parent_yhhd_term": "Đau thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500072",
+      "record_type": "clinical_form",
+      "common_code": "6500072",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U55.541.05",
+      "display_code": "U55.541.05",
+      "parent_id": "YHCT:6500067",
+      "parent_yhhd_term": "Đau thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500073",
+      "record_type": "clinical_form",
+      "common_code": "6500073",
+      "canonical_term": "Thể can đởm thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U55.541.06",
+      "display_code": "U55.541.06",
+      "parent_id": "YHCT:6500067",
+      "parent_yhhd_term": "Đau thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500074",
+      "record_type": "clinical_form",
+      "common_code": "6500074",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U55.541.07",
+      "display_code": "U55.541.07",
+      "parent_id": "YHCT:6500067",
+      "parent_yhhd_term": "Đau thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500075",
+      "record_type": "base",
+      "common_code": "6500075",
+      "canonical_term": "Bệnh dây thần kinh liên sườn (Hiếp thống)",
+      "yhhd_term": "Bệnh dây thần kinh liên sườn",
+      "yhct_term": "Hiếp thống",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "G58.0",
+      "code": "U55.531",
+      "display_code": "U55.531",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500076",
+      "record_type": "clinical_form",
+      "common_code": "6500076",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U55.531.01",
+      "display_code": "U55.531.01",
+      "parent_id": "YHCT:6500075",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500077",
+      "record_type": "clinical_form",
+      "common_code": "6500077",
+      "canonical_term": "Thể can khí uất kết",
+      "category": "Đông Y / YHCT",
+      "code": "U55.531.02",
+      "display_code": "U55.531.02",
+      "parent_id": "YHCT:6500075",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500078",
+      "record_type": "clinical_form",
+      "common_code": "6500078",
+      "canonical_term": "Thể can uất hóa hỏa",
+      "category": "Đông Y / YHCT",
+      "code": "U55.531.03",
+      "display_code": "U55.531.03",
+      "parent_id": "YHCT:6500075",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500079",
+      "record_type": "clinical_form",
+      "common_code": "6500079",
+      "canonical_term": "Thể tà uất thiếu dương",
+      "category": "Đông Y / YHCT",
+      "code": "U55.531.04",
+      "display_code": "U55.531.04",
+      "parent_id": "YHCT:6500075",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500080",
+      "record_type": "clinical_form",
+      "common_code": "6500080",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U55.531.05",
+      "display_code": "U55.531.05",
+      "parent_id": "YHCT:6500075",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500081",
+      "record_type": "clinical_form",
+      "common_code": "6500081",
+      "canonical_term": "Thể can đởm thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U55.531.06",
+      "display_code": "U55.531.06",
+      "parent_id": "YHCT:6500075",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500082",
+      "record_type": "clinical_form",
+      "common_code": "6500082",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U55.531.07",
+      "display_code": "U55.531.07",
+      "parent_id": "YHCT:6500075",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên sườn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500083",
+      "record_type": "base",
+      "common_code": "6500083",
+      "canonical_term": "Bệnh dây thần kinh liên (Chứng tý)",
+      "yhhd_term": "Bệnh dây thần kinh liên",
+      "yhct_term": "Chứng tý",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "G58.0",
+      "code": "U55.431",
+      "display_code": "U55.431",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 4
+      }
+    },
+    {
+      "id": "YHCT:6500084",
+      "record_type": "clinical_form",
+      "common_code": "6500084",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U55.431.01",
+      "display_code": "U55.431.01",
+      "parent_id": "YHCT:6500083",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500085",
+      "record_type": "clinical_form",
+      "common_code": "6500085",
+      "canonical_term": "Thể can khí uất kết",
+      "category": "Đông Y / YHCT",
+      "code": "U55.431.02",
+      "display_code": "U55.431.02",
+      "parent_id": "YHCT:6500083",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500086",
+      "record_type": "clinical_form",
+      "common_code": "6500086",
+      "canonical_term": "Thể can uất hóa hỏa",
+      "category": "Đông Y / YHCT",
+      "code": "U55.431.03",
+      "display_code": "U55.431.03",
+      "parent_id": "YHCT:6500083",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500087",
+      "record_type": "clinical_form",
+      "common_code": "6500087",
+      "canonical_term": "Thể tà uất thiếu dương",
+      "category": "Đông Y / YHCT",
+      "code": "U55.431.04",
+      "display_code": "U55.431.04",
+      "parent_id": "YHCT:6500083",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500088",
+      "record_type": "clinical_form",
+      "common_code": "6500088",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U55.431.05",
+      "display_code": "U55.431.05",
+      "parent_id": "YHCT:6500083",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500089",
+      "record_type": "clinical_form",
+      "common_code": "6500089",
+      "canonical_term": "Thể can đởm thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U55.431.06",
+      "display_code": "U55.431.06",
+      "parent_id": "YHCT:6500083",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500090",
+      "record_type": "clinical_form",
+      "common_code": "6500090",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U55.431.07",
+      "display_code": "U55.431.07",
+      "parent_id": "YHCT:6500083",
+      "parent_yhhd_term": "Bệnh dây thần kinh liên",
+      "parent_yhct_term": "Chứng tý",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500091",
+      "record_type": "base",
+      "common_code": "6500091",
+      "canonical_term": "Đau dây thần kinh toạ (Tọa cốt phong)",
+      "yhhd_term": "Đau dây thần kinh toạ",
+      "yhct_term": "Tọa cốt phong",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M54.3",
+      "code": "U62.391",
+      "display_code": "U62.391",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500092",
+      "record_type": "clinical_form",
+      "common_code": "6500092",
+      "canonical_term": "Thể phong hàn thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.391.01",
+      "display_code": "U62.391.01",
+      "parent_id": "YHCT:6500091",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa cốt phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500093",
+      "record_type": "clinical_form",
+      "common_code": "6500093",
+      "canonical_term": "Thể phong hàn thấp kết h p can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.391.02",
+      "display_code": "U62.391.02",
+      "parent_id": "YHCT:6500091",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa cốt phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500094",
+      "record_type": "clinical_form",
+      "common_code": "6500094",
+      "canonical_term": "Thể thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U62.391.03",
+      "display_code": "U62.391.03",
+      "parent_id": "YHCT:6500091",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa cốt phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500095",
+      "record_type": "clinical_form",
+      "common_code": "6500095",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U62.391.04",
+      "display_code": "U62.391.04",
+      "parent_id": "YHCT:6500091",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa cốt phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500096",
+      "record_type": "clinical_form",
+      "common_code": "6500096",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.391.05",
+      "display_code": "U62.391.05",
+      "parent_id": "YHCT:6500091",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa cốt phong",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500097",
+      "record_type": "base",
+      "common_code": "6500097",
+      "canonical_term": "Đau dây thần kinh toạ (Yêu cước thống)",
+      "yhhd_term": "Đau dây thần kinh toạ",
+      "yhct_term": "Yêu cước thống",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M54.3",
+      "code": "U62.392",
+      "display_code": "U62.392",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500098",
+      "record_type": "clinical_form",
+      "common_code": "6500098",
+      "canonical_term": "Thể phong hàn thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.01",
+      "display_code": "U62.392.01",
+      "parent_id": "YHCT:6500097",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Yêu cước thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500099",
+      "record_type": "clinical_form",
+      "common_code": "6500099",
+      "canonical_term": "Thể phong hàn thấp kết h p can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.02",
+      "display_code": "U62.392.02",
+      "parent_id": "YHCT:6500097",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Yêu cước thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500100",
+      "record_type": "clinical_form",
+      "common_code": "6500100",
+      "canonical_term": "Thể thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.03",
+      "display_code": "U62.392.03",
+      "parent_id": "YHCT:6500097",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Yêu cước thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500101",
+      "record_type": "clinical_form",
+      "common_code": "6500101",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.04",
+      "display_code": "U62.392.04",
+      "parent_id": "YHCT:6500097",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Yêu cước thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500102",
+      "record_type": "clinical_form",
+      "common_code": "6500102",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.392.05",
+      "display_code": "U62.392.05",
+      "parent_id": "YHCT:6500097",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Yêu cước thống",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500103",
+      "record_type": "base",
+      "common_code": "6500103",
+      "canonical_term": "Đau dây thần kinh toạ (Tọa điến phong)",
+      "yhhd_term": "Đau dây thần kinh toạ",
+      "yhct_term": "Tọa điến phong",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "M54.3",
+      "code": "U62.393",
+      "display_code": "U62.393",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500104",
+      "record_type": "clinical_form",
+      "common_code": "6500104",
+      "canonical_term": "Thể phong hàn thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U62.393.01",
+      "display_code": "U62.393.01",
+      "parent_id": "YHCT:6500103",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa điến phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 5
+      }
+    },
+    {
+      "id": "YHCT:6500105",
+      "record_type": "clinical_form",
+      "common_code": "6500105",
+      "canonical_term": "Thể phong hàn thấp kết h p can thận hư",
+      "category": "Đông Y / YHCT",
+      "code": "U62.393.02",
+      "display_code": "U62.393.02",
+      "parent_id": "YHCT:6500103",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa điến phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500106",
+      "record_type": "clinical_form",
+      "common_code": "6500106",
+      "canonical_term": "Thể thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U62.393.03",
+      "display_code": "U62.393.03",
+      "parent_id": "YHCT:6500103",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa điến phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500107",
+      "record_type": "clinical_form",
+      "common_code": "6500107",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U62.393.04",
+      "display_code": "U62.393.04",
+      "parent_id": "YHCT:6500103",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa điến phong",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500108",
+      "record_type": "clinical_form",
+      "common_code": "6500108",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U62.393.05",
+      "display_code": "U62.393.05",
+      "parent_id": "YHCT:6500103",
+      "parent_yhhd_term": "Đau dây thần kinh toạ",
+      "parent_yhct_term": "Tọa điến phong",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500109",
+      "record_type": "base",
+      "common_code": "6500109",
+      "canonical_term": "Di chứng nhồi máu não (Bán thân bất toại)",
+      "yhhd_term": "Di chứng nhồi máu não",
+      "yhct_term": "Bán thân bất toại",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "I69.3",
+      "code": "U58.021",
+      "display_code": "U58.021",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500110",
+      "record_type": "clinical_form",
+      "common_code": "6500110",
+      "canonical_term": "Thể can thận âm hư",
+      "category": "Đông Y / YHCT",
+      "code": "U58.021.01",
+      "display_code": "U58.021.01",
+      "parent_id": "YHCT:6500109",
+      "parent_yhhd_term": "Di chứng nhồi máu não",
+      "parent_yhct_term": "Bán thân bất toại",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500111",
+      "record_type": "clinical_form",
+      "common_code": "6500111",
+      "canonical_term": "Thể phong đàm",
+      "category": "Đông Y / YHCT",
+      "code": "U58.021.02",
+      "display_code": "U58.021.02",
+      "parent_id": "YHCT:6500109",
+      "parent_yhhd_term": "Di chứng nhồi máu não",
+      "parent_yhct_term": "Bán thân bất toại",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500112",
+      "record_type": "clinical_form",
+      "common_code": "6500112",
+      "canonical_term": "Thể khí hư huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U58.021.03",
+      "display_code": "U58.021.03",
+      "parent_id": "YHCT:6500109",
+      "parent_yhhd_term": "Di chứng nhồi máu não",
+      "parent_yhct_term": "Bán thân bất toại",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500113",
+      "record_type": "clinical_form",
+      "common_code": "6500113",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U58.021.04",
+      "display_code": "U58.021.04",
+      "parent_id": "YHCT:6500109",
+      "parent_yhhd_term": "Di chứng nhồi máu não",
+      "parent_yhct_term": "Bán thân bất toại",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500114",
+      "record_type": "base",
+      "common_code": "6500114",
+      "canonical_term": "Di chứng nhồi máu não (Thất ngôn)",
+      "yhhd_term": "Di chứng nhồi máu não",
+      "yhct_term": "Thất ngôn",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "I69.3",
+      "code": "U58.022",
+      "display_code": "U58.022",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500115",
+      "record_type": "clinical_form",
+      "common_code": "6500115",
+      "canonical_term": "Thể can thận âm hư",
+      "category": "Đông Y / YHCT",
+      "code": "U58.022.01",
+      "display_code": "U58.022.01",
+      "parent_id": "YHCT:6500114",
+      "parent_yhhd_term": "Di chứng nhồi máu não",
+      "parent_yhct_term": "Thất ngôn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500116",
+      "record_type": "clinical_form",
+      "common_code": "6500116",
+      "canonical_term": "Thể phong đàm",
+      "category": "Đông Y / YHCT",
+      "code": "U58.022.02",
+      "display_code": "U58.022.02",
+      "parent_id": "YHCT:6500114",
+      "parent_yhhd_term": "Di chứng nhồi máu não",
+      "parent_yhct_term": "Thất ngôn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500117",
+      "record_type": "clinical_form",
+      "common_code": "6500117",
+      "canonical_term": "Thể khí hư huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U58.022.03",
+      "display_code": "U58.022.03",
+      "parent_id": "YHCT:6500114",
+      "parent_yhhd_term": "Di chứng nhồi máu não",
+      "parent_yhct_term": "Thất ngôn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500118",
+      "record_type": "clinical_form",
+      "common_code": "6500118",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U58.022.04",
+      "display_code": "U58.022.04",
+      "parent_id": "YHCT:6500114",
+      "parent_yhhd_term": "Di chứng nhồi máu não",
+      "parent_yhct_term": "Thất ngôn",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500119",
+      "record_type": "base",
+      "common_code": "6500119",
+      "canonical_term": "Bại não (Ngũ trì)",
+      "yhhd_term": "Bại não",
+      "yhct_term": "Ngũ trì",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "G80",
+      "code": "U55.611",
+      "display_code": "U55.611",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500120",
+      "record_type": "clinical_form",
+      "common_code": "6500120",
+      "canonical_term": "Thể can thận bất túc",
+      "category": "Đông Y / YHCT",
+      "code": "U55.611.01",
+      "display_code": "U55.611.01",
+      "parent_id": "YHCT:6500119",
+      "parent_yhhd_term": "Bại não",
+      "parent_yhct_term": "Ngũ trì",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500121",
+      "record_type": "clinical_form",
+      "common_code": "6500121",
+      "canonical_term": "Thể tâm tỳ hư",
+      "category": "Đông Y / YHCT",
+      "code": "U55.611.02",
+      "display_code": "U55.611.02",
+      "parent_id": "YHCT:6500119",
+      "parent_yhhd_term": "Bại não",
+      "parent_yhct_term": "Ngũ trì",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500122",
+      "record_type": "clinical_form",
+      "common_code": "6500122",
+      "canonical_term": "Thể đàm ứ trở trệ",
+      "category": "Đông Y / YHCT",
+      "code": "U55.611.03",
+      "display_code": "U55.611.03",
+      "parent_id": "YHCT:6500119",
+      "parent_yhhd_term": "Bại não",
+      "parent_yhct_term": "Ngũ trì",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500123",
+      "record_type": "clinical_form",
+      "common_code": "6500123",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U55.611.04",
+      "display_code": "U55.611.04",
+      "parent_id": "YHCT:6500119",
+      "parent_yhhd_term": "Bại não",
+      "parent_yhct_term": "Ngũ trì",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500124",
+      "record_type": "base",
+      "common_code": "6500124",
+      "canonical_term": "Bại não (Si ngốc)",
+      "yhhd_term": "Bại não",
+      "yhct_term": "Si ngốc",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "G80",
+      "code": "U55.612",
+      "display_code": "U55.612",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500125",
+      "record_type": "clinical_form",
+      "common_code": "6500125",
+      "canonical_term": "Thể can thận bất túc",
+      "category": "Đông Y / YHCT",
+      "code": "U55.612.01",
+      "display_code": "U55.612.01",
+      "parent_id": "YHCT:6500124",
+      "parent_yhhd_term": "Bại não",
+      "parent_yhct_term": "Si ngốc",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500126",
+      "record_type": "clinical_form",
+      "common_code": "6500126",
+      "canonical_term": "Thể tâm tỳ hư",
+      "category": "Đông Y / YHCT",
+      "code": "U55.612.02",
+      "display_code": "U55.612.02",
+      "parent_id": "YHCT:6500124",
+      "parent_yhhd_term": "Bại não",
+      "parent_yhct_term": "Si ngốc",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500127",
+      "record_type": "clinical_form",
+      "common_code": "6500127",
+      "canonical_term": "Thể đàm ứ trở trệ",
+      "category": "Đông Y / YHCT",
+      "code": "U55.612.03",
+      "display_code": "U55.612.03",
+      "parent_id": "YHCT:6500124",
+      "parent_yhhd_term": "Bại não",
+      "parent_yhct_term": "Si ngốc",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500128",
+      "record_type": "clinical_form",
+      "common_code": "6500128",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U55.612.04",
+      "display_code": "U55.612.04",
+      "parent_id": "YHCT:6500124",
+      "parent_yhhd_term": "Bại não",
+      "parent_yhct_term": "Si ngốc",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 6
+      }
+    },
+    {
+      "id": "YHCT:6500129",
+      "record_type": "base",
+      "common_code": "6500129",
+      "canonical_term": "0 2B/ại não (Si chứng)",
+      "yhhd_term": "0 2B/ại não",
+      "yhct_term": "Si chứng",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "G80",
+      "code": "U55.613",
+      "display_code": "U55.613",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500130",
+      "record_type": "clinical_form",
+      "common_code": "6500130",
+      "canonical_term": "Thể can thận bất túc",
+      "category": "Đông Y / YHCT",
+      "code": "U55.613.01",
+      "display_code": "U55.613.01",
+      "parent_id": "YHCT:6500129",
+      "parent_yhhd_term": "0 2B/ại não",
+      "parent_yhct_term": "Si chứng",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500131",
+      "record_type": "clinical_form",
+      "common_code": "6500131",
+      "canonical_term": "Thể tâm tỳ hư",
+      "category": "Đông Y / YHCT",
+      "code": "U55.613.02",
+      "display_code": "U55.613.02",
+      "parent_id": "YHCT:6500129",
+      "parent_yhhd_term": "0 2B/ại não",
+      "parent_yhct_term": "Si chứng",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500132",
+      "record_type": "clinical_form",
+      "common_code": "6500132",
+      "canonical_term": "Thể đàm ứ trở trệ",
+      "category": "Đông Y / YHCT",
+      "code": "U55.613.03",
+      "display_code": "U55.613.03",
+      "parent_id": "YHCT:6500129",
+      "parent_yhhd_term": "0 2B/ại não",
+      "parent_yhct_term": "Si chứng",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500133",
+      "record_type": "clinical_form",
+      "common_code": "6500133",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U55.613.04",
+      "display_code": "U55.613.04",
+      "parent_id": "YHCT:6500129",
+      "parent_yhhd_term": "0 2B/ại não",
+      "parent_yhct_term": "Si chứng",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500134",
+      "record_type": "base",
+      "common_code": "6500134",
+      "canonical_term": "Di chứng viêm não do virus (Ôn bệnh)",
+      "yhhd_term": "Di chứng viêm não do virus",
+      "yhct_term": "Ôn bệnh",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "B94.1",
+      "code": "U50.481",
+      "display_code": "U50.481",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500135",
+      "record_type": "clinical_form",
+      "common_code": "6500135",
+      "canonical_term": "Thể âm hư",
+      "category": "Đông Y / YHCT",
+      "code": "U50.481.01",
+      "display_code": "U50.481.01",
+      "parent_id": "YHCT:6500134",
+      "parent_yhhd_term": "Di chứng viêm não do virus",
+      "parent_yhct_term": "Ôn bệnh",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500136",
+      "record_type": "clinical_form",
+      "common_code": "6500136",
+      "canonical_term": "Thể khí âm lưỡng hư",
+      "category": "Đông Y / YHCT",
+      "code": "U50.481.02",
+      "display_code": "U50.481.02",
+      "parent_id": "YHCT:6500134",
+      "parent_yhhd_term": "Di chứng viêm não do virus",
+      "parent_yhct_term": "Ôn bệnh",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500137",
+      "record_type": "clinical_form",
+      "common_code": "6500137",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U50.481.03",
+      "display_code": "U50.481.03",
+      "parent_id": "YHCT:6500134",
+      "parent_yhhd_term": "Di chứng viêm não do virus",
+      "parent_yhct_term": "Ôn bệnh",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500138",
+      "record_type": "base",
+      "common_code": "6500138",
+      "canonical_term": "Suy dinh dưỡng thể marasmus (Cam tích)",
+      "yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "yhct_term": "Cam tích",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "E41",
+      "code": "U53.071",
+      "display_code": "U53.071",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500139",
+      "record_type": "clinical_form",
+      "common_code": "6500139",
+      "canonical_term": "Thể Cam khí",
+      "category": "Đông Y / YHCT",
+      "code": "U53.071.01",
+      "display_code": "U53.071.01",
+      "parent_id": "YHCT:6500138",
+      "parent_yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "parent_yhct_term": "Cam tích",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500140",
+      "record_type": "clinical_form",
+      "common_code": "6500140",
+      "canonical_term": "Thể Cam tích",
+      "category": "Đông Y / YHCT",
+      "code": "U53.071.02",
+      "display_code": "U53.071.02",
+      "parent_id": "YHCT:6500138",
+      "parent_yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "parent_yhct_term": "Cam tích",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500141",
+      "record_type": "clinical_form",
+      "common_code": "6500141",
+      "canonical_term": "Thể Can cam",
+      "category": "Đông Y / YHCT",
+      "code": "U53.071.03",
+      "display_code": "U53.071.03",
+      "parent_id": "YHCT:6500138",
+      "parent_yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "parent_yhct_term": "Cam tích",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500142",
+      "record_type": "clinical_form",
+      "common_code": "6500142",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U53.071.04",
+      "display_code": "U53.071.04",
+      "parent_id": "YHCT:6500138",
+      "parent_yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "parent_yhct_term": "Cam tích",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500143",
+      "record_type": "base",
+      "common_code": "6500143",
+      "canonical_term": "Suy dinh dưỡng thể marasmus (Chứng cam)",
+      "yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "yhct_term": "Chứng cam",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "E41",
+      "code": "U53.072",
+      "display_code": "U53.072",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500144",
+      "record_type": "clinical_form",
+      "common_code": "6500144",
+      "canonical_term": "Thể Cam khí",
+      "category": "Đông Y / YHCT",
+      "code": "U53.072.01",
+      "display_code": "U53.072.01",
+      "parent_id": "YHCT:6500143",
+      "parent_yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "parent_yhct_term": "Chứng cam",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500145",
+      "record_type": "clinical_form",
+      "common_code": "6500145",
+      "canonical_term": "Thể cam tích",
+      "category": "Đông Y / YHCT",
+      "code": "U53.072.02",
+      "display_code": "U53.072.02",
+      "parent_id": "YHCT:6500143",
+      "parent_yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "parent_yhct_term": "Chứng cam",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500146",
+      "record_type": "clinical_form",
+      "common_code": "6500146",
+      "canonical_term": "Thể Can cam",
+      "category": "Đông Y / YHCT",
+      "code": "U53.072.03",
+      "display_code": "U53.072.03",
+      "parent_id": "YHCT:6500143",
+      "parent_yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "parent_yhct_term": "Chứng cam",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500147",
+      "record_type": "clinical_form",
+      "common_code": "6500147",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U53.072.04",
+      "display_code": "U53.072.04",
+      "parent_id": "YHCT:6500143",
+      "parent_yhhd_term": "Suy dinh dưỡng thể marasmus",
+      "parent_yhct_term": "Chứng cam",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500148",
+      "record_type": "base",
+      "common_code": "6500148",
+      "canonical_term": "Viêm dạ dày và tá tràng (Vị quản thống)",
+      "yhhd_term": "Viêm dạ dày và tá tràng",
+      "yhct_term": "Vị quản thống",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "K29",
+      "code": "U60.471",
+      "display_code": "U60.471",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500149",
+      "record_type": "clinical_form",
+      "common_code": "6500149",
+      "canonical_term": "Thể can khí phạm vị",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.01",
+      "display_code": "U60.471.01",
+      "parent_id": "YHCT:6500148",
+      "parent_yhhd_term": "Viêm dạ dày và tá tràng",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 7
+      }
+    },
+    {
+      "id": "YHCT:6500150",
+      "record_type": "clinical_form",
+      "common_code": "6500150",
+      "canonical_term": "Thể khí trệ",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.01.01",
+      "display_code": "U60.471.01.01",
+      "parent_id": "YHCT:6500148",
+      "parent_yhhd_term": "Viêm dạ dày và tá tràng",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500151",
+      "record_type": "clinical_form",
+      "common_code": "6500151",
+      "canonical_term": "Thể hỏa uất",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.01.02",
+      "display_code": "U60.471.01.02",
+      "parent_id": "YHCT:6500148",
+      "parent_yhhd_term": "Viêm dạ dày và tá tràng",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500152",
+      "record_type": "clinical_form",
+      "common_code": "6500152",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.01.03",
+      "display_code": "U60.471.01.03",
+      "parent_id": "YHCT:6500148",
+      "parent_yhhd_term": "Viêm dạ dày và tá tràng",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500153",
+      "record_type": "clinical_form",
+      "common_code": "6500153",
+      "canonical_term": "Thể tỳ vị hư hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.02",
+      "display_code": "U60.471.02",
+      "parent_id": "YHCT:6500148",
+      "parent_yhhd_term": "Viêm dạ dày và tá tràng",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500154",
+      "record_type": "clinical_form",
+      "common_code": "6500154",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.03",
+      "display_code": "U60.471.03",
+      "parent_id": "YHCT:6500148",
+      "parent_yhhd_term": "Viêm dạ dày và tá tràng",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500155",
+      "record_type": "base",
+      "common_code": "6500155",
+      "canonical_term": "Viêm dạ dày khác (Vị quản thống)",
+      "yhhd_term": "Viêm dạ dày khác",
+      "yhct_term": "Vị quản thống",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "K29.6",
+      "code": "U60.471.6",
+      "display_code": "U60.471.6",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500156",
+      "record_type": "clinical_form",
+      "common_code": "6500156",
+      "canonical_term": "Thể can khí phạm vị",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.6.01",
+      "display_code": "U60.471.6.01",
+      "parent_id": "YHCT:6500155",
+      "parent_yhhd_term": "Viêm dạ dày khác",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500157",
+      "record_type": "clinical_form",
+      "common_code": "6500157",
+      "canonical_term": "Thể khí trệ",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.6.01.01",
+      "display_code": "U60.471.6.01.01",
+      "parent_id": "YHCT:6500155",
+      "parent_yhhd_term": "Viêm dạ dày khác",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500158",
+      "record_type": "clinical_form",
+      "common_code": "6500158",
+      "canonical_term": "Thể hỏa uất",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.6.01.02",
+      "display_code": "U60.471.6.01.02",
+      "parent_id": "YHCT:6500155",
+      "parent_yhhd_term": "Viêm dạ dày khác",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500159",
+      "record_type": "clinical_form",
+      "common_code": "6500159",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.6.01.03",
+      "display_code": "U60.471.6.01.03",
+      "parent_id": "YHCT:6500155",
+      "parent_yhhd_term": "Viêm dạ dày khác",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500160",
+      "record_type": "clinical_form",
+      "common_code": "6500160",
+      "canonical_term": "Thể tỳ vị hư hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.6.02",
+      "display_code": "U60.471.6.02",
+      "parent_id": "YHCT:6500155",
+      "parent_yhhd_term": "Viêm dạ dày khác",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500161",
+      "record_type": "clinical_form",
+      "common_code": "6500161",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.6.03",
+      "display_code": "U60.471.6.03",
+      "parent_id": "YHCT:6500155",
+      "parent_yhhd_term": "Viêm dạ dày khác",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500162",
+      "record_type": "base",
+      "common_code": "6500162",
+      "canonical_term": "Viêm dạ dày tá tràng, không đặc hiệu (Vị quản thống)",
+      "yhhd_term": "Viêm dạ dày tá tràng, không đặc hiệu",
+      "yhct_term": "Vị quản thống",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "K29.9",
+      "code": "U60.471.9",
+      "display_code": "U60.471.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500163",
+      "record_type": "clinical_form",
+      "common_code": "6500163",
+      "canonical_term": "Thể can khí phạm vị",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.9.01",
+      "display_code": "U60.471.9.01",
+      "parent_id": "YHCT:6500162",
+      "parent_yhhd_term": "Viêm dạ dày tá tràng, không đặc hiệu",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500164",
+      "record_type": "clinical_form",
+      "common_code": "6500164",
+      "canonical_term": "Thể khí trệ",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.9.01.01",
+      "display_code": "U60.471.9.01.01",
+      "parent_id": "YHCT:6500162",
+      "parent_yhhd_term": "Viêm dạ dày tá tràng, không đặc hiệu",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500165",
+      "record_type": "clinical_form",
+      "common_code": "6500165",
+      "canonical_term": "Thể hỏa uất",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.9.01.02",
+      "display_code": "U60.471.9.01.02",
+      "parent_id": "YHCT:6500162",
+      "parent_yhhd_term": "Viêm dạ dày tá tràng, không đặc hiệu",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500166",
+      "record_type": "clinical_form",
+      "common_code": "6500166",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.9.01.03",
+      "display_code": "U60.471.9.01.03",
+      "parent_id": "YHCT:6500162",
+      "parent_yhhd_term": "Viêm dạ dày tá tràng, không đặc hiệu",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500167",
+      "record_type": "clinical_form",
+      "common_code": "6500167",
+      "canonical_term": "Thể tỳ vị hư hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.9.02",
+      "display_code": "U60.471.9.02",
+      "parent_id": "YHCT:6500162",
+      "parent_yhhd_term": "Viêm dạ dày tá tràng, không đặc hiệu",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500168",
+      "record_type": "clinical_form",
+      "common_code": "6500168",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U60.471.9.03",
+      "display_code": "U60.471.9.03",
+      "parent_id": "YHCT:6500162",
+      "parent_yhhd_term": "Viêm dạ dày tá tràng, không đặc hiệu",
+      "parent_yhct_term": "Vị quản thống",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500169",
+      "record_type": "base",
+      "common_code": "6500169",
+      "canonical_term": "Viêm gan virus mạn (Hoàng đản)",
+      "yhhd_term": "Viêm gan virus mạn",
+      "yhct_term": "Hoàng đản",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "B18",
+      "code": "U50.101",
+      "display_code": "U50.101",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500170",
+      "record_type": "clinical_form",
+      "common_code": "6500170",
+      "canonical_term": "Thể khí ngưng",
+      "category": "Đông Y / YHCT",
+      "code": "U50.101.01",
+      "display_code": "U50.101.01",
+      "parent_id": "YHCT:6500169",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hoàng đản",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500171",
+      "record_type": "clinical_form",
+      "common_code": "6500171",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U50.101.02",
+      "display_code": "U50.101.02",
+      "parent_id": "YHCT:6500169",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hoàng đản",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500172",
+      "record_type": "clinical_form",
+      "common_code": "6500172",
+      "canonical_term": "Thể can đởm thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U50.101.03",
+      "display_code": "U50.101.03",
+      "parent_id": "YHCT:6500169",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hoàng đản",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500173",
+      "record_type": "clinical_form",
+      "common_code": "6500173",
+      "canonical_term": "Thể âm hư nội nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U50.101.04",
+      "display_code": "U50.101.04",
+      "parent_id": "YHCT:6500169",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hoàng đản",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 8
+      }
+    },
+    {
+      "id": "YHCT:6500174",
+      "record_type": "clinical_form",
+      "common_code": "6500174",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U50.101.05",
+      "display_code": "U50.101.05",
+      "parent_id": "YHCT:6500169",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hoàng đản",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500175",
+      "record_type": "base",
+      "common_code": "6500175",
+      "canonical_term": "Viêm gan virus mạn (Hiếp thống)",
+      "yhhd_term": "Viêm gan virus mạn",
+      "yhct_term": "Hiếp thống",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "B18",
+      "code": "U50.102",
+      "display_code": "U50.102",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500176",
+      "record_type": "clinical_form",
+      "common_code": "6500176",
+      "canonical_term": "Thể khí ngưng",
+      "category": "Đông Y / YHCT",
+      "code": "U50.102.01",
+      "display_code": "U50.102.01",
+      "parent_id": "YHCT:6500175",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500177",
+      "record_type": "clinical_form",
+      "common_code": "6500177",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U50.102.02",
+      "display_code": "U50.102.02",
+      "parent_id": "YHCT:6500175",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500178",
+      "record_type": "clinical_form",
+      "common_code": "6500178",
+      "canonical_term": "Thể can đởm thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U50.102.03",
+      "display_code": "U50.102.03",
+      "parent_id": "YHCT:6500175",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500179",
+      "record_type": "clinical_form",
+      "common_code": "6500179",
+      "canonical_term": "Thể âm hư nội nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U50.102.04",
+      "display_code": "U50.102.04",
+      "parent_id": "YHCT:6500175",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500180",
+      "record_type": "clinical_form",
+      "common_code": "6500180",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U50.102.05",
+      "display_code": "U50.102.05",
+      "parent_id": "YHCT:6500175",
+      "parent_yhhd_term": "Viêm gan virus mạn",
+      "parent_yhct_term": "Hiếp thống",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500181",
+      "record_type": "base",
+      "common_code": "6500181",
+      "canonical_term": "Các bệnh phổi tắc nghẽn mãn tính khác (Háo suyễn)",
+      "yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "yhct_term": "Háo suyễn",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "J44",
+      "code": "U59.232",
+      "display_code": "U59.232",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500182",
+      "record_type": "clinical_form",
+      "common_code": "6500182",
+      "canonical_term": "Thể phong nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U59.232.01",
+      "display_code": "U59.232.01",
+      "parent_id": "YHCT:6500181",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Háo suyễn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500183",
+      "record_type": "clinical_form",
+      "common_code": "6500183",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U59.232.02",
+      "display_code": "U59.232.02",
+      "parent_id": "YHCT:6500181",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Háo suyễn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500184",
+      "record_type": "clinical_form",
+      "common_code": "6500184",
+      "canonical_term": "Thể khí táo",
+      "category": "Đông Y / YHCT",
+      "code": "U59.232.03",
+      "display_code": "U59.232.03",
+      "parent_id": "YHCT:6500181",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Háo suyễn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500185",
+      "record_type": "clinical_form",
+      "common_code": "6500185",
+      "canonical_term": "Thể đàm thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U59.232.04",
+      "display_code": "U59.232.04",
+      "parent_id": "YHCT:6500181",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Háo suyễn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500186",
+      "record_type": "clinical_form",
+      "common_code": "6500186",
+      "canonical_term": "Thể thủy ẩm (hàn ẩm)",
+      "category": "Đông Y / YHCT",
+      "code": "U59.232.05",
+      "display_code": "U59.232.05",
+      "parent_id": "YHCT:6500181",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Háo suyễn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500187",
+      "record_type": "clinical_form",
+      "common_code": "6500187",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U59.232.06",
+      "display_code": "U59.232.06",
+      "parent_id": "YHCT:6500181",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Háo suyễn",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500188",
+      "record_type": "base",
+      "common_code": "6500188",
+      "canonical_term": "Các bệnh phổi tắc nghẽn mãn tính khác (Khái thấu)",
+      "yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "yhct_term": "Khái thấu",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "J44",
+      "code": "U59.231",
+      "display_code": "U59.231",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500189",
+      "record_type": "clinical_form",
+      "common_code": "6500189",
+      "canonical_term": "Thể phong nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U59.231.01",
+      "display_code": "U59.231.01",
+      "parent_id": "YHCT:6500188",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Khái thấu",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500190",
+      "record_type": "clinical_form",
+      "common_code": "6500190",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U59.231.02",
+      "display_code": "U59.231.02",
+      "parent_id": "YHCT:6500188",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Khái thấu",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500191",
+      "record_type": "clinical_form",
+      "common_code": "6500191",
+      "canonical_term": "Thể khí táo",
+      "category": "Đông Y / YHCT",
+      "code": "U59.231.03",
+      "display_code": "U59.231.03",
+      "parent_id": "YHCT:6500188",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Khái thấu",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500192",
+      "record_type": "clinical_form",
+      "common_code": "6500192",
+      "canonical_term": "Thể đàm thấp",
+      "category": "Đông Y / YHCT",
+      "code": "U59.231.04",
+      "display_code": "U59.231.04",
+      "parent_id": "YHCT:6500188",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Khái thấu",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500193",
+      "record_type": "clinical_form",
+      "common_code": "6500193",
+      "canonical_term": "Thể thủy ẩm (hàn ẩm)",
+      "category": "Đông Y / YHCT",
+      "code": "U59.231.05",
+      "display_code": "U59.231.05",
+      "parent_id": "YHCT:6500188",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Khái thấu",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500194",
+      "record_type": "clinical_form",
+      "common_code": "6500194",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U59.231.06",
+      "display_code": "U59.231.06",
+      "parent_id": "YHCT:6500188",
+      "parent_yhhd_term": "Các bệnh phổi tắc nghẽn mãn tính khác",
+      "parent_yhct_term": "Khái thấu",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500195",
+      "record_type": "base",
+      "common_code": "6500195",
+      "canonical_term": "Mày đay (Ẩn chẩn)",
+      "yhhd_term": "Mày đay",
+      "yhct_term": "Ẩn chẩn",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "L50",
+      "code": "U61.011",
+      "display_code": "U61.011",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500196",
+      "record_type": "clinical_form",
+      "common_code": "6500196",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U61.011.01",
+      "display_code": "U61.011.01",
+      "parent_id": "YHCT:6500195",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Ẩn chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 9
+      }
+    },
+    {
+      "id": "YHCT:6500197",
+      "record_type": "clinical_form",
+      "common_code": "6500197",
+      "canonical_term": "Thể phong nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U61.011.02",
+      "display_code": "U61.011.02",
+      "parent_id": "YHCT:6500195",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Ẩn chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500198",
+      "record_type": "clinical_form",
+      "common_code": "6500198",
+      "canonical_term": "Thể huyết hư phong táo",
+      "category": "Đông Y / YHCT",
+      "code": "U61.011.03",
+      "display_code": "U61.011.03",
+      "parent_id": "YHCT:6500195",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Ẩn chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500199",
+      "record_type": "clinical_form",
+      "common_code": "6500199",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U61.011.04",
+      "display_code": "U61.011.04",
+      "parent_id": "YHCT:6500195",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Ẩn chẩn",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500200",
+      "record_type": "base",
+      "common_code": "6500200",
+      "canonical_term": "Mày đay (Phong chẩn)",
+      "yhhd_term": "Mày đay",
+      "yhct_term": "Phong chẩn",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "L50",
+      "code": "U61.012",
+      "display_code": "U61.012",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500201",
+      "record_type": "clinical_form",
+      "common_code": "6500201",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U61.012.01",
+      "display_code": "U61.012.01",
+      "parent_id": "YHCT:6500200",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Phong chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500202",
+      "record_type": "clinical_form",
+      "common_code": "6500202",
+      "canonical_term": "Thể phong nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U61.012.02",
+      "display_code": "U61.012.02",
+      "parent_id": "YHCT:6500200",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Phong chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500203",
+      "record_type": "clinical_form",
+      "common_code": "6500203",
+      "canonical_term": "Thể huyết hư phong táo",
+      "category": "Đông Y / YHCT",
+      "code": "U61.012.03",
+      "display_code": "U61.012.03",
+      "parent_id": "YHCT:6500200",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Phong chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500204",
+      "record_type": "clinical_form",
+      "common_code": "6500204",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U61.012.04",
+      "display_code": "U61.012.04",
+      "parent_id": "YHCT:6500200",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Phong chẩn",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500205",
+      "record_type": "base",
+      "common_code": "6500205",
+      "canonical_term": "Mày đay (Tầm ma chẩn)",
+      "yhhd_term": "Mày đay",
+      "yhct_term": "Tầm ma chẩn",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "L50",
+      "code": "U61.013",
+      "display_code": "U61.013",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500206",
+      "record_type": "clinical_form",
+      "common_code": "6500206",
+      "canonical_term": "Thể phong hàn",
+      "category": "Đông Y / YHCT",
+      "code": "U61.013.01",
+      "display_code": "U61.013.01",
+      "parent_id": "YHCT:6500205",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Tầm ma chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500207",
+      "record_type": "clinical_form",
+      "common_code": "6500207",
+      "canonical_term": "Thể phong nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U61.013.02",
+      "display_code": "U61.013.02",
+      "parent_id": "YHCT:6500205",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Tầm ma chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500208",
+      "record_type": "clinical_form",
+      "common_code": "6500208",
+      "canonical_term": "Thể huyết hư phong táo",
+      "category": "Đông Y / YHCT",
+      "code": "U61.013.03",
+      "display_code": "U61.013.03",
+      "parent_id": "YHCT:6500205",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Tầm ma chẩn",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500209",
+      "record_type": "clinical_form",
+      "common_code": "6500209",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U61.013.04",
+      "display_code": "U61.013.04",
+      "parent_id": "YHCT:6500205",
+      "parent_yhhd_term": "Mày đay",
+      "parent_yhct_term": "Tầm ma chẩn",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500210",
+      "record_type": "base",
+      "common_code": "6500210",
+      "canonical_term": "Bí đái (Tiện bí)",
+      "yhhd_term": "Bí đái",
+      "yhct_term": "Tiện bí",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "R33",
+      "code": "U66.371",
+      "display_code": "U66.371",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500211",
+      "record_type": "clinical_form",
+      "common_code": "6500211",
+      "canonical_term": "Thể bàng quang thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U66.371.01",
+      "display_code": "U66.371.01",
+      "parent_id": "YHCT:6500210",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Tiện bí",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500212",
+      "record_type": "clinical_form",
+      "common_code": "6500212",
+      "canonical_term": "Thể phế nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U66.371.02",
+      "display_code": "U66.371.02",
+      "parent_id": "YHCT:6500210",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Tiện bí",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500213",
+      "record_type": "clinical_form",
+      "common_code": "6500213",
+      "canonical_term": "Thể khí trệ huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U66.371.03",
+      "display_code": "U66.371.03",
+      "parent_id": "YHCT:6500210",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Tiện bí",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500214",
+      "record_type": "clinical_form",
+      "common_code": "6500214",
+      "canonical_term": "Thể thận khí hư",
+      "category": "Đông Y / YHCT",
+      "code": "U66.371.04",
+      "display_code": "U66.371.04",
+      "parent_id": "YHCT:6500210",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Tiện bí",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500215",
+      "record_type": "clinical_form",
+      "common_code": "6500215",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U66.371.05",
+      "display_code": "U66.371.05",
+      "parent_id": "YHCT:6500210",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Tiện bí",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500216",
+      "record_type": "base",
+      "common_code": "6500216",
+      "canonical_term": "Bí đái (Lung bế)",
+      "yhhd_term": "Bí đái",
+      "yhct_term": "Lung bế",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "R33",
+      "code": "U66.372",
+      "display_code": "U66.372",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500217",
+      "record_type": "clinical_form",
+      "common_code": "6500217",
+      "canonical_term": "Thể bàng quang thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U66.372.01",
+      "display_code": "U66.372.01",
+      "parent_id": "YHCT:6500216",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Lung bế",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500218",
+      "record_type": "clinical_form",
+      "common_code": "6500218",
+      "canonical_term": "Thể phế nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U66.372.02",
+      "display_code": "U66.372.02",
+      "parent_id": "YHCT:6500216",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Lung bế",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500219",
+      "record_type": "clinical_form",
+      "common_code": "6500219",
+      "canonical_term": "Thể khí trệ huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U66.372.03",
+      "display_code": "U66.372.03",
+      "parent_id": "YHCT:6500216",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Lung bế",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500220",
+      "record_type": "clinical_form",
+      "common_code": "6500220",
+      "canonical_term": "Thể thận khí hư",
+      "category": "Đông Y / YHCT",
+      "code": "U66.372.04",
+      "display_code": "U66.372.04",
+      "parent_id": "YHCT:6500216",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Lung bế",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 10
+      }
+    },
+    {
+      "id": "YHCT:6500221",
+      "record_type": "clinical_form",
+      "common_code": "6500221",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U66.372.05",
+      "display_code": "U66.372.05",
+      "parent_id": "YHCT:6500216",
+      "parent_yhhd_term": "Bí đái",
+      "parent_yhct_term": "Lung bế",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 11
+      }
+    },
+    {
+      "id": "YHCT:6500222",
+      "record_type": "base",
+      "common_code": "6500222",
+      "canonical_term": "Trĩ (Hạ trĩ)",
+      "yhhd_term": "Trĩ",
+      "yhct_term": "Hạ trĩ",
+      "category": "Đông Y / YHCT",
+      "icd10_code": "I84",
+      "code": "U58.762",
+      "display_code": "U58.762",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 11
+      }
+    },
+    {
+      "id": "YHCT:6500223",
+      "record_type": "clinical_form",
+      "common_code": "6500223",
+      "canonical_term": "Thể nhiệt độc",
+      "category": "Đông Y / YHCT",
+      "code": "U58.762.01",
+      "display_code": "U58.762.01",
+      "parent_id": "YHCT:6500222",
+      "parent_yhhd_term": "Trĩ",
+      "parent_yhct_term": "Hạ trĩ",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 11
+      }
+    },
+    {
+      "id": "YHCT:6500224",
+      "record_type": "clinical_form",
+      "common_code": "6500224",
+      "canonical_term": "Thể huyết ứ",
+      "category": "Đông Y / YHCT",
+      "code": "U58.762.02",
+      "display_code": "U58.762.02",
+      "parent_id": "YHCT:6500222",
+      "parent_yhhd_term": "Trĩ",
+      "parent_yhct_term": "Hạ trĩ",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 11
+      }
+    },
+    {
+      "id": "YHCT:6500225",
+      "record_type": "clinical_form",
+      "common_code": "6500225",
+      "canonical_term": "Thể thấp nhiệt",
+      "category": "Đông Y / YHCT",
+      "code": "U58.762.03",
+      "display_code": "U58.762.03",
+      "parent_id": "YHCT:6500222",
+      "parent_yhhd_term": "Trĩ",
+      "parent_yhct_term": "Hạ trĩ",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 11
+      }
+    },
+    {
+      "id": "YHCT:6500226",
+      "record_type": "clinical_form",
+      "common_code": "6500226",
+      "canonical_term": "Thể khí huyết lưỡng hư",
+      "category": "Đông Y / YHCT",
+      "code": "U58.762.04",
+      "display_code": "U58.762.04",
+      "parent_id": "YHCT:6500222",
+      "parent_yhhd_term": "Trĩ",
+      "parent_yhct_term": "Hạ trĩ",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 11
+      }
+    },
+    {
+      "id": "YHCT:6500227",
+      "record_type": "clinical_form",
+      "common_code": "6500227",
+      "canonical_term": "Thể khác",
+      "category": "Đông Y / YHCT",
+      "code": "U58.762.05",
+      "display_code": "U58.762.05",
+      "parent_id": "YHCT:6500222",
+      "parent_yhhd_term": "Trĩ",
+      "parent_yhct_term": "Hạ trĩ",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "source": {
+        "document": "PhuLuc1.pdf",
+        "page": 11
+      }
+    }
+  ]
+}

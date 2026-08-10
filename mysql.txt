@@ -1,29 +1,194 @@
--- 1. Tạo CSDL hỗ trợ tiếng Việt có dấu
-CREATE DATABASE IF NOT EXISTS yhoc_corpus 
-CHARACTER SET utf8mb4 
-COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS yhoc_corpus
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
 
 USE yhoc_corpus;
 
--- 2. Tạo bảng lưu trữ thông tin các bài báo y học được crawl về
-CREATE TABLE IF NOT EXISTS articles (
-    id INT AUTO_INCREMENT PRIMARY KEY,          
-    title VARCHAR(500) NOT NULL,                
-    authors TEXT,                               
-    abstract TEXT,                              
-    publication_year INT,                       
-    source_url VARCHAR(512),                    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
-);
 
--- 3. Tạo bảng lưu trữ nhật ký thu thập (logs)
+-- ============================================================
+-- 1. BẢNG BÀI BÁO
+-- Lưu metadata, tóm tắt thu thập được và kết quả highlight NER.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS articles (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+    title VARCHAR(500) NOT NULL,
+    authors TEXT NULL,
+    abstract LONGTEXT NULL,
+
+    publication_year SMALLINT UNSIGNED NULL,
+    source_url VARCHAR(512) NOT NULL,
+
+    highlighted_html LONGTEXT NULL,
+
+    created_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    UNIQUE KEY uq_articles_source_url (source_url),
+    KEY idx_articles_publication_year (publication_year),
+    KEY idx_articles_created_at (created_at),
+    KEY idx_articles_title (title(191))
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- 2. BẢNG KHÁI NIỆM/THỰC THỂ ĐÃ GÁN NHÃN
+-- Một bài báo có thể có nhiều thực thể.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS extracted_concepts (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    article_id INT UNSIGNED NOT NULL,
+
+    concept_name VARCHAR(500) NOT NULL,
+    concept_type VARCHAR(100) NOT NULL,
+    concept_code VARCHAR(100) NOT NULL DEFAULT '',
+
+    created_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_extracted_concepts_article
+        FOREIGN KEY (article_id)
+        REFERENCES articles (id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    KEY idx_concepts_article_id (article_id),
+    KEY idx_concepts_type (concept_type),
+    KEY idx_concepts_code (concept_code),
+    KEY idx_concepts_name (concept_name(191)),
+    KEY idx_concepts_top_statistics (
+        concept_type,
+        concept_name(191)
+    )
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- 3. BẢNG TIẾN TRÌNH THU THẬP
+-- Dùng để dừng và tiếp tục tác vụ crawler.
+-- Trạng thái hợp lệ trong backend:
+-- running, paused, completed, error
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS crawl_progress (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+    target_url VARCHAR(512) NOT NULL,
+    start_year SMALLINT UNSIGNED NOT NULL,
+    end_year SMALLINT UNSIGNED NOT NULL,
+
+    success_count INT UNSIGNED NOT NULL DEFAULT 0,
+    duplicate_count INT UNSIGNED NOT NULL DEFAULT 0,
+    skipped_count INT UNSIGNED NOT NULL DEFAULT 0,
+
+    status VARCHAR(20) NOT NULL DEFAULT 'running',
+
+    created_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    KEY idx_progress_resume (
+        target_url,
+        start_year,
+        end_year,
+        status
+    ),
+
+    KEY idx_progress_status (status),
+    KEY idx_progress_created_at (created_at),
+
+    CONSTRAINT chk_progress_year_range
+        CHECK (start_year <= end_year),
+
+    CONSTRAINT chk_progress_status
+        CHECK (
+            status IN (
+                'running',
+                'paused',
+                'completed',
+                'error'
+            )
+        )
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- 4. BẢNG NHẬT KÝ THU THẬP
+-- Lưu thống kê cuối cùng của mỗi lần crawler chạy.
+-- ============================================================
+
 CREATE TABLE IF NOT EXISTS crawl_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    crawl_date DATE,
-    target_url VARCHAR(512),
-    total_urls INT,
-    success_count INT,
-    duplicate_count INT,
-    error_count INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+    crawl_date DATE NOT NULL,
+    target_url VARCHAR(512) NOT NULL,
+
+    start_year SMALLINT UNSIGNED NULL,
+    end_year SMALLINT UNSIGNED NULL,
+
+    total_urls INT UNSIGNED NOT NULL DEFAULT 0,
+    success_count INT UNSIGNED NOT NULL DEFAULT 0,
+    duplicate_count INT UNSIGNED NOT NULL DEFAULT 0,
+    error_count INT UNSIGNED NOT NULL DEFAULT 0,
+
+    status VARCHAR(20) NOT NULL DEFAULT 'completed',
+    stopped_at TIMESTAMP NULL DEFAULT NULL,
+
+    created_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+
+    KEY idx_crawl_logs_created_at (created_at),
+    KEY idx_crawl_logs_date (crawl_date),
+    KEY idx_crawl_logs_status (status),
+    KEY idx_crawl_logs_target_year (
+        target_url,
+        start_year,
+        end_year
+    ),
+
+    CONSTRAINT chk_crawl_logs_year_range
+        CHECK (
+            start_year IS NULL
+            OR end_year IS NULL
+            OR start_year <= end_year
+        ),
+
+    CONSTRAINT chk_crawl_logs_status
+        CHECK (
+            status IN (
+                'running',
+                'paused',
+                'completed',
+                'error'
+            )
+        )
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;

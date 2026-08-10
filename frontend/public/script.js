@@ -31,6 +31,25 @@ const ENTITY_COLORS = {
   TRAD_MED:  { cls: "tradmed",   label: "Đông y",     icon: "🟠" },
 };
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function buildEntityTooltip(item, fallbackCategory) {
+  const category = item.dictionary_type || fallbackCategory;
+  let tooltip = category;
+  if (item.code) tooltip += ` | Mã: ${item.code}`;
+  if (item.label_vn && item.label_vn.toLowerCase() !== item.term.toLowerCase()) {
+    tooltip += ` | ${item.label_vn}`;
+  }
+  return tooltip;
+}
+
 function entityClass(type) {
   return (ENTITY_COLORS[type] || { cls: "other" }).cls;
 }
@@ -102,6 +121,15 @@ async function checkServerStatus() {
     if (res.ok) {
       dot.className = "status-dot online";
       text.textContent = "Máy chủ hoạt động";
+
+      // Nếu crawl đang chạy trên server mà frontend chưa polling → tự resume
+      const status = await res.json();
+      if (status.running && !pollingInterval) {
+        appendLog("🔄 Phát hiện crawler đang chạy — tự động kết nối lại...", "info");
+        document.getElementById("btnScrape").disabled = true;
+        document.getElementById("btnStopScrape").style.display = "";
+        _startPolling();
+      }
     } else throw new Error();
   } catch {
     dot.className = "status-dot offline";
@@ -143,7 +171,8 @@ async function loadKPIs() {
       fetch(`${API_BASE}/top-concepts?limit=100`).then(r => r.json()),
     ]);
 
-    const labeled = articles.filter(a => a.highlighted_html).length;
+    // API list trả về is_labeled (0/1), không trả về highlighted_html
+    const labeled = articles.filter(a => a.is_labeled || a.highlighted_html).length;
 
     animateCount("kpi-articles", articles.length);
     animateCount("kpi-labeled",  labeled);
@@ -380,8 +409,7 @@ function updateProgressUI(s) {
   document.getElementById("prog-saved").textContent = saved;
   document.getElementById("prog-dup").textContent   = dup;
   document.getElementById("prog-skip").textContent  = skip;
-  document.getElementById("progFill").style.width   = `${pct}%`;
-  document.getElementById("progPct").textContent    = `${pct}%`;
+
 
   if (s.current_url) {
     document.getElementById("progressMsg").textContent = `Đang xử lý: ${s.current_url}`;
@@ -448,48 +476,15 @@ async function startScraping() {
       appendLog(`⚠️ ${err.detail}`, "warning");
       showToast(err.detail, "error");
       resetScrapeBtn();
+      // Nếu đang chạy rồi → tự động bắt đầu polling để hiển thị log
+      _startPolling();
       return;
     }
 
     if (!res.ok) throw new Error("Lỗi máy chủ");
 
     appendLog("✅ Lệnh đã được gửi, crawler đang chạy nền...", "success");
-
-    let lastLogCount = 0;
-    if (pollingInterval) clearInterval(pollingInterval);
-    pollingInterval = setInterval(async () => {
-      try {
-        const s = await fetch(`${API_BASE}/status`).then(r => r.json());
-        updateProgressUI(s);
-
-        if (s.log_messages && s.log_messages.length > lastLogCount) {
-          const newLogs = s.log_messages.slice(lastLogCount);
-          newLogs.forEach(msg => appendLog(msg));
-          lastLogCount = s.log_messages.length;
-        }
-
-        if (!s.running) {
-          clearInterval(pollingInterval); pollingInterval = null;
-          if (s.error) {
-            appendLog(`❌ Lỗi: ${s.error}`, "error");
-            showToast("Crawler gặp lỗi!", "error");
-          } else if (s.done) {
-            appendLog("✅ Thu thập hoàn thành! Đang làm mới dữ liệu...", "success");
-            showToast("Thu thập dữ liệu hoàn thành!", "success");
-            _showSummaryBox(s.summary || {});
-            // Làm mới số liệu trên thanh tiến độ và nhật ký — KHÔNG chuyển màn hình
-            updateProgressUI(s);
-            // Chờ 1.5s rồi reload lại dữ liệu bài báo ngay tại trang crawl
-            setTimeout(() => {
-              loadData();         // cập nhật danh sách bài báo
-              loadDashboard();    // cập nhật thống kê nền
-              appendLog(`📊 Tổng kết: ✅ ${s.summary?.success||0} lưu thành công · 🔁 ${s.summary?.duplicates||0} trùng · ⏭ ${s.summary?.skipped||0} bỏ qua`, "info");
-            }, 1500);
-          }
-          resetScrapeBtn();
-        }
-      } catch {}
-    }, 2000);
+    _startPolling();
 
   } catch (err) {
     appendLog(`❌ Lỗi kết nối: ${err.message}`, "error");
@@ -498,8 +493,54 @@ async function startScraping() {
   }
 }
 
+/** Bắt đầu polling vòng lặp lấy log từ backend mỗi 2s */
+function _startPolling() {
+  let lastLogCount = 0;
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(async () => {
+    try {
+      const s = await fetch(`${API_BASE}/status`).then(r => r.json());
+
+      // Cập nhật số liệu tiến độ
+      updateProgressUI(s);
+
+      // Append các log mới
+      if (s.log_messages && s.log_messages.length > lastLogCount) {
+        const newLogs = s.log_messages.slice(lastLogCount);
+        newLogs.forEach(msg => appendLog(msg));
+        lastLogCount = s.log_messages.length;
+      }
+
+      // Chỉ dừng polling khi done=true (crawl thực sự kết thúc)
+      if (s.done) {
+        clearInterval(pollingInterval); pollingInterval = null;
+        if (s.error) {
+          appendLog(`❌ Lỗi: ${s.error}`, "error");
+          showToast("Crawler gặp lỗi!", "error");
+        } else {
+          appendLog("✅ Thu thập hoàn thành! Đang làm mới dữ liệu...", "success");
+          showToast("Thu thập dữ liệu hoàn thành!", "success");
+          _showSummaryBox(s.summary || {});
+          updateProgressUI(s);
+          setTimeout(() => {
+            loadData();
+            loadDashboard();
+            loadCrawlLogs();
+            appendLog(`📊 Tổng kết: ✅ ${s.summary?.success||0} lưu · 🔁 ${s.summary?.duplicates||0} trùng · ⏭ ${s.summary?.skipped||0} bỏ qua`, "info");
+          }, 1500);
+        }
+        resetScrapeBtn();
+      } else if (s.running) {
+        // Đảm bảo nút Stop hiển thị khi đang chạy
+        document.getElementById("btnScrape").disabled = true;
+        document.getElementById("btnStopScrape").style.display = "";
+      }
+    } catch {}
+  }, 2000);
+}
+
 function stopScraping() {
-  fetch(`${API_BASE}/stop-scrape`, { method: 'POST' }).catch(() => {});
+  fetch(`${API_BASE}/scrape/stop`, { method: 'POST' }).catch(() => {});
   clearInterval(pollingInterval); pollingInterval = null;
   isScraping = false;
   appendLog("⏹ Đã gửi lệnh dừng crawler", "warning");
@@ -528,7 +569,10 @@ function setArticleFilter(filter, btn) {
 }
 
 async function loadData() {
-  if (currentArticlesData && currentArticlesData.length > 0) return;
+  if (currentArticlesData && currentArticlesData.length > 0) {
+    renderArticleList();
+    return;
+  }
   const query = (document.getElementById("searchInput")?.value || "").trim();
   const scroll = document.getElementById("articleListScroll");
   if (scroll) scroll.innerHTML = `<div class="list-placeholder">Đang tải...</div>`;
@@ -550,8 +594,8 @@ function renderArticleList() {
   if (!scroll) return;
 
   let data = currentArticlesData;
-  if (articleFilter === "labeled")   data = data.filter(a =>  a.highlighted_html);
-  if (articleFilter === "unlabeled") data = data.filter(a => !a.highlighted_html);
+  if (articleFilter === "labeled")   data = data.filter(a =>  a.is_labeled || a.highlighted_html);
+  if (articleFilter === "unlabeled") data = data.filter(a => !a.is_labeled && !a.highlighted_html);
 
   if (info) info.textContent = `${data.length} bài báo`;
 
@@ -561,11 +605,12 @@ function renderArticleList() {
   }
 
   scroll.innerHTML = data.map(a => {
-    const isLabeled = !!a.highlighted_html;
+    const isLabeled = a.is_labeled || !!a.highlighted_html;
     const isActive  = a.id === currentArticleId;
     return `
       <div class="article-list-item ${isActive ? "active" : ""}" onclick="selectArticle(${a.id})">
         <div class="ali-title">${a.title || "Không có tiêu đề"}</div>
+        <div class="ali-authors">${a.authors || "Không rõ tác giả"}</div>
         <div class="ali-meta">
           <span class="ali-dot ${isLabeled ? "labeled" : "unlabeled"}"></span>
           <span>${a.publication_year || "—"}</span>
@@ -576,12 +621,12 @@ function renderArticleList() {
   }).join("");
 }
 
-function selectArticle(id) {
+async function selectArticle(id) {
   currentArticleId = id;
   isNerActive      = false;
   renderArticleList(); // update active state
 
-  const article = currentArticlesData.find(a => a.id === id);
+  let article = currentArticlesData.find(a => a.id === id);
   if (!article) return;
 
   // Show viewer
@@ -589,18 +634,32 @@ function selectArticle(id) {
   document.getElementById("viewerContent").style.display     = "flex";
   document.getElementById("viewerContent").style.flexDirection = "column";
 
+  const textBody = document.getElementById("textBody");
+
+  // Fetch full details if not yet loaded (list API only returns metadata, no abstract)
+  if (!article._loaded) {
+    textBody.innerHTML = `<em style='color:var(--text-3)'>⏳ Đang tải nội dung...</em>`;
+    try {
+      const detail = await fetch(`${API_BASE}/articles/${id}`).then(r => r.json());
+      if (detail) {
+        article.abstract = detail.abstract || null;
+        article.highlighted_html = detail.highlighted_html || null;
+        article.matched_concepts = detail.matched_concepts || [];
+        article._loaded = true;
+      }
+    } catch(e) {
+      console.error("Error fetching detail:", e);
+      textBody.innerHTML = `<em style='color:var(--danger)'>Lỗi tải nội dung bài báo</em>`;
+      return;
+    }
+  }
+
   // Meta
   document.getElementById("articleTitle").textContent   = article.title   || "Không có tiêu đề";
   document.getElementById("articleYear").textContent    = article.publication_year || "—";
   document.getElementById("articleAuthors").textContent = article.authors  || "Không rõ tác giả";
 
-  // Text
-  const textBody = document.getElementById("textBody");
-  textBody.innerHTML = article.abstract
-    ? article.abstract.replace(/\n/g, "<br>")
-    : "<em style='color:var(--text-3)'>Không có nội dung tóm tắt</em>";
-
-  // NER state
+  // NER state UI reset
   const btnNer   = document.getElementById("btnNer");
   const btnSave  = document.getElementById("btnSaveNer");
   const nerStatus = document.getElementById("nerStatus");
@@ -608,7 +667,7 @@ function selectArticle(id) {
   const legend    = document.getElementById("entityLegend");
 
   btnNer.className   = "btn-ner";
-  btnNer.innerHTML   = "<span>🏷️</span> Bật gán nhãn";
+  btnNer.textContent = "Bật gán nhãn";
   btnSave.style.display = "none";
   nerStatus.textContent = "";
   entPanel.style.display = "none";
@@ -618,7 +677,7 @@ function selectArticle(id) {
   if (article.highlighted_html) {
     isNerActive = true;
     btnNer.className = "btn-ner active";
-    btnNer.innerHTML = "<span>🏷️</span> Ẩn gán nhãn";
+    btnNer.textContent = "Ẩn gán nhãn";
     textBody.innerHTML = article.highlighted_html;
     nerStatus.textContent = "✅ Đã gán nhãn";
     legend.style.display  = "flex";
@@ -627,6 +686,9 @@ function selectArticle(id) {
       renderEntities(article.matched_concepts);
       entPanel.style.display = "";
     }
+  } else {
+    // Show raw text
+    textBody.innerHTML = article.abstract ? article.abstract.replace(/\n/g, "<br>") : "<em>Không có nội dung tóm tắt.</em>";
   }
 }
 
@@ -641,11 +703,11 @@ async function toggleNer() {
     // Turn off — show raw text
     isNerActive = false;
     btnNer.className = "btn-ner";
-    btnNer.innerHTML = "<span>🏷️</span> Bật gán nhãn";
+    btnNer.textContent = "Bật gán nhãn";
     document.getElementById("textBody").innerHTML =
       article.abstract ? article.abstract.replace(/\n/g, "<br>") : "";
     document.getElementById("btnNer").classList.remove("active");
-  document.getElementById("btnNer").innerHTML = `<span>🏷️</span> Bật gán nhãn`;
+  document.getElementById("btnNer").textContent = "Bật gán nhãn";
   document.getElementById("btnSaveNer").style.display = "none";
   document.getElementById("btnAiNer").style.display = "inline-flex"; // Hiển thị nút AI
   document.getElementById("aiPanel").style.display = "none"; // Ẩn panel AI cũ
@@ -656,7 +718,7 @@ async function toggleNer() {
   // Call NER
   btnNer.disabled  = true;
   btnNer.className = "btn-ner loading";
-  btnNer.innerHTML = "<span>⚙️</span> Đang phân tích...";
+  btnNer.textContent = "Đang phân tích...";
   nerStatus.textContent = "Đang gán nhãn...";
 
   try {
@@ -666,8 +728,8 @@ async function toggleNer() {
       body:    JSON.stringify({
         text:                article.abstract || "",
         threshold:           100,
-        enable_tone_restore: true,
-        enable_noun_phrase:  true,
+        enable_tone_restore: false,
+        enable_noun_phrase:  false,
       })
     });
     const result = await res.json();
@@ -681,7 +743,7 @@ async function toggleNer() {
       document.getElementById("textBody").innerHTML = result.highlighted_html;
       document.getElementById("entityLegend").style.display = "flex";
       btnNer.className = "btn-ner active";
-      btnNer.innerHTML = "<span>🏷️</span> Ẩn gán nhãn";
+      btnNer.textContent = "Ẩn gán nhãn";
       document.getElementById("btnSaveNer").style.display = "";
 
       const count = (result.matched_concepts || []).length;
@@ -768,7 +830,7 @@ async function saveCurrentHighlight() {
     showToast("Lỗi kết nối khi lưu", "error");
   } finally {
     btn.disabled = false;
-    btn.innerHTML = "<span>💾</span> Lưu kết quả";
+    btn.textContent = "Lưu kết quả";
   }
 }
 
@@ -834,29 +896,12 @@ async function loadCrawlLogs() {
     tbody.innerHTML = logs.map(log => {
       const date = new Date(log.crawl_date).toLocaleDateString("vi-VN");
       let statusHtml = "";
-      if (log.status === "running") {
-        statusHtml = `<span class="badge" style="background:#f97316;color:white;padding:4px 8px;border-radius:4px;font-size:12px;">⚙️ Đang chạy</span>`;
-      } else if (log.status === "completed") {
-        statusHtml = `<span class="badge" style="background:#22c55e;color:white;padding:4px 8px;border-radius:4px;font-size:12px;">✅ Hoàn thành</span>`;
-      } else if (log.status === "stopped") {
-        statusHtml = `<span class="badge" style="background:#eab308;color:white;padding:4px 8px;border-radius:4px;font-size:12px;">⏹ Đã dừng</span>`;
-      } else if (log.status === "error") {
-        statusHtml = `<span class="badge" style="background:#ef4444;color:white;padding:4px 8px;border-radius:4px;font-size:12px;">❌ Lỗi</span>`;
-      } else {
-        statusHtml = `<span class="badge" style="background:#64748b;color:white;padding:4px 8px;border-radius:4px;font-size:12px;">${log.status || '—'}</span>`;
-      }
-      
-      let stoppedHtml = "";
-      if (log.stopped_at) {
-        const stoppedTime = new Date(log.stopped_at).toLocaleTimeString("vi-VN", {hour: '2-digit', minute:'2-digit'});
-        stoppedHtml = `<div style="font-size: 10px; color: #64748b; margin-top: 4px;">lúc ${stoppedTime}</div>`;
-      }
-
       return `
         <tr>
           <td>${date}</td>
           <td class="text-ellipsis" title="${log.target_url}">${log.target_url || "—"}</td>
-          <td style="text-align:center;">${statusHtml}${stoppedHtml}</td>
+          <td style="text-align:center; font-weight:500;">${log.start_year || "—"}</td>
+          <td style="text-align:center; font-weight:500;">${log.end_year || "—"}</td>
           <td style="text-align:center;">${log.total_urls}</td>
           <td style="text-align:center; color:var(--success); font-weight:500;">${log.success_count}</td>
           <td style="text-align:center; color:var(--warning); font-weight:500;">${log.duplicate_count}</td>
@@ -977,8 +1022,12 @@ async function executeSplitPdf() {
 
       const data = await res.json();
       successCount++;
-      
-      const fileHeader = `<li><div style="margin-top:15px; margin-bottom: 5px;"><strong style="color:var(--primary); font-size:15px;">📄 ${file.name}</strong></div>`;
+
+      const validation = data.validation || {};
+      const validationBadge = validation.ok
+        ? `<span style="margin-left:10px; color:var(--success); font-size:12px;">✓ Đã đối chiếu ${validation.section_count || 0} section với PDF nguồn</span>`
+        : `<span style="margin-left:10px; color:var(--warning); font-size:12px;">⚠ Có ${(validation.issues || []).length} cảnh báo kiểm chứng</span>`;
+      const fileHeader = `<li><div style="margin-top:15px; margin-bottom: 5px;"><strong style="color:var(--primary); font-size:15px;">📄 ${file.name}</strong>${validationBadge}</div>`;
       const innerList = data.files_created.map((f) => {
         if (typeof f === 'string') return `<div style="margin-left:20px; font-size:13px; margin-bottom:4px;">- ${f}</div>`;
         return `
@@ -1231,7 +1280,7 @@ function renderAiArticleList() {
   filterAiArticles();
 }
 
-function selectAiArticle(id) {
+async function selectAiArticle(id) {
   currentAiArticleId = id;
   renderAiArticleList(); // highlight active card
 
@@ -1243,9 +1292,28 @@ function selectAiArticle(id) {
   document.getElementById("aiMetaAuthors").textContent = article.authors || "Không rõ tác giả";
 
   document.getElementById("btnRunAiNer").disabled = false;
-  document.getElementById("btnRunAiNer").innerHTML = `<span class="btn-icon">✨</span> Gán nhãn bằng AI`;
+  document.getElementById("btnRunAiNer").textContent = "Gán nhãn bằng AI";
   
-  document.getElementById("aiTextBodyArea").innerHTML = article.abstract ? article.abstract.replace(/\\n/g, "<br>") : "";
+  const aiTextBodyArea = document.getElementById("aiTextBodyArea");
+  if (!article._loaded) {
+    aiTextBodyArea.innerHTML = `<em style='color:var(--text-3)'>⏳ Đang tải nội dung...</em>`;
+    try {
+      const detail = await fetch(`${API_BASE}/articles/${id}`).then(r => r.json());
+      if (detail) {
+        article.abstract = detail.abstract || null;
+        article.highlighted_html = detail.highlighted_html || null;
+        article._loaded = true;
+      }
+    } catch (e) {
+      console.error("Error fetching detail for AI:", e);
+      aiTextBodyArea.innerHTML = `<em style='color:var(--danger)'>Lỗi tải nội dung bài báo</em>`;
+      return;
+    }
+  }
+
+  aiTextBodyArea.innerHTML = article.abstract
+    ? escapeHtml(article.abstract).replace(/\n/g, "<br>")
+    : "<em style='color:var(--text-3)'>Bài báo này không có nội dung tóm tắt trong cơ sở dữ liệu.</em>";
   
   document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">Chưa phân tích (Bấm Gán nhãn bằng AI)</div>`;
   document.getElementById("aiTotalEntitiesCount").textContent = "0";
@@ -1260,7 +1328,7 @@ async function runAiLabel() {
 
   const btn = document.getElementById("btnRunAiNer");
   btn.disabled = true;
-  btn.innerHTML = `<span>⏳</span> Đang phân tích...`;
+  btn.textContent = "Đang phân tích...";
   document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">Đang gọi Gemini AI...</div>`;
 
   try {
@@ -1276,25 +1344,20 @@ async function runAiLabel() {
 
     const data = await res.json();
     
-    // Highlight HTML
-    let highlightedHtml = article.abstract;
     let totalCount = 0;
-    
-    // Mapping keys to colors and english keys
+
     const catMapping = {
       "Bệnh lý": { color: "#4ade80", key: "DISEASE" },
       "Triệu chứng": { color: "#818cf8", key: "SYMPTOM" },
       "Điều trị": { color: "#c084fc", key: "TREATMENT" },
       "Xét nghiệm": { color: "#fbbf24", key: "LAB_TEST" },
       "Hình ảnh": { color: "#2dd4bf", key: "IMAGING" },
-      "Sinh lý": { color: "#fb923c", key: "PHYSIOLOGY" } // Sinh lý is a new category!
+      "Sinh lý": { color: "#fb923c", key: "PHYSIOLOGY" }
     };
-    
-    // Update ENTITY_COLORS safely if not exists
+
     if(!ENTITY_COLORS["PHYSIOLOGY"]) {
-      ENTITY_COLORS["PHYSIOLOGY"] = { cls: "physiology", label: "Sinh lý", icon: "🔴" };
+      ENTITY_COLORS["PHYSIOLOGY"] = { cls: "physiology", label: "Sinh lý", icon: "" };
     }
-    // inject css style for physiology
     if (!document.getElementById("physiology-style")) {
       const style = document.createElement('style');
       style.id = "physiology-style";
@@ -1304,85 +1367,67 @@ async function runAiLabel() {
     }
 
     let entitiesHtml = "";
-    
-    let allTerms = [];
-    
-    // 1. Gather all terms and build entities HTML
+    const matches = [];
+
     for (const [vnCat, termsList] of Object.entries(data)) {
-      if (termsList && termsList.length > 0) {
-        totalCount += termsList.length;
-        const mapping = catMapping[vnCat];
-        if (mapping) {
-            for (const item of termsList) {
-                const term = typeof item === 'string' ? item : item.term;
-                const code = typeof item === 'string' ? '' : item.code;
-                const label_vn = typeof item === 'string' ? '' : item.label_vn;
-                const markClass = mapping.key.toLowerCase().replace('_', '');
-                
-                allTerms.push({ term, code, label_vn, vnCat, markClass });
-                
-                const codeHtml = code ? `<span class="entity-code">${code}</span>` : '';
-                entitiesHtml += `<div class="entity-tag ${mapping.key.toLowerCase()}">
-                  ${term}
-                  ${codeHtml}
-                  <span class="matched-badge matched-exact">AI - ${vnCat}</span>
-                </div>`;
-            }
+      const mapping = catMapping[vnCat];
+      if (!mapping || !Array.isArray(termsList)) continue;
+
+      for (const rawItem of termsList) {
+        const item = typeof rawItem === "string"
+          ? { term: rawItem, code: "", label_vn: "", spans: [] }
+          : rawItem;
+        if (!item?.term) continue;
+
+        totalCount += 1;
+        const markClass = mapping.key.toLowerCase().replace("_", "");
+        const tooltip = buildEntityTooltip(item, vnCat);
+        const codeHtml = item.code
+          ? `<span class="entity-code">${escapeHtml(item.code)}</span>`
+          : "";
+        const sourceLabel = item.source === "ai+dictionary" ? "AI + Từ điển" : "AI";
+        entitiesHtml += `<div class="entity-tag ${mapping.key.toLowerCase()}" title="${escapeHtml(tooltip)}">
+          <span>${escapeHtml(item.term)}</span>
+          ${codeHtml}
+          <span class="matched-badge matched-exact">${sourceLabel}</span>
+        </div>`;
+
+        const spans = Array.isArray(item.spans) ? item.spans : [];
+        for (const span of spans) {
+          const start = Number(span.start);
+          const end = Number(span.end);
+          if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) continue;
+          const surface = article.abstract.slice(start, end);
+          if (surface.toLocaleLowerCase("vi") !== item.term.toLocaleLowerCase("vi")) continue;
+          matches.push({ start, end, text: surface, markClass, tooltip });
         }
       }
     }
-    
-    // 2. Find all matches in plain text
-    let matches = [];
-    for (const t of allTerms) {
-      if (!t.term) continue;
-      const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`(${escapeRegExp(t.term)})`, 'gi');
-      let match;
-      while ((match = regex.exec(highlightedHtml)) !== null) {
-        matches.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          text: match[0],
-          termObj: t
-        });
-      }
-    }
-    
-    // 3. Filter overlapping matches (keep longest first)
+
+    // Giữ span dài nhất khi nhiều thực thể chồng lấn.
     matches.sort((a, b) => b.text.length - a.text.length || a.start - b.start);
-    let finalMatches = [];
+    const finalMatches = [];
     for (const m of matches) {
-      let isOverlap = false;
-      for (const accepted of finalMatches) {
-        if (m.start < accepted.end && m.end > accepted.start) {
-          isOverlap = true;
-          break;
-        }
-      }
-      if (!isOverlap) {
-        finalMatches.push(m);
-      }
+      const overlaps = finalMatches.some(
+        accepted => m.start < accepted.end && m.end > accepted.start
+      );
+      if (!overlaps) finalMatches.push(m);
     }
-    
-    // 4. Replace from right to left to avoid index shifting
-    finalMatches.sort((a, b) => b.start - a.start);
+
+    // Dựng HTML từ văn bản nguồn và offset đã được backend xác thực.
+    finalMatches.sort((a, b) => a.start - b.start);
+    const pieces = [];
+    let cursor = 0;
     for (const m of finalMatches) {
-      const t = m.termObj;
-      let tooltipText = t.vnCat;
-      if (t.code) {
-        tooltipText += ` | Mã: ${t.code}`;
-        if (t.label_vn && t.label_vn.toLowerCase() !== t.term.toLowerCase()) {
-          tooltipText += ` | ${t.label_vn}`;
-        }
-      }
-      const tooltipAttr = ` title="${tooltipText}"`;
-      const markTag = `<mark class="ner-${t.markClass}"${tooltipAttr}>${m.text}</mark>`;
-      highlightedHtml = highlightedHtml.substring(0, m.start) + markTag + highlightedHtml.substring(m.end);
+      pieces.push(escapeHtml(article.abstract.slice(cursor, m.start)));
+      pieces.push(
+        `<mark class="ner-${m.markClass}" title="${escapeHtml(m.tooltip)}">${escapeHtml(m.text)}</mark>`
+      );
+      cursor = m.end;
     }
-    
-    document.getElementById("aiTextBodyArea").innerHTML = highlightedHtml.replace(/\\n/g, "<br>");
-    
+    pieces.push(escapeHtml(article.abstract.slice(cursor)));
+    document.getElementById("aiTextBodyArea").innerHTML = pieces.join("").replace(/\n/g, "<br>");
+
     if (totalCount > 0) {
         document.getElementById("aiTotalEntitiesCount").textContent = totalCount;
         document.getElementById("aiEntitiesList").innerHTML = entitiesHtml;
@@ -1396,8 +1441,27 @@ async function runAiLabel() {
     showToast("Lỗi phân tích AI", "error");
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<span>✨</span> Gán nhãn bằng AI`;
+    btn.textContent = "Gán nhãn bằng AI";
   }
 }
 
-window.onerror = function(msg, url, lineNo, columnNo, error) { alert(msg + ' at line ' + lineNo); return false; };
+window.onerror = function(msg, url, lineNo, columnNo, error) { console.error(msg + ' at line ' + lineNo); return false; };
+
+// ============================================================
+// KHỜI TẠO KHI TRANG LOAD — auto-resume nếu crawl đang chạy
+// ============================================================
+document.addEventListener("DOMContentLoaded", async () => {
+  // Kiểm tra server + tự resume polling nếu cần
+  await checkServerStatus();
+
+  // Restore screen từ URL hash (ví dụ nếu user đang ở tab crawl thì giữ nguyên)
+  const hash = location.hash.replace("#", "");
+  if (hash && document.getElementById(`screen-${hash}`)) {
+    switchScreen(hash);
+  } else {
+    switchScreen("dashboard");
+  }
+
+  // Poll server status mỗi 10 giây để cập nhật status dot + tự resume nếu cần
+  setInterval(checkServerStatus, 10000);
+});

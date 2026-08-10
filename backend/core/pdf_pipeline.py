@@ -1,7 +1,5 @@
 import hashlib
 import logging
-import os
-import re
 from pathlib import Path
 
 from config.constants import PDF_MAGIC_BYTES, MAX_FILE_SIZE_BYTES
@@ -83,16 +81,18 @@ class ExtractorPipeline:
         step = ProcessingStep(step_name="extract_text")
         step.start()
         try:
-            import pdfplumber
-            full_text = ""
-            with pdfplumber.open(file_path) as pdf:
-                for page in pdf.pages:
-                    text = page.extract_text()
-                    if text:
-                        full_text += text + "\n"
-            metadata.extracted_text = full_text
+            from pdf_extractor import extract_from_pdf_path
 
-            self._split_and_save_sections(full_text, Path(file_path).stem, metadata)
+            result = extract_from_pdf_path(file_path)
+            if result.get("error"):
+                raise PipelineError(result["error"], step="extract_text")
+
+            metadata.extracted_text = result["full_text"]
+            metadata.headings = result["headings"]
+            metadata.sections = result["sections"]
+            metadata.validation_report = result["validation"]
+
+            self._save_sections(result["sections"], Path(file_path).stem, metadata)
 
             metadata.steps_completed.append("extract_text")
             step.complete(success=True)
@@ -102,78 +102,93 @@ class ExtractorPipeline:
         finally:
             metadata.processing_steps.append(step)
 
-    def _split_and_save_sections(self, text: str, base_name: str, metadata: ExtractedMetadata) -> None:
+    def _save_sections(
+        self,
+        sections: list,
+        base_name: str,
+        metadata: ExtractedMetadata,
+    ) -> None:
+        """Lưu các section đã được PyMuPDF phân tách thành từng file .txt."""
         out_dir = Path("Văn_Bản_Y_Tế_TXT")
         out_dir.mkdir(exist_ok=True)
+
+        # Loại kết quả cũ của đúng bài này để lần chạy mới không lẫn các section
+        # đã được tạo bởi thuật toán/đề mục trước đó.
+        output_prefix = f"{base_name}_"
+        for old_file in out_dir.iterdir():
+            if (
+                old_file.is_file()
+                and old_file.suffix.lower() == ".txt"
+                and old_file.name.startswith(output_prefix)
+            ):
+                old_file.unlink()
+
+        # Map label -> tên hiển thị
+        LABEL_DISPLAY = {
+            "abstract":           "TÓM TẮT",
+            "introduction":       "GIỚI THIỆU / ĐẶT VẤN ĐỀ",
+            "methods":            "PHƯƠNG PHÁP NGHIÊN CỨU",
+            "results":            "KẾT QUẢ",
+            "results_discussion": "KẾT QUẢ VÀ BÀN LUẬN",
+            "discussion":         "BÀN LUẬN",
+            "conclusion":         "KẾT LUẬN",
+            "references":         "TÀI LIỆU THAM KHẢO",
+            "keywords":           "TỪ KHÓA",
+            "acknowledgment":     "LỜI CẢM ƠN",
+            "data_availability":  "DATA AVAILABILITY",
+            "funding":            "FUNDING",
+            "conflict_of_interest": "CONFLICT OF INTEREST",
+            "author_contributions": "AUTHOR CONTRIBUTIONS",
+            "supplementary_data": "SUPPLEMENTARY DATA",
+            "graphical_abstract": "GRAPHICAL ABSTRACT",
+            "section":            "NỘI DUNG KHÁC",
+        }
+
+        # Lưu file và cập nhật metadata.extracted_files. Không ghi đè khi một bài
+        # có nhiều đề mục cùng label (ví dụ nhiều subsection chưa chuẩn hóa).
+        label_counts = {}
+        for sec in sections:
+            content = sec.get("content", "").strip()
+            if not content:
+                continue
+
+            label     = sec.get("label", "section")
+            heading   = sec.get("heading", label)
+            sec_name  = LABEL_DISPLAY.get(label, heading)
+
+            label_counts[label] = label_counts.get(label, 0) + 1
+            occurrence = label_counts[label]
+            suffix = "" if occurrence == 1 else f"_{occurrence}"
+            file_name = f"{base_name}_{label}{suffix}.txt"
+            out_path  = out_dir / file_name
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            preview = content[:300].strip()
+            if len(content) > 300:
+                preview += "..."
+
+            metadata.extracted_files.append({
+                "file_path":       str(out_path),
+                "section_name":    sec_name,
+                "heading":         heading,
+                "label":           label,
+                "content_preview": preview,
+            })
+
+        # --- Thêm log nhận diện section ---
+        expected_labels = ["abstract", "introduction", "methods", "results", "discussion", "conclusion", "references"]
+        found_labels = set(sec.get("label") for sec in sections if sec.get("label"))
+        found_expected = [L for L in expected_labels if L in found_labels]
+        missing_expected = [L for L in expected_labels if L not in found_labels]
         
-        pattern = re.compile(
-            r'^(TÓM TẮT|ABSTRACT|GIỚI THIỆU|ĐẶT VẤN ĐỀ|ĐỐI TƯỢNG VÀ PHƯƠNG PHÁP|PHƯƠNG PHÁP|ĐỐI TƯỢNG|KẾT QUẢ|BÀN LUẬN|KẾT LUẬN|TÀI LIỆU THAM KHẢO)',
-            re.MULTILINE | re.IGNORECASE
-        )
-        
-        matches = list(pattern.finditer(text))
-        sections = {}
-        
-        if not matches:
-            sections["khac"] = text
+        log_msg = f"[{base_name}]: đã tìm thấy {len(found_expected)}/{len(expected_labels)} section"
+        if missing_expected:
+            log_msg += f" — thiếu {', '.join(missing_expected)}"
         else:
-            if matches[0].start() > 0:
-                sections["khac"] = text[:matches[0].start()].strip()
-            
-            for i, match in enumerate(matches):
-                heading = match.group(1).upper()
-                start_idx = match.end()
-                end_idx = matches[i+1].start() if i + 1 < len(matches) else len(text)
-                content = text[start_idx:end_idx].strip()
-                
-                shorthand = "khac"
-                if "TÓM TẮT" in heading or "ABSTRACT" in heading:
-                    shorthand = "tt"
-                elif "GIỚI THIỆU" in heading or "ĐẶT VẤN ĐỀ" in heading:
-                    shorthand = "gt"
-                elif "PHƯƠNG PHÁP" in heading or "ĐỐI TƯỢNG" in heading:
-                    shorthand = "pp"
-                elif "KẾT QUẢ" in heading:
-                    shorthand = "kq"
-                elif "BÀN LUẬN" in heading:
-                    shorthand = "bl"
-                elif "KẾT LUẬN" in heading:
-                    shorthand = "kl"
-                elif "TÀI LIỆU" in heading:
-                    shorthand = "tl"
-                
-                if shorthand in sections:
-                    sections[shorthand] += "\n\n" + content
-                else:
-                    sections[shorthand] = content
-        
-        for shorthand, content in sections.items():
-            if content:
-                file_name = f"{base_name}_{shorthand}.txt"
-                out_path = out_dir / file_name
-                with open(out_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                
-                # Cắt chuỗi cho nội dung preview (tối đa 300 ký tự)
-                preview = content[:300].strip()
-                if len(content) > 300:
-                    preview += "..."
+            log_msg += " — ĐỦ CÁC MỤC!"
 
-                # Tìm section name tương ứng
-                sec_name = "Khác"
-                if shorthand == "tt": sec_name = "TÓM TẮT"
-                elif shorthand == "gt": sec_name = "GIỚI THIỆU / ĐẶT VẤN ĐỀ"
-                elif shorthand == "pp": sec_name = "PHƯƠNG PHÁP NGHIÊN CỨU"
-                elif shorthand == "kq": sec_name = "KẾT QUẢ"
-                elif shorthand == "bl": sec_name = "BÀN LUẬN"
-                elif shorthand == "kl": sec_name = "KẾT LUẬN"
-                elif shorthand == "tl": sec_name = "TÀI LIỆU THAM KHẢO"
-
-                metadata.extracted_files.append({
-                    "file_path": str(out_path),
-                    "section_name": sec_name,
-                    "content_preview": preview
-                })
+        logger.info(log_msg)
 
     @staticmethod
     def _sha256(file_path: str) -> str:

@@ -2,10 +2,19 @@ import threading
 import json
 import os
 import io
+import hashlib
 import mysql.connector
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
-from core.ner_engine import run_ner
+from core.ner_engine import reset_ner_engine, run_ner
+from core.ner_dict import (
+    DICT_DIR,
+    MANIFEST_PATH,
+    VERSIONED_CUSTOM_PATH,
+    dictionary_metadata,
+    normalize_match_text,
+    reload_ner_dictionary,
+)
 from core.scraper import scrape_status, run_scraping, clean_filename, stop_scraping
 from core.ai_ner import extract_entities_with_ai
 from core.ai_label import extract_with_ai_label
@@ -13,7 +22,7 @@ from core.ai_label import extract_with_ai_label
 router = APIRouter()
 
 # Đường dẫn file Từ Điển
-DICTIONARY_PATH = os.path.join("Kho Ngữ Liệu Y Học Tiếng Việt", "Từ_Điển.json")
+DICTIONARY_PATH = VERSIONED_CUSTOM_PATH
 _db_config: dict = {}
 _output_folder: str = ""
 
@@ -26,14 +35,14 @@ def init_router(db_config: dict, output_folder: str) -> None:
 class HighlightRequest(BaseModel):
     text:                str
     threshold:           int  = 100
-    enable_tone_restore: bool = True
-    enable_noun_phrase:  bool = True
+    enable_tone_restore: bool = False
+    enable_noun_phrase:  bool = False
 
 class NerRequest(BaseModel):
     text:                str
     threshold:           int  = 100
-    enable_tone_restore: bool = True
-    enable_noun_phrase:  bool = True
+    enable_tone_restore: bool = False
+    enable_noun_phrase:  bool = False
 
 class AiLabelRequest(BaseModel):
     text: str
@@ -253,7 +262,8 @@ async def extract_pdf_endpoint(file: UploadFile = File(...)):
         return {
             "message": "Tách PDF thành công",
             "files_created": metadata.extracted_files,
-            "hash": metadata.file_hash_sha256
+            "hash": metadata.file_hash_sha256,
+            "validation": metadata.validation_report,
         }
     except Exception as e:
         raise HTTPException(500, f"Lỗi xử lý PDF: {str(e)}")
@@ -264,19 +274,26 @@ async def extract_pdf_endpoint(file: UploadFile = File(...)):
 
 @router.post("/api/save-highlight")
 def save_highlight_endpoint(req: SaveHighlightRequest):
-    """Lưu kết quả highlight vào DB."""
+    """Chạy lại NER chuẩn ở server rồi mới lưu, không tin HTML từ trình duyệt."""
     conn = cursor = None
     try:
         conn   = _get_conn()
         cursor = conn.cursor(dictionary=True)
 
-        cursor.execute("SELECT id FROM articles WHERE id = %s", (req.article_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT id, abstract FROM articles WHERE id = %s", (req.article_id,))
+        article = cursor.fetchone()
+        if not article:
             raise HTTPException(404, f"Không tìm thấy bài báo id={req.article_id}")
+
+        canonical_html, canonical_concepts, _, _ = run_ner(
+            article.get("abstract") or "",
+            enable_tone_restore=False,
+            enable_noun_phrase=False,
+        )
 
         cursor.execute(
             "UPDATE articles SET highlighted_html = %s WHERE id = %s",
-            (req.highlighted_html, req.article_id),
+            (canonical_html, req.article_id),
         )
         cursor.execute(
             "DELETE FROM extracted_concepts WHERE article_id = %s",
@@ -284,7 +301,7 @@ def save_highlight_endpoint(req: SaveHighlightRequest):
         )
 
         seen, rows = set(), []
-        for c in req.matched_concepts:
+        for c in canonical_concepts:
             name  = (c.get("name") or "").strip()
             ctype = (c.get("type") or "DISEASE").strip()
             code  = (c.get("code") or "").strip()
@@ -300,7 +317,12 @@ def save_highlight_endpoint(req: SaveHighlightRequest):
                 rows,
             )
         conn.commit()
-        return {"message": "Lưu thành công", "article_id": req.article_id, "concepts_saved": len(rows)}
+        return {
+            "message": "Lưu thành công bằng luật + từ điển",
+            "article_id": req.article_id,
+            "concepts_saved": len(rows),
+            "dictionary_version": dictionary_metadata.get("dictionary_version"),
+        }
 
     except HTTPException:
         raise
@@ -315,12 +337,10 @@ def save_highlight_endpoint(req: SaveHighlightRequest):
 def get_dictionary():
     """Trả về toàn bộ từ điển y khoa."""
     try:
-        if os.path.exists(DICTIONARY_PATH) and os.path.getsize(DICTIONARY_PATH) > 0:
-            with open(DICTIONARY_PATH, "r", encoding="utf-8") as f:
-                try:
-                    return json.load(f)
-                except json.JSONDecodeError:
-                    return []
+        if DICTIONARY_PATH.is_file() and DICTIONARY_PATH.stat().st_size > 0:
+            with DICTIONARY_PATH.open("r", encoding="utf-8") as f:
+                payload = json.load(f)
+                return payload.get("entries", payload if isinstance(payload, list) else [])
         return []
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -328,52 +348,78 @@ def get_dictionary():
 
 @router.post("/api/save-to-dictionary")
 def save_to_dictionary_endpoint(req: SaveDictionaryRequest):
-    """Lưu các cụm từ được highlight vào file Từ_Điển.json, bỏ qua nếu đã tồn tại."""
+    """Chỉ thêm bí danh trỏ tới mã đã tồn tại trong ICD-10/YHCT nguồn."""
     try:
-        # Đọc dữ liệu hiện có trong từ điển
-        if os.path.exists(DICTIONARY_PATH) and os.path.getsize(DICTIONARY_PATH) > 0:
-            with open(DICTIONARY_PATH, "r", encoding="utf-8") as f:
-                try:
-                    dictionary = json.load(f)
-                except json.JSONDecodeError:
-                    dictionary = []
-        else:
-            dictionary = []
+        payload = json.loads(DICTIONARY_PATH.read_text(encoding="utf-8"))
+        dictionary = payload.get("entries", [])
+        manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        valid_codes = {}
+        for source_key in ("icd10", "yhct"):
+            source_path = DICT_DIR / manifest["files"][source_key]["path"]
+            source_payload = json.loads(source_path.read_text(encoding="utf-8"))
+            for entry in source_payload.get("entries", []):
+                if not entry.get("active_for_ner") or entry.get("ambiguous"):
+                    continue
+                code = str(entry.get("code") or "").strip()
+                if code:
+                    valid_codes[code.casefold()] = (
+                        entry.get("canonical_term", ""), entry.get("category", "Bệnh Lý")
+                    )
 
-        # Tập hợp các từ đã có (lowercase để so sánh không phân biệt hoa/thường)
-        existing_terms = {entry.get("term", "").strip().lower() for entry in dictionary}
-
-        added = []
-        skipped = []
+        existing_terms = {normalize_match_text(entry.get("term", "")) for entry in dictionary}
+        added, skipped = [], []
 
         for c in req.matched_concepts:
             name  = (c.get("name") or "").strip()
-            ctype = (c.get("type") or "DISEASE").strip()
             code  = (c.get("code") or "").strip()
 
             if not name:
                 continue
 
-            if name.lower() in existing_terms:
+            key = normalize_match_text(name)
+            canonical = valid_codes.get(code.casefold())
+            if not canonical:
+                skipped.append({"term": name, "reason": "Mã không tồn tại trong ICD-10/YHCT nguồn"})
+            elif key in existing_terms:
                 skipped.append(name)
             else:
-                existing_terms.add(name.lower())
+                existing_terms.add(key)
                 dictionary.append({
-                    "term":  name,
-                    "type":  ctype,
-                    "code":  code,
+                    "term": name,
+                    "canonical_term": canonical[0],
+                    "type": canonical[1],
+                    "code": code,
+                    "active_for_ner": True,
+                    "ambiguous": False,
+                    "case_sensitive": name.isupper() and len(name) <= 10,
+                    "source": "user_alias",
                 })
                 added.append(name)
 
-        # Ghi lại file từ điển
-        os.makedirs(os.path.dirname(DICTIONARY_PATH), exist_ok=True)
-        with open(DICTIONARY_PATH, "w", encoding="utf-8") as f:
-            json.dump(dictionary, f, ensure_ascii=False, indent=2)
+        payload["entries"] = dictionary
+        payload["counts"] = {
+            "all": len(dictionary),
+            "active": sum(bool(item.get("active_for_ner", True)) for item in dictionary),
+            "ambiguous": sum(bool(item.get("ambiguous", False)) for item in dictionary),
+        }
+        encoded = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+        temp_path = DICTIONARY_PATH.with_suffix(".tmp")
+        temp_path.write_bytes(encoded)
+        os.replace(temp_path, DICTIONARY_PATH)
+
+        manifest["files"]["custom"]["sha256"] = hashlib.sha256(encoded).hexdigest()
+        manifest["files"]["custom"]["count"] = len(dictionary)
+        manifest_temp = MANIFEST_PATH.with_suffix(".tmp")
+        manifest_temp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(manifest_temp, MANIFEST_PATH)
+        reload_ner_dictionary()
+        reset_ner_engine()
 
         return {
             "added": added,
             "skipped": skipped,
             "total_in_dictionary": len(dictionary),
+            "dictionary_version": dictionary_metadata.get("dictionary_version"),
         }
 
     except Exception as e:
@@ -381,16 +427,23 @@ def save_to_dictionary_endpoint(req: SaveDictionaryRequest):
 
 
 @router.get("/api/articles")
-def get_articles(q: str = ""):
-    """Lấy danh sách bài báo, hỗ trợ tìm kiếm theo tiêu đề."""
+def get_articles(q: str = "", full: bool = False):
+    """Lấy danh sách bài báo, hỗ trợ tìm kiếm theo tiêu đề. Mặc định tải siêu nhanh bằng cách chỉ lấy metadata."""
     conn = cursor = None
     try:
         conn   = _get_conn()
         cursor = conn.cursor(dictionary=True)
-        sql = (
-            "SELECT id, title, authors, abstract, publication_year, highlighted_html "
-            "FROM articles "
-        )
+        if full:
+            sql = (
+                "SELECT id, title, authors, abstract, publication_year, highlighted_html "
+                "FROM articles "
+            )
+        else:
+            sql = (
+                "SELECT id, title, authors, publication_year, "
+                "(highlighted_html IS NOT NULL AND highlighted_html != '') AS is_labeled "
+                "FROM articles "
+            )
         if q:
             cursor.execute(sql + "WHERE title LIKE %s ORDER BY id DESC", (f"%{q}%",))
         else:
@@ -401,6 +454,38 @@ def get_articles(q: str = ""):
     finally:
         if cursor: cursor.close()
         if conn:   conn.close()
+
+
+@router.get("/api/articles/{article_id}")
+def get_article_detail(article_id: int):
+    """Lấy chi tiết 1 bài báo theo ID bao gồm tóm tắt và HTML highlight."""
+    conn = cursor = None
+    try:
+        conn   = _get_conn()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT id, title, authors, abstract, publication_year, highlighted_html "
+            "FROM articles WHERE id = %s",
+            (article_id,)
+        )
+        article = cursor.fetchone()
+        if not article:
+            raise HTTPException(404, f"Không tìm thấy bài báo id={article_id}")
+        cursor.execute(
+            "SELECT concept_name AS name, concept_type AS type, concept_code AS code "
+            "FROM extracted_concepts WHERE article_id = %s ORDER BY id",
+            (article_id,),
+        )
+        article["matched_concepts"] = cursor.fetchall()
+        return article
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+    finally:
+        if cursor: cursor.close()
+        if conn:   conn.close()
+
 
 
 @router.get("/api/top-concepts")

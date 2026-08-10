@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from core.lang_detector import detect_language
 
 # Trạng thái scraping toàn cục — được đọc bởi /api/status
@@ -37,9 +37,12 @@ def _log(msg: str):
 
 def clean_filename(fn: str) -> str:
     fn = re.sub(r'[\t\n\r\f\v]+', ' ', fn)
-    fn = re.sub(r'[\\/*?:"<>|]', "", fn)
+    fn = re.sub(r'[\\/*?"<>|]', "", fn)
     return re.sub(r'\s+', ' ', fn)[:150].strip()
 
+def _make_absolute(href: str, base: str) -> str:
+    """FIX #3: Chuyển mọi href (tương đối hoặc tuyệt đối) về URL đầy đủ."""
+    return urljoin(base, href)
 
 def run_scraping(request, db_config: dict, output_folder: str):
     """
@@ -65,11 +68,19 @@ def run_scraping(request, db_config: dict, output_folder: str):
     _log(f"Bắt đầu cào: {request.target_url} | Năm {request.start_year} – {request.end_year}")
     conn = cursor = None
     try:
+        # ── FIX #1: Kiểm tra URL hợp lệ trước khi làm bất cứ điều gì ──────
+        parsed_check = urlparse(request.target_url)
+        if not parsed_check.scheme or not parsed_check.netloc:
+            raise ValueError(f"URL không hợp lệ: '{request.target_url}'. Vui lòng nhập đầy đủ https://...")
+
+        _log("Đang kết nối tới DB...")
         conn   = mysql.connector.connect(**db_config)
+        _log("Đã kết nối DB thành công.")
         cursor = conn.cursor()
 
         cursor_dict = conn.cursor(dictionary=True)
         try:
+            _log("Đang kiểm tra tiến trình crawl_progress...")
             cursor_dict.execute(
                 "SELECT * FROM crawl_progress WHERE target_url=%s AND start_year=%s AND end_year=%s AND status='paused' ORDER BY id DESC LIMIT 1",
                 (request.target_url, request.start_year, request.end_year)
@@ -90,22 +101,27 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 )
                 conn.commit()
                 _log_id = cursor_dict.lastrowid
+                _log(f"Đã tạo bản ghi tiến trình ID={_log_id}")
         except Exception as e:
             _log(f"Không thể kiểm tra tiến trình trong crawl_progress (có thể bảng chưa được tạo): {e}")
         finally:
             cursor_dict.close()
-        
+
         cursor = conn.cursor()
 
+        # ── FIX #2: Chỉ retry khi lỗi HTTP (5xx/429), KHÔNG retry khi DNS fail ─
         session = requests.Session()
         session.headers.update({
-            "User-Agent":     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Accept-Language": "vi-VN,vi;q=0.9",
+            "User-Agent":     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         })
         retry = Retry(
-            total=3, backoff_factor=2,
+            total=2,
+            backoff_factor=1,
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["HEAD", "GET", "OPTIONS"],
+            raise_on_status=False,
         )
         session.mount("http://",  HTTPAdapter(max_retries=retry))
         session.mount("https://", HTTPAdapter(max_retries=retry))
@@ -116,20 +132,32 @@ def run_scraping(request, db_config: dict, output_folder: str):
         # Tạo tên thư mục từ domain (ví dụ: tapchiyhocvietnam.vn)
         parsed      = urlparse(base_url)
         site_folder = re.sub(r"^www\.", "", parsed.netloc or "unknown")
-        site_folder = re.sub(r"[^\w\-\.]", "_", site_folder)  # an toàn cho tên thư mục
+        site_folder = re.sub(r"[^\w\-\.]", "_", site_folder)
         _log(f"📁 Thư mục lưu trữ: {site_folder}")
 
-        # Tìm trang lưu trữ
+        # ── FIX #3: Tìm trang lưu trữ, xử lý URL tương đối ─────────────────
+        _log(f"Đang truy cập trang chủ: {base_url} ...")
         try:
-            soup_home = BeautifulSoup(
-                session.get(base_url, verify=False, timeout=30).text, "html.parser"
-            )
-            for a in soup_home.find_all("a", href=True):
-                if any(w in a.get_text(strip=True).lower() for w in ("lưu trữ", "archives")):
-                    archive_url = a["href"]
-                    break
-        except Exception:
-            pass
+            r_home = session.get(base_url, verify=False, timeout=60)
+            if r_home.status_code == 200:
+                soup_home = BeautifulSoup(r_home.text, "html.parser")
+                for a in soup_home.find_all("a", href=True):
+                    txt = a.get_text(strip=True).lower()
+                    href = a["href"]
+                    if any(w in txt for w in ("lưu trữ", "archives", "archive")):
+                        archive_url = _make_absolute(href, base_url)
+                        _log(f"✅ Tìm thấy trang lưu trữ: {archive_url}")
+                        break
+            else:
+                _log(f"⚠️ Trang chủ trả về HTTP {r_home.status_code}, dùng URL archive mặc định.")
+        except requests.exceptions.ConnectionError as ex:
+            _log(f"❌ Không thể kết nối đến '{base_url}': {ex}")
+            _log("👉 Kiểm tra lại URL hoặc kết nối mạng. Crawler sẽ dừng.")
+            return
+        except Exception as ex:
+            _log(f"⚠️ Lỗi khi tìm trang lưu trữ: {ex}. Dùng URL archive mặc định.")
+
+        _log(f"🗂️ Archive URL sẽ dùng: {archive_url}")
 
         for yr in range(request.start_year, request.end_year + 1):
             if _stop_requested: break
@@ -141,33 +169,48 @@ def run_scraping(request, db_config: dict, output_folder: str):
             # Thu thập link số/tập
             for page in range(1, 10):
                 pu = f"{archive_url}/{page}" if page > 1 else archive_url
+                _log(f"  Đang fetch danh sách trang {page}: {pu}")
                 try:
-                    r = session.get(pu, verify=False, timeout=15)
+                    r = session.get(pu, verify=False, timeout=60)
                     if r.status_code != 200:
+                        _log(f"  ⚠️ Trang {page} trả về HTTP {r.status_code}, dừng phân trang.")
                         break
                     soup    = BeautifulSoup(r.text, "html.parser")
                     cur_blk = None
+                    found_on_page = 0
                     for tag in soup.find_all(["div", "h2", "h3", "a"]):
                         t = tag.get_text(strip=True)
                         if tag.name in ("div", "h2", "h3") and re.fullmatch(r"20\d{2}", t):
                             cur_blk = t
-                        
+
                         if _stop_requested: break
 
                         if tag.name == "a" and "/issue/view/" in tag.get("href", ""):
+                            # FIX #3: dùng _make_absolute thay vì ghép thủ công
+                            lnk = _make_absolute(tag["href"], base_url)
                             if target_year in t or cur_blk == target_year:
-                                lnk = tag["href"]
-                                if lnk.startswith("/"):
-                                    lnk = re.match(r"https?://[^/]+", base_url).group(0) + lnk
                                 if not any(il["url"] == lnk for il in issue_links):
                                     issue_links.append({"url": lnk, "name": clean_filename(t)})
-                except Exception:
+                                    found_on_page += 1
+
+                    _log(f"  → Trang {page}: tìm thấy {found_on_page} số mới của năm {target_year}")
+                    # Nếu không tìm thấy gì trong trang này → dừng phân trang
+                    if found_on_page == 0 and page > 1:
+                        break
+
+                except requests.exceptions.ConnectionError as ex:
+                    _log(f"  ❌ Lỗi kết nối khi fetch trang {pu}: {ex}")
+                    break
+                except Exception as ex:
+                    _log(f"  ❌ Lỗi khi fetch page {pu}: {ex}")
                     break
 
             if not issue_links:
-                _log(f"  (Không tìm thấy số nào, bỏ qua năm {target_year})")
+                _log(f"  (Không tìm thấy số tạp chí nào trong năm {target_year}, bỏ qua)")
                 continue
-            
+
+            _log(f"  ✅ Tổng cộng {len(issue_links)} số tạp chí trong năm {target_year}")
+
             # Duyệt từng số
             for issue_info in issue_links:
                 if _stop_requested: break
@@ -175,44 +218,48 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 base_issue_name = issue_info["name"]
                 scrape_status["current_url"] = iu
                 try:
-                    soup_i    = BeautifulSoup(
-                        session.get(iu, verify=False, timeout=15).text, "html.parser"
-                    )
-                    
+                    _log(f"\n  📰 Đang truy cập số tạp chí: {iu}")
+                    resp_issue = session.get(iu, verify=False, timeout=60)
+                    if resp_issue.status_code != 200:
+                        _log(f"  ⚠️ Số tạp chí trả về HTTP {resp_issue.status_code}, bỏ qua.")
+                        continue
+                    soup_i = BeautifulSoup(resp_issue.text, "html.parser")
+
                     issue_name = base_issue_name
                     if not issue_name or len(issue_name) < 4 or issue_name == target_year:
                         h1_tag = soup_i.find("h1")
                         if h1_tag:
                             issue_name = clean_filename(h1_tag.get_text(strip=True))
                         else:
-                            issue_name = "Unknown_Issue"
-                    
-                    _log(f"🔍 Đang quét số tạp chí: {issue_name}...")
+                            issue_name = f"Issue_{target_year}"
 
+                    _log(f"  🔍 Đang quét số tạp chí: {issue_name}...")
+
+                    # FIX #4: Chuẩn hóa URL bài báo về dạng tuyệt đối
                     art_links = []
                     for a in soup_i.find_all("a", href=True):
-                        lnk = a["href"]
+                        lnk = _make_absolute(a["href"], base_url)
                         if (
                             "/article/view/" in lnk
                             and re.search(r"/article/view/\d+$", lnk)
                             and lnk not in art_links
                         ):
                             art_links.append(lnk)
-                            
-                    _log(f"📄 Tìm thấy {len(art_links)} bài báo trong số tạp chí này.")
+
+                    _log(f"  📄 Tìm thấy {len(art_links)} bài báo trong số tạp chí này.")
 
                     for au in art_links:
                         if _stop_requested: break
                         cursor.execute("SELECT id FROM articles WHERE source_url=%s", (au,))
                         if cursor.fetchone():
                             scrape_status["duplicates"] += 1
-                            _log(f"    ⏩ [BỎ QUA - ĐÃ CÓ] {au.split('/')[-1]}")
+                            _log(f"    ⏩ [TRÙNG] {au.split('/')[-1]}")
                             continue
 
-                        time.sleep(random.uniform(1.5, 3.5))
+                        time.sleep(random.uniform(1.5, 3.0))
                         try:
                             s  = BeautifulSoup(
-                                session.get(au, verify=False, timeout=15).text, "html.parser"
+                                session.get(au, verify=False, timeout=60).text, "html.parser"
                             )
                             tt = (
                                 s.find("meta", attrs={"name": "citation_title"})
@@ -230,19 +277,22 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                     type("", (), {"get_text": lambda *a, **k: "Không rõ tác giả"})()
                                 ).get_text(strip=True)
                             )
+
+                            # Trích xuất tóm tắt — ưu tiên selector OJS chuẩn trước
                             abstract = ""
                             ab = s.select_one(
-                                ".item.abstract,section.abstract,.article-abstract,"
-                                ".abstract,.article-details-abstract"
+                                ".item.abstract, section.abstract, .article-abstract,"
+                                " .abstract, .article-details-abstract"
                             )
                             if ab:
-                                abstract = ab.text.strip()
+                                abstract = ab.get_text(separator=" ").strip()
                             else:
-                                for h in s.find_all(["h2", "h3", "strong", "span"]):
+                                # Fallback: tìm theo heading "tóm tắt"
+                                for h in s.find_all(["h2", "h3", "h4", "strong", "b", "span"]):
                                     if h.text and "tóm tắt" in h.text.lower():
-                                        p = h.find_parent("div") or h.find_parent("section")
+                                        p = h.find_next_sibling() or h.find_parent("div") or h.find_parent("section")
                                         if p:
-                                            abstract = p.text.strip()
+                                            abstract = p.get_text(separator=" ").strip()
                                             break
 
                             if not abstract or len(abstract) < 50:
@@ -251,7 +301,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                 continue
 
                             abstract_clean = re.sub(
-                                r"^(Tóm tắt|Abstract)[\s:\.\-]*", "",
+                                r"^(Tóm tắt|Abstract|TÓM TẮT)[\s:\.\-]*", "",
                                 abstract, flags=re.IGNORECASE
                             ).strip()
 
@@ -268,7 +318,6 @@ def run_scraping(request, db_config: dict, output_folder: str):
                             if len(safe_title) > 50:
                                 safe_title = safe_title[:47] + "..."
 
-                            
                             # ============ TÌM VÀ TẢI PDF ============
                             pdf_url = None
                             meta_pdf = s.find("meta", attrs={"name": "citation_pdf_url"})
@@ -277,45 +326,47 @@ def run_scraping(request, db_config: dict, output_folder: str):
                             else:
                                 for a_tag in s.find_all("a", href=True):
                                     text_lower = a_tag.get_text(strip=True).lower()
-                                    if "pdf" in text_lower or "pdf" in a_tag.get("class", []):
-                                        if "/article/view/" in a_tag["href"] or "/article/download/" in a_tag["href"]:
-                                            pdf_url = a_tag["href"]
-                                            if not pdf_url.startswith("http"):
-                                                pdf_url = re.match(r"https?://[^/]+", base_url).group(0) + pdf_url
+                                    classes = " ".join(a_tag.get("class", []))
+                                    if "pdf" in text_lower or "pdf" in classes.lower():
+                                        href_val = a_tag["href"]
+                                        if "/article/view/" in href_val or "/article/download/" in href_val:
+                                            pdf_url = _make_absolute(href_val, base_url)
                                             break
-                            
+
                             if pdf_url and "/article/view/" in pdf_url:
                                 pdf_url = pdf_url.replace("/article/view/", "/article/download/")
-                            
+
                             if pdf_url:
                                 try:
-                                    pdf_r = session.get(pdf_url, verify=False, timeout=30, stream=True)
+                                    pdf_r = session.get(pdf_url, verify=False, timeout=120, stream=True)
                                     if pdf_r.status_code == 200:
-                                        pdf_target_dir = os.path.join(
-                                            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                            "Văn_Bản_Y_Tế_PDF",
-                                            site_folder,
-                                            target_year,
-                                        )
-                                        os.makedirs(pdf_target_dir, exist_ok=True)
-                                        pdf_path = os.path.join(pdf_target_dir, f"{safe_title}.pdf")
-                                        with open(pdf_path, "wb") as pdf_out:
-                                            for chunk in pdf_r.iter_content(chunk_size=8192):
-                                                pdf_out.write(chunk)
-                                        _log(f"✅ Đã tải file PDF thành công : {title}")
+                                        content_type = pdf_r.headers.get("Content-Type", "")
+                                        if "pdf" in content_type or "octet-stream" in content_type:
+                                            pdf_target_dir = os.path.join(
+                                                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                                "Văn_Bản_Y_Tế_PDF",
+                                                site_folder,
+                                                target_year,
+                                            )
+                                            os.makedirs(pdf_target_dir, exist_ok=True)
+                                            pdf_path = os.path.join(pdf_target_dir, f"{safe_title}.pdf")
+                                            with open(pdf_path, "wb") as pdf_out:
+                                                for chunk in pdf_r.iter_content(chunk_size=8192):
+                                                    pdf_out.write(chunk)
+                                            _log(f"    ✅ Đã tải PDF: {safe_title}.pdf")
+                                        else:
+                                            _log(f"    [PDF SAI ĐỊNH DẠNG] Content-Type: {content_type}")
                                     else:
-                                        _log(f"    [LỖI TẢI PDF] Status {pdf_r.status_code}")
+                                        _log(f"    [LỖI TẢI PDF] HTTP {pdf_r.status_code}: {pdf_url}")
                                 except Exception as e_pdf:
                                     _log(f"    [LỖI TẢI PDF] {e_pdf}")
                             else:
-                                _log(f"    [KHÔNG TÌM THẤY PDF] {safe_title}")
+                                _log(f"    [KHÔNG TÌM THẤY LINK PDF] {safe_title}")
                             # ========================================
 
-                            # Xác định ngôn ngữ của bài báo (dựa vào abstract)
+                            # Xác định ngôn ngữ và lưu file txt
                             lang = detect_language(abstract_clean)
-                            
-                            # Cập nhật issue_dir theo ngôn ngữ
-                            issue_dir = os.path.join(output_folder, lang, target_year, issue_name)
+                            issue_dir = os.path.join(output_folder, site_folder, lang, target_year, issue_name)
                             os.makedirs(issue_dir, exist_ok=True)
 
                             fp = os.path.join(
@@ -330,28 +381,32 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                     f"\nTÓM TẮT:\n{abstract_clean}\n"
                                 )
                             scrape_status["success"] += 1
-                            _log(f"💾 Đã lưu thành công: {title}")
+                            _log(f"    💾 Đã lưu: {title[:70]}")
                             total_proc = scrape_status["success"] + scrape_status["duplicates"] + scrape_status["skipped"]
-                            _log(f"Tiến độ: Đã thu thập {total_proc} bài báo (Lưu: {scrape_status['success']}, Lỗi/Bỏ qua: {scrape_status['skipped']})")
+                            _log(f"    Tiến độ: {total_proc} bài (✅{scrape_status['success']} | 🔁{scrape_status['duplicates']} | ⏭{scrape_status['skipped']})")
 
                         except Exception as e:
                             scrape_status["skipped"] += 1
-                            _log(f"Lỗi bài báo {au}: {e}")
+                            _log(f"    ❌ Lỗi bài báo {au}: {e}")
 
                 except Exception as e:
-                    _log(f"Lỗi số tạp chí {iu}: {e}")
+                    _log(f"  ❌ Lỗi số tạp chí {iu}: {e}")
 
+    except ValueError as e:
+        # FIX #1: URL không hợp lệ — hiển thị lỗi rõ ràng
+        scrape_status["error"] = str(e)
+        _log(f"❌ {e}")
     except Exception as e:
         scrape_status["error"] = str(e)
-        _log(f"LỖI NGHIÊM TRỌNG: {e}")
+        _log(f"❌ LỖI NGHIÊM TRỌNG: {e}")
     finally:
         scrape_status["summary"] = {
             k: scrape_status[k] for k in ("success", "duplicates", "skipped")
         }
         total_processed = sum(scrape_status[k] for k in ("success", "duplicates", "skipped"))
         scrape_status["summary"]["total_processed"] = total_processed
-        
-        # Lưu vào log
+
+        # Lưu kết quả vào DB
         if _log_id:
             try:
                 log_conn = mysql.connector.connect(**db_config)
@@ -363,9 +418,9 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 )
                 if final_status != 'paused':
                     log_cursor.execute(
-                        "INSERT INTO crawl_logs (crawl_date, target_url, total_urls, success_count, duplicate_count, error_count) "
-                        "VALUES (CURDATE(), %s, %s, %s, %s, %s)",
-                        (request.target_url, total_processed, scrape_status["success"], scrape_status["duplicates"], scrape_status["skipped"])
+                        "INSERT INTO crawl_logs (crawl_date, target_url, total_urls, success_count, duplicate_count, error_count, status, start_year, end_year) "
+                        "VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s)",
+                        (request.target_url, total_processed, scrape_status["success"], scrape_status["duplicates"], scrape_status["skipped"], final_status, request.start_year, request.end_year)
                     )
                 log_conn.commit()
                 log_cursor.close()
@@ -375,7 +430,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
 
         if cursor: cursor.close()
         if conn:   conn.close()
-        
+
         scrape_status["running"] = False
         scrape_status["done"]    = True
-        _log("\n=== ĐÃ HOÀN THÀNH VIỆC LƯU TRỮ TÓM TẮT ===")
+        _log(f"\n=== HOÀN THÀNH === ✅ {scrape_status['summary']['success']} lưu | 🔁 {scrape_status['summary']['duplicates']} trùng | ⏭ {scrape_status['summary']['skipped']} bỏ qua")

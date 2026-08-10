@@ -1166,6 +1166,158 @@ mark.ner-tradmed   { background: #fde047; color: var(--text); font-weight: 600; 
   gap: 8px;
   padding: 3px 0;
 }
+
+/* ============================================================
+   SIMPLE UI — ưu tiên nội dung, bỏ icon trang trí và hiệu ứng nặng
+============================================================ */
+:root {
+  --bg: #f5f7fa;
+  --bg-2: #f8fafc;
+  --bg-3: #eef2f7;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #e5e7eb;
+  --surface-solid: #ffffff;
+  --border: #e2e8f0;
+  --border-2: #cbd5e1;
+  --primary: #2563eb;
+  --primary-light: #eff6ff;
+  --primary-glow: transparent;
+  --accent: #2563eb;
+  --accent-light: #eff6ff;
+  --text: #172033;
+  --text-2: #334155;
+  --text-3: #64748b;
+  --sidebar-w: 220px;
+  --topbar-h: 58px;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 10px;
+  --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+body {
+  background: var(--bg);
+  background-image: none;
+}
+
+.sidebar,
+.topbar,
+.panel,
+.section-card,
+.chart-card {
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.panel,
+.section-card,
+.chart-card,
+.kpi-card {
+  box-shadow: var(--shadow-md);
+}
+
+.brand-icon,
+.nav-icon,
+.panel-icon,
+.btn-icon,
+.search-icon,
+.input-prefix,
+.kpi-icon,
+.placeholder-icon,
+.dropzone-icon,
+.file-info-icon,
+.empty-icon {
+  display: none !important;
+}
+
+.sidebar-brand { gap: 0; padding: 18px; }
+.brand-name { font-size: 16px; }
+.brand-sub { font-size: 10px; }
+.sidebar-nav { padding: 12px 10px; }
+.nav-item { gap: 0; padding: 9px 10px; border-radius: 6px; }
+.nav-item:hover { background: #f8fafc; }
+.nav-item.active { background: #eff6ff; color: #1d4ed8; }
+.nav-item.active::before { display: none; }
+.nav-badge-new { background: #e2e8f0; color: #475569; animation: none; }
+
+.topbar { padding: 0 22px; }
+.topbar-title { font-size: 17px; }
+.screen { padding: 20px 22px; animation: none; }
+
+.panel,
+.section-card,
+.chart-card,
+.kpi-card,
+.form-input,
+.form-select,
+.search-input,
+.btn-primary-full,
+.btn-danger-full,
+.btn-ghost-full,
+.btn-ner,
+.btn-save-ner,
+.btn-primary-sm,
+.btn-outline-sm,
+.filter-pill,
+.filter-btn {
+  border-radius: 6px;
+}
+
+.panel-title { gap: 0; }
+.kpi-card { display: block; padding: 18px; }
+.kpi-card::before { display: none; }
+.kpi-card:hover,
+.article-list-item:hover,
+.entity-tag:hover,
+.entity-chip:hover,
+.btn-primary-full:hover {
+  transform: none;
+}
+
+.btn-primary-full,
+.btn-primary-sm {
+  background: #2563eb;
+  box-shadow: none;
+}
+.btn-primary-full:hover,
+.btn-primary-sm:hover { background: #1d4ed8; box-shadow: none; }
+
+.input-with-prefix .form-input,
+.search-input { padding-left: 12px; }
+.filter-pill,
+.filter-btn { border-radius: 6px; }
+.label-layout { grid-template-columns: 280px minmax(0, 1fr); gap: 14px; }
+.article-list-item:hover { padding-left: 14px; }
+.article-meta { background: #f8fafc; }
+.meta-tag { border-radius: 5px; }
+.entity-legend { background: #f8fafc; }
+.legend-item { border-radius: 5px; }
+.entities-panel { background: #f8fafc; }
+.entity-tag { border-radius: 5px; transition: none; }
+.entity-tag.disease { color: #166534; }
+.entity-tag.symptom { color: #3730a3; }
+.entity-tag.treatment { color: #7e22ce; }
+.entity-tag.labtest { color: #92400e; }
+.entity-tag.imaging { color: #0f766e; }
+.entity-tag.physiology { color: #9a3412; }
+.entity-code { background: rgba(15, 23, 42, 0.08); color: inherit; opacity: 1; }
+
+@media (max-width: 900px) {
+  .sidebar { width: 190px; }
+  .main-content { margin-left: 190px; }
+  .brand-text, .nav-label, .nav-section-label, .sidebar-footer { display: block; }
+  .nav-item { justify-content: flex-start; }
+}
+
+@media (max-width: 700px) {
+  .sidebar { display: none; }
+  .main-content { margin-left: 0; }
+  .screen { padding: 14px; }
+  .label-layout { grid-template-columns: 1fr; }
+}
 .preproc-before {
   font-family: monospace;
   background: rgba(239,68,68,0.12);
@@ -1530,4 +1682,19 @@ mark.ner-tradmed   { background: #fde047; color: var(--text); font-weight: 600; 
 #btnRunAiNer:active {
   transform: translateY(1px);
   box-shadow: 0 2px 4px -1px rgba(99, 102, 241, 0.4);
+}
+
+/* Chốt phong cách đơn giản sau các style cũ có độ ưu tiên cao. */
+#btnRunAiNer,
+#btnRunAiNer:hover,
+#btnRunAiNer:active {
+  background: #2563eb;
+  box-shadow: none;
+  transform: none;
+}
+
+.matched-exact {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
 }

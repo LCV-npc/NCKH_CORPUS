@@ -1,0 +1,2966 @@
+{
+  "schema_version": "1.0",
+  "dictionary_version": "2026.08.09-v1",
+  "kind": "custom_aliases",
+  "source": {
+    "legacy_file": "Từ_Điển.json",
+    "legacy_sha256": "02eb0ab23dc7fb593eb99aeeb585633fb8258cbd6564e432720cfd7f08f5e419"
+  },
+  "counts": {
+    "all": 295,
+    "active": 292,
+    "ambiguous": 3
+  },
+  "entries": [
+    {
+      "term": "arterial hypertension",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "arthritis",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "benh gut",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "benh tang huyet ap",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "benh tay chan mieng",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "benh than giai doan 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "benh than man giai doan 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "benh than man tinh giai doan 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "benh tim mach do xo vua",
+      "canonical_term": "Bệnh tim mạch do xơ vữa động mạch",
+      "type": "Bệnh Lý",
+      "code": "I25.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "benh viem khop",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bong gan ton thuong day chang cheo khop goi",
+      "canonical_term": "Bong gân và căng cơ (phía trước) (phía sau) tổn thương dây chằng chéo khớp gối",
+      "type": "Bệnh Lý",
+      "code": "S83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bong gan va cang co ton thuong day chang cheo khop goi",
+      "canonical_term": "Bong gân và căng cơ (phía trước) (phía sau) tổn thương dây chằng chéo khớp gối",
+      "type": "Bệnh Lý",
+      "code": "S83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bong gân tổn thương dây chằng chéo khớp gối",
+      "canonical_term": "Bong gân và căng cơ (phía trước) (phía sau) tổn thương dây chằng chéo khớp gối",
+      "type": "Bệnh Lý",
+      "code": "S83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bong gân và căng cơ tổn thương dây chằng chéo khớp gối",
+      "canonical_term": "Bong gân và căng cơ (phía trước) (phía sau) tổn thương dây chằng chéo khớp gối",
+      "type": "Bệnh Lý",
+      "code": "S83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "brain stroke",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "BTCM",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh gút",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh tay chân miệng",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh tay chân miệng (TCM)",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh thận giai đoạn 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh thận mạn giai đoạn 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh thận mạn giai đoạn cuối",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh thận mạn tính giai đoạn 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh thận mạn tính giai đoạn cuối",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh tim mạch do xơ vữa",
+      "canonical_term": "Bệnh tim mạch do xơ vữa động mạch",
+      "type": "Bệnh Lý",
+      "code": "I25.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh tim mạch do xơ vữa động mạch",
+      "canonical_term": "Bệnh tim mạch do xơ vữa động mạch",
+      "type": "Bệnh Lý",
+      "code": "I25.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh tăng huyết áp",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "bệnh viêm khớp",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cang co ton thuong day chang cheo khop goi",
+      "canonical_term": "Bong gân và căng cơ (phía trước) (phía sau) tổn thương dây chằng chéo khớp gối",
+      "type": "Bệnh Lý",
+      "code": "S83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cao huyet ap",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cao huyết áp",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cat cut chi",
+      "canonical_term": "Mất chi mắc phải",
+      "type": "Bệnh Lý",
+      "code": "Z89",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cerebral hemorrhage",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cerebral infarction",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cerebral stroke",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cham lien xuong",
+      "canonical_term": "Gãy xương chậm liền",
+      "type": "Bệnh Lý",
+      "code": "M84.2",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "chậm liền xương",
+      "canonical_term": "Gãy xương chậm liền",
+      "type": "Bệnh Lý",
+      "code": "M84.2",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "chứng khó phát âm",
+      "canonical_term": "Chứng khó phát âm",
+      "type": "Triệu Chứng",
+      "code": "R48.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "con thieu mau cuc bo thoang qua",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "con thieu mau nao thoang qua",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "con thoang thieu mau nao",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "căng cơ tổn thương dây chằng chéo khớp gối",
+      "canonical_term": "Bong gân và căng cơ (phía trước) (phía sau) tổn thương dây chằng chéo khớp gối",
+      "type": "Bệnh Lý",
+      "code": "S83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cơn thiếu máu cục bộ thoáng qua",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cơn thiếu máu não thoáng qua",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cơn thoáng thiếu máu não",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "cắt cụt chi",
+      "canonical_term": "Mất chi mắc phải",
+      "type": "Bệnh Lý",
+      "code": "Z89",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "disorders of lipoprotein metabolism",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "dot quy",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "dot quy cap",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "dot quy cap tinh",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "dot quy nao",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "dut DCCT khop goi",
+      "canonical_term": "Bong gân và căng cơ (phía trước) (phía sau) tổn thương dây chằng chéo khớp gối",
+      "type": "Bệnh Lý",
+      "code": "S83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "dysarthria",
+      "canonical_term": "Chứng khó phát âm",
+      "type": "Triệu Chứng",
+      "code": "R48.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "dyslipidemia",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "elevated uric acid",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay dot song",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay ho hai xuong canh chan",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy hở",
+      "type": "Bệnh Lý",
+      "code": "S827.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay kin hai xuong canh chan",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy kín",
+      "type": "Bệnh Lý",
+      "code": "S827.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong cang chan",
+      "canonical_term": "Gãy xương tại cẳng chân",
+      "type": "Bệnh Lý",
+      "code": "S827",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong canh chan, gay ho",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy hở",
+      "type": "Bệnh Lý",
+      "code": "S827.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong canh chan, gay kin",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy kín",
+      "type": "Bệnh Lý",
+      "code": "S827.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong cham lien",
+      "canonical_term": "Gãy xương chậm liền",
+      "type": "Bệnh Lý",
+      "code": "M84.2",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong cot song",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong dot song",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong khong lien",
+      "canonical_term": "Gãy xương không liền (khớp giả)",
+      "type": "Bệnh Lý",
+      "code": "M84.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong tai canh chan",
+      "canonical_term": "Gãy xương tại cẳng chân",
+      "type": "Bệnh Lý",
+      "code": "S827",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong tai canh chan, gay ho",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy hở",
+      "type": "Bệnh Lý",
+      "code": "S827.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gay xuong tai canh chan, gay kin",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy kín",
+      "type": "Bệnh Lý",
+      "code": "S827.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "giang mai",
+      "canonical_term": "giang mai",
+      "type": "Bệnh Lý",
+      "code": "A539",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "case_sensitive": false,
+      "source": "legacy_json"
+    },
+    {
+      "term": "gout",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gouty arthritis",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gut",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "GXĐS",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy hai xương cẳng chân",
+      "canonical_term": "Gãy xương tại cẳng chân",
+      "type": "Bệnh Lý",
+      "code": "S827",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy hở hai xương cẳng chân",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy hở",
+      "type": "Bệnh Lý",
+      "code": "S827.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy kín hai xương cẳng chân",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy kín",
+      "type": "Bệnh Lý",
+      "code": "S827.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương chậm liền",
+      "canonical_term": "Gãy xương chậm liền",
+      "type": "Bệnh Lý",
+      "code": "M84.2",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương cẳng chân",
+      "canonical_term": "Gãy xương tại cẳng chân",
+      "type": "Bệnh Lý",
+      "code": "S827",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương cẳng chân, gãy hở",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy hở",
+      "type": "Bệnh Lý",
+      "code": "S827.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương cẳng chân, gãy kín",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy kín",
+      "type": "Bệnh Lý",
+      "code": "S827.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương cột sống",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương không liền",
+      "canonical_term": "Gãy xương không liền (khớp giả)",
+      "type": "Bệnh Lý",
+      "code": "M84.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương tại cẳng chân",
+      "canonical_term": "Gãy xương tại cẳng chân",
+      "type": "Bệnh Lý",
+      "code": "S827",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương tại cẳng chân, gãy hở",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy hở",
+      "type": "Bệnh Lý",
+      "code": "S827.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương tại cẳng chân, gãy kín",
+      "canonical_term": "Gãy xương tại cẳng chân, gãy kín",
+      "type": "Bệnh Lý",
+      "code": "S827.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy xương đốt sống",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gãy đốt sống",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gút",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gút cấp",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gút mãn tính",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "gút mạn tính",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "GĐS",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "h.pylori",
+      "canonical_term": "Helicobacter pylori [H.pylori] gây các bệnh đã được phân loại ở chương khác",
+      "type": "Bệnh Lý",
+      "code": "B98.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ha calci",
+      "canonical_term": "Rối loạn chuyển hóa calci",
+      "type": "Bệnh Lý",
+      "code": "E83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "hand foot and mouth disease",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "hand-foot-and-mouth disease",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "helicobacter pylori",
+      "canonical_term": "Helicobacter pylori [H.pylori] gây các bệnh đã được phân loại ở chương khác",
+      "type": "Bệnh Lý",
+      "code": "B98.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "hemorrhagic stroke",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "herpangina co phat ban",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "herpangina có phát ban",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "herpangina voi phat ban",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "herpangina với phát ban",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "HFMD",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "high blood pressure",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "high uric acid",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "huyet ap cao",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "huyết áp cao",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "hypertension",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "hyperuricaemia",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "hyperuricemia",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "hạ calci",
+      "canonical_term": "Rối loạn chuyển hóa calci",
+      "type": "Bệnh Lý",
+      "code": "E83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ischemic stroke",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "joint inflammation",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "khan tieng",
+      "canonical_term": "Chứng khó phát âm",
+      "type": "Triệu Chứng",
+      "code": "R48.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "kho phat am",
+      "canonical_term": "Chứng khó phát âm",
+      "type": "Triệu Chứng",
+      "code": "R48.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "khop gia",
+      "canonical_term": "Gãy xương không liền (khớp giả)",
+      "type": "Bệnh Lý",
+      "code": "M84.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "khàn tiếng",
+      "canonical_term": "Chứng khó phát âm",
+      "type": "Triệu Chứng",
+      "code": "R48.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "khó phát âm",
+      "canonical_term": "Chứng khó phát âm",
+      "type": "Triệu Chứng",
+      "code": "R48.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "khớp giả",
+      "canonical_term": "Gãy xương không liền (khớp giả)",
+      "type": "Bệnh Lý",
+      "code": "M84.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "loang xuong",
+      "canonical_term": "Loãng xương sau mãn kinh",
+      "type": "Bệnh Lý",
+      "code": "M81.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "loang xuong nguyen phat",
+      "canonical_term": "Loãng xương sau mãn kinh",
+      "type": "Bệnh Lý",
+      "code": "M81.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "loang xuong sau man kinh",
+      "canonical_term": "Loãng xương sau mãn kinh",
+      "type": "Bệnh Lý",
+      "code": "M81.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "loãng xương",
+      "canonical_term": "Loãng xương sau mãn kinh",
+      "type": "Bệnh Lý",
+      "code": "M81.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "loãng xương nguyên phát",
+      "canonical_term": "Loãng xương sau mãn kinh",
+      "type": "Bệnh Lý",
+      "code": "M81.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "loãng xương sau mãn kinh",
+      "canonical_term": "Loãng xương sau mãn kinh",
+      "type": "Bệnh Lý",
+      "code": "M81.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "lun dot song",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "lún đốt sống",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "mat chi mac phai",
+      "canonical_term": "Mất chi mắc phải",
+      "type": "Bệnh Lý",
+      "code": "Z89",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "mini stroke",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "mini-stroke",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "mất chi mắc phải",
+      "canonical_term": "Mất chi mắc phải",
+      "type": "Bệnh Lý",
+      "code": "Z89",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhiem trung",
+      "canonical_term": "Nhiễm trùng vết thương sau chấn thương, không xếp loại ở nơi khác",
+      "type": "Bệnh Lý",
+      "code": "T793",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhiem trung duong mat",
+      "canonical_term": "Viêm đường mật",
+      "type": "Bệnh Lý",
+      "code": "K83.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhiem trung vet thuong sau chan thuong",
+      "canonical_term": "Nhiễm trùng vết thương sau chấn thương, không xếp loại ở nơi khác",
+      "type": "Bệnh Lý",
+      "code": "T793",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhiem trung vet thuong sau chan thuong khong xep loai o noi khac",
+      "canonical_term": "Nhiễm trùng vết thương sau chấn thương, không xếp loại ở nơi khác",
+      "type": "Bệnh Lý",
+      "code": "T793",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhiễm trùng",
+      "canonical_term": "Nhiễm trùng vết thương sau chấn thương, không xếp loại ở nơi khác",
+      "type": "Bệnh Lý",
+      "code": "T793",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhiễm trùng vết thương sau chấn thương",
+      "canonical_term": "Nhiễm trùng vết thương sau chấn thương, không xếp loại ở nơi khác",
+      "type": "Bệnh Lý",
+      "code": "T793",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhiễm trùng vết thương sau chấn thương, không xếp loại ở nơi khác",
+      "canonical_term": "Nhiễm trùng vết thương sau chấn thương, không xếp loại ở nơi khác",
+      "type": "Bệnh Lý",
+      "code": "T793",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhiễm trùng đường mật",
+      "canonical_term": "Viêm đường mật",
+      "type": "Bệnh Lý",
+      "code": "K83.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhoi mau nao",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "nhồi máu não",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "osteoporosis",
+      "canonical_term": "Loãng xương sau mãn kinh",
+      "type": "Bệnh Lý",
+      "code": "M81.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "other hyperlipidemia",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "phá thai",
+      "canonical_term": "Phá thai nội khoa (Sảy không hoàn toàn, gây biến chứng nhiễm khuẩn đường sinh dục và tiểu khung)",
+      "type": "Bệnh Lý",
+      "code": "O04",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "phá thai nội khoa",
+      "canonical_term": "Phá thai nội khoa (Sảy không hoàn toàn, gây biến chứng nhiễm khuẩn đường sinh dục và tiểu khung)",
+      "type": "Bệnh Lý",
+      "code": "O04",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "roi loan chuyen hoa calci",
+      "canonical_term": "Rối loạn chuyển hóa calci",
+      "type": "Bệnh Lý",
+      "code": "E83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "roi loan chuyen hoa calcium",
+      "canonical_term": "Rối loạn chuyển hóa calci",
+      "type": "Bệnh Lý",
+      "code": "E83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "roi loan chuyen hoa lipid mau",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "roi loan chuyen hoa lipoprotein",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "roi loan lipid mau",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "roi loan mo mau",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "rối loạn chuyển hóa calci",
+      "canonical_term": "Rối loạn chuyển hóa calci",
+      "type": "Bệnh Lý",
+      "code": "E83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "rối loạn chuyển hóa calcium",
+      "canonical_term": "Rối loạn chuyển hóa calci",
+      "type": "Bệnh Lý",
+      "code": "E83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "rối loạn chuyển hóa lipid máu",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "rối loạn chuyển hóa lipoprotein",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "rối loạn lipid máu",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "rối loạn mỡ máu",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "say thai",
+      "canonical_term": "Sẩy thai tự nhiên",
+      "type": "Bệnh Lý",
+      "code": "O03",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "sot xuat huyet dengue",
+      "canonical_term": "Sốt xuất huyết Dengue",
+      "type": "Bệnh Lý",
+      "code": "A97",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "sot xuat huyet do virus dengue",
+      "canonical_term": "Sốt xuất huyết Dengue",
+      "type": "Bệnh Lý",
+      "code": "A97",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "spinal fracture",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "stroke",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "subarachnoid hemorrhage",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "suy than giai doan 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "suy than man giai doan 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "suy than man tinh giai doan 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "suy thận giai đoạn 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "suy thận mạn giai đoạn 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "suy thận mạn giai đoạn cuối",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "suy thận mạn tính giai đoạn 5",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "suy thận mạn tính giai đoạn cuối",
+      "canonical_term": "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)",
+      "type": "Bệnh Lý",
+      "code": "N18.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "SXHD",
+      "canonical_term": "Sốt xuất huyết Dengue",
+      "type": "Bệnh Lý",
+      "code": "A97",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "sảy thai",
+      "canonical_term": "Sẩy thai tự nhiên",
+      "type": "Bệnh Lý",
+      "code": "O03",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "sảy thai tự nhiên",
+      "canonical_term": "Sẩy thai tự nhiên",
+      "type": "Bệnh Lý",
+      "code": "O03",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "sẩy thai",
+      "canonical_term": "Sẩy thai tự nhiên",
+      "type": "Bệnh Lý",
+      "code": "O03",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "sốt xuất huyết dengue",
+      "canonical_term": "Sốt xuất huyết Dengue",
+      "type": "Bệnh Lý",
+      "code": "A97",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "sốt xuất huyết Dengue (SXHD)",
+      "canonical_term": "Sốt xuất huyết Dengue",
+      "type": "Bệnh Lý",
+      "code": "A97",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "sốt xuất huyết do virus Dengue",
+      "canonical_term": "Sốt xuất huyết Dengue",
+      "type": "Bệnh Lý",
+      "code": "A97",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tac mat",
+      "canonical_term": "Tắc ống mật",
+      "type": "Bệnh Lý",
+      "code": "K83.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tac ong mat",
+      "canonical_term": "Tắc ống mật",
+      "type": "Bệnh Lý",
+      "code": "K83.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tai bien mach mau nao",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tai bien mach nao",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tai biến mạch máu não",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tai biến mạch não",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang acid uric",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang acid uric mau",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang axit uric mau",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang calci",
+      "canonical_term": "Rối loạn chuyển hóa calci",
+      "type": "Bệnh Lý",
+      "code": "E83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang cholesterol huyet",
+      "canonical_term": "Tăng cholesterol máu, không xác định",
+      "type": "Bệnh Lý",
+      "code": "E78.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang cholesterol mau",
+      "canonical_term": "Tăng cholesterol máu, không xác định",
+      "type": "Bệnh Lý",
+      "code": "E78.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang huyet ap",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang lipid mau",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang mo mau",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang uric acid mau",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang uric huyet",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tang uric mau",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tay chan mieng",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tay chân miệng",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "TBMMN",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "TCM",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "THA",
+      "canonical_term": "THA",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "legacy_json"
+    },
+    {
+      "term": "thai chet khong ro nguyen nhan",
+      "canonical_term": "Thai chết vì nguyên nhân không được định rõ",
+      "type": "Bệnh Lý",
+      "code": "P95",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai chet vi nguyen nhan khong duoc dinh ro",
+      "canonical_term": "Thai chết vì nguyên nhân không được định rõ",
+      "type": "Bệnh Lý",
+      "code": "P95",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai chết không rõ nguyên nhân",
+      "canonical_term": "Thai chết vì nguyên nhân không được định rõ",
+      "type": "Bệnh Lý",
+      "code": "P95",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai chết vì nguyên nhân không được định rõ",
+      "canonical_term": "Thai chết vì nguyên nhân không được định rõ",
+      "type": "Bệnh Lý",
+      "code": "P95",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai qua ngay",
+      "canonical_term": "Thai quá ngày sinh",
+      "type": "Bệnh Lý",
+      "code": "O48",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai qua ngay du sinh",
+      "canonical_term": "Thai quá ngày sinh",
+      "type": "Bệnh Lý",
+      "code": "O48",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai qua ngay sinh",
+      "canonical_term": "Thai quá ngày sinh",
+      "type": "Bệnh Lý",
+      "code": "O48",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai quá ngày",
+      "canonical_term": "Thai quá ngày sinh",
+      "type": "Bệnh Lý",
+      "code": "O48",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai quá ngày dự sinh",
+      "canonical_term": "Thai quá ngày sinh",
+      "type": "Bệnh Lý",
+      "code": "O48",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thai quá ngày sinh",
+      "canonical_term": "Thai quá ngày sinh",
+      "type": "Bệnh Lý",
+      "code": "O48",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thieu mau nao cuc bo thoang qua",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thieu mau nao thoang qua",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thiếu máu não cục bộ thoáng qua",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thiếu máu não thoáng qua",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thiếu máu não thoáng qua tái phát",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thong phong",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "thống phong",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "TIA",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "TIA attack",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tim mach do xa vua",
+      "canonical_term": "Bệnh tim mạch do xơ vữa động mạch",
+      "type": "Bệnh Lý",
+      "code": "I25.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tim mach do xơ vữa động mạch",
+      "canonical_term": "Bệnh tim mạch do xơ vữa động mạch",
+      "type": "Bệnh Lý",
+      "code": "I25.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tim mạch do xơ vữa",
+      "canonical_term": "Bệnh tim mạch do xơ vữa động mạch",
+      "type": "Bệnh Lý",
+      "code": "I25.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tim mạch do xơ vữa động mạch",
+      "canonical_term": "Bệnh tim mạch do xơ vữa động mạch",
+      "type": "Bệnh Lý",
+      "code": "I25.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tinh trang tang lipid mau",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tiền sản giật",
+      "canonical_term": "tiền sản giật",
+      "type": "Bệnh Lý",
+      "code": "O14",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "legacy_json"
+    },
+    {
+      "term": "TMNTQ",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "transient cerebral ischemia",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "transient ischemic attack",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "transient ischemic episode",
+      "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
+      "type": "Bệnh Lý",
+      "code": "G45.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tu vong thai nhi",
+      "canonical_term": "Thai chết vì nguyên nhân không được định rõ",
+      "type": "Bệnh Lý",
+      "code": "P95",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tình trạng tăng lipid máu",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng acid uric",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng acid uric máu",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng axit uric máu",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng calci",
+      "canonical_term": "Rối loạn chuyển hóa calci",
+      "type": "Bệnh Lý",
+      "code": "E83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng cholesterol huyết",
+      "canonical_term": "Tăng cholesterol máu, không xác định",
+      "type": "Bệnh Lý",
+      "code": "E78.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng cholesterol máu",
+      "canonical_term": "Tăng cholesterol máu, không xác định",
+      "type": "Bệnh Lý",
+      "code": "E78.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng huyết áp",
+      "canonical_term": "tăng huyết áp",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "legacy_json"
+    },
+    {
+      "term": "tăng huyết áp hệ thống",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng huyết áp mãn tính",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng huyết áp mạn tính",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng huyết áp nguyên phát",
+      "canonical_term": "Tăng huyết áp nguyên phát",
+      "type": "Bệnh Lý",
+      "code": "I10",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng lipid máu",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng mỡ máu",
+      "canonical_term": "Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác",
+      "type": "Bệnh Lý",
+      "code": "E78",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng uric acid máu",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng uric huyết",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tăng uric máu",
+      "canonical_term": "Tăng acid uric máu",
+      "type": "Bệnh Lý",
+      "code": "E79.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tắc mật",
+      "canonical_term": "Tắc ống mật",
+      "type": "Bệnh Lý",
+      "code": "K83.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "tắc ống mật",
+      "canonical_term": "Tắc ống mật",
+      "type": "Bệnh Lý",
+      "code": "K83.1",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "Tổn thương",
+      "canonical_term": "Tổn thương",
+      "type": "Bệnh Lý",
+      "code": "T149",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "case_sensitive": false,
+      "source": "legacy_json"
+    },
+    {
+      "term": "tử vong thai nhi",
+      "canonical_term": "Thai chết vì nguyên nhân không được định rõ",
+      "type": "Bệnh Lý",
+      "code": "P95",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "u ac cua tuyen giap",
+      "canonical_term": "u ác của tuyến giáp",
+      "type": "Bệnh Lý",
+      "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "u ác của tuyến giáp",
+      "canonical_term": "u ác của tuyến giáp",
+      "type": "Bệnh Lý",
+      "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "u ác tính",
+      "canonical_term": "u ác tính",
+      "type": "Bệnh Lý",
+      "code": "C800",
+      "active_for_ner": false,
+      "ambiguous": true,
+      "case_sensitive": false,
+      "source": "legacy_json"
+    },
+    {
+      "term": "ung thu bieu mo tuyen giap the nhu",
+      "canonical_term": "u ác của tuyến giáp",
+      "type": "Bệnh Lý",
+      "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ung thu tuyen giap",
+      "canonical_term": "u ác của tuyến giáp",
+      "type": "Bệnh Lý",
+      "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ung thu tuyen giap the nhu",
+      "canonical_term": "u ác của tuyến giáp",
+      "type": "Bệnh Lý",
+      "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ung thư biểu mô tuyến giáp thể nhú",
+      "canonical_term": "u ác của tuyến giáp",
+      "type": "Bệnh Lý",
+      "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ung thư tuyến giáp",
+      "canonical_term": "u ác của tuyến giáp",
+      "type": "Bệnh Lý",
+      "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ung thư tuyến giáp thể nhú",
+      "canonical_term": "u ác của tuyến giáp",
+      "type": "Bệnh Lý",
+      "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "VCF",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": true,
+      "source": "custom_alias"
+    },
+    {
+      "term": "vertebral compression fracture",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "vertebral fracture",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "vi khuan hp",
+      "canonical_term": "Helicobacter pylori [H.pylori] gây các bệnh đã được phân loại ở chương khác",
+      "type": "Bệnh Lý",
+      "code": "B98.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "vi khuẩn Helicobacter pylori",
+      "canonical_term": "Helicobacter pylori [H.pylori] gây các bệnh đã được phân loại ở chương khác",
+      "type": "Bệnh Lý",
+      "code": "B98.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "vi khuẩn hp",
+      "canonical_term": "Helicobacter pylori [H.pylori] gây các bệnh đã được phân loại ở chương khác",
+      "type": "Bệnh Lý",
+      "code": "B98.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viem da khop",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viem hong co phong nuoc do virus duong ruot voi phat ban",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viem hong phong nuoc do virus duong ruot co phat ban",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viem khop",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viem khop do gut",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "vien duong mat",
+      "canonical_term": "Viêm đường mật",
+      "type": "Bệnh Lý",
+      "code": "K83.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viêm họng có phỏng nước do virus đường ruột với phát ban",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viêm họng phỏng nước do virus đường ruột có phát ban",
+      "canonical_term": "Bệnh tay chân miệng",
+      "type": "Bệnh Lý",
+      "code": "B08.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viêm khớp",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viêm khớp do gút",
+      "canonical_term": "Gút, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M10.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viêm khớp không đặc hiệu",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viêm đa khớp",
+      "canonical_term": "Viêm khớp, không xác định",
+      "type": "Bệnh Lý",
+      "code": "M13.9",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "viêm đường mật",
+      "canonical_term": "Viêm đường mật",
+      "type": "Bệnh Lý",
+      "code": "K83.0",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "xep dot song",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "xuat huyet duoi nhen",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "xuat huyet nao",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "xuất huyết dưới nhện",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "xuất huyết não",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "xẹp đốt sống",
+      "canonical_term": "Gãy xương đốt sống do bệnh lý",
+      "type": "Bệnh Lý",
+      "code": "M48.4",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "đau đầu",
+      "canonical_term": "đau đầu",
+      "type": "Triệu Chứng",
+      "code": "R51",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "legacy_json"
+    },
+    {
+      "term": "đình chỉ thai kì",
+      "canonical_term": "Phá thai nội khoa (Sảy không hoàn toàn, gây biến chứng nhiễm khuẩn đường sinh dục và tiểu khung)",
+      "type": "Bệnh Lý",
+      "code": "O04",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "đột quỵ",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "đột quỵ cấp",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "đột quỵ cấp tính",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "đột quỵ do thiếu máu cục bộ",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "đột quỵ não",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "đột quỵ thiếu máu não",
+      "canonical_term": "Đột quỵ, không xác định do xuất huyết hay nhồi máu",
+      "type": "Bệnh Lý",
+      "code": "I64",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "đứt DCCT khớp gối",
+      "canonical_term": "Bong gân và căng cơ (phía trước) (phía sau) tổn thương dây chằng chéo khớp gối",
+      "type": "Bệnh Lý",
+      "code": "S83.5",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    }
+  ]
+}

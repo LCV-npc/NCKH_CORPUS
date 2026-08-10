@@ -28,3 +28,6 @@ class ExtractedMetadata:
     processing_steps: List[ProcessingStep] = field(default_factory=list)
     extracted_text: str = ""
     extracted_files: List[Any] = field(default_factory=list)
+    headings: List[Any] = field(default_factory=list)
+    sections: List[Any] = field(default_factory=list)
+    validation_report: Any = field(default_factory=dict)
