@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import unittest
@@ -203,16 +204,24 @@ class PdfExtractorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
                 os.chdir(temp_dir)
-                output = Path("Văn_Bản_Y_Tế_TXT")
-                output.mkdir()
-                stale = output / "article_old.txt"
+                output = Path("Kho_Ngu_Lieu_Txt/pdf_extracted/article")
+                output.mkdir(parents=True)
+                stale = output / "old.txt"
                 stale.write_text("stale", encoding="utf-8")
 
-                ExtractorPipeline()._save_sections(sections, "article", metadata)
+                ExtractorPipeline()._save_extraction({
+                    "title": "Article title", "authors": "Author One",
+                    "abstract": "Article abstract", "page_count": 1,
+                    "validation": {}, "sections": sections,
+                }, "article", metadata)
 
                 self.assertFalse(stale.exists())
-                self.assertEqual((output / "article_custom.txt").read_text(encoding="utf-8"), "First content")
-                self.assertEqual((output / "article_custom_2.txt").read_text(encoding="utf-8"), "Second content")
+                self.assertEqual((output / "custom.txt").read_text(encoding="utf-8"), "First content")
+                self.assertEqual((output / "custom_2.txt").read_text(encoding="utf-8"), "Second content")
+                self.assertEqual((output / "title.txt").read_text(encoding="utf-8"), "Article title")
+                self.assertEqual((output / "authors.txt").read_text(encoding="utf-8"), "Author One")
+                self.assertEqual((output / "abstract.txt").read_text(encoding="utf-8"), "Article abstract")
+                self.assertEqual(json.loads((output / "metadata.json").read_text(encoding="utf-8"))["title"], "Article title")
             finally:
                 os.chdir(original_cwd)
 
@@ -229,15 +238,19 @@ class PdfExtractorTests(unittest.TestCase):
                 self.assertIn("abstract", labels)
                 self.assertIn("references", labels)
                 self.assertTrue(metadata.validation_report["ok"])
-                abstract_path = Path("Văn_Bản_Y_Tế_TXT/sample_abstract.txt")
+                article_dir = Path("Kho_Ngu_Lieu_Txt/pdf_extracted/sample")
+                abstract_path = article_dir / "abstract.txt"
                 self.assertTrue(abstract_path.exists())
                 self.assertNotIn("Introduction", abstract_path.read_text(encoding="utf-8"))
-                data_path = Path("Văn_Bản_Y_Tế_TXT/sample_data_availability.txt")
+                data_path = article_dir / "data_availability.txt"
                 self.assertTrue(data_path.exists())
                 self.assertIn("Zenodo Deposit", data_path.read_text(encoding="utf-8"))
-                self.assertFalse(Path("Văn_Bản_Y_Tế_TXT/sample_zenodo.txt").exists())
-                self.assertFalse(Path("Văn_Bản_Y_Tế_TXT/sample_figure.txt").exists())
-                self.assertFalse(Path("Văn_Bản_Y_Tế_TXT/sample_table.txt").exists())
+                self.assertTrue((article_dir / "metadata.json").exists())
+                self.assertTrue((article_dir / "title.txt").exists())
+                self.assertTrue((article_dir / "authors.txt").exists())
+                self.assertFalse((article_dir / "zenodo.txt").exists())
+                self.assertFalse((article_dir / "figure.txt").exists())
+                self.assertFalse((article_dir / "table.txt").exists())
             finally:
                 os.chdir(original_cwd)
 

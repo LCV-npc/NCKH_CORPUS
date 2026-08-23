@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "dictionary_version": "2026.08.09-v1",
-  "generated_at": "2026-08-09T15:26:38+00:00",
+  "generated_at": "2026-08-16T12:52:50+00:00",
   "scope": [
     "Bệnh Lý",
     "Triệu Chứng",
@@ -20,8 +20,8 @@
     },
     "custom": {
       "path": "Kho Ngữ Liệu Y Học Tiếng Việt/Từ_Điển_v1.json",
-      "sha256": "d9cfe3b05623708b2b91be4d268edb4ab6840ecd39dbd91c86d34f47f2c51045",
-      "count": 295
+      "sha256": "dc92e49f0f4e274d656682fe5f864a11b2b10a0a2d49f94ed671b73776922afb",
+      "count": 292
     }
   }
 }

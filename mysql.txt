@@ -192,3 +192,37 @@ CREATE TABLE IF NOT EXISTS crawl_logs (
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- 5. TÂM ANH PUBLIC Q&A METADATA
+-- Nội dung gốc nằm trong backend/Kho_Ngu_Lieu_Txt/tamanh/;
+-- bảng này lưu QA ID, đường dẫn file và nguồn để truy vết corpus.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS tamanh_qa_metadata (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    qa_identifier VARCHAR(255) NOT NULL,
+    source VARCHAR(100) NOT NULL,
+    category VARCHAR(255) NOT NULL,
+    question_file VARCHAR(1024) NOT NULL,
+    answer_file VARCHAR(1024) NOT NULL,
+    source_url VARCHAR(1024) NOT NULL,
+    category_url VARCHAR(1024) NOT NULL,
+    doctor_name VARCHAR(500) NULL,
+    question_title TEXT NULL,
+    published_year SMALLINT UNSIGNED NULL,
+    fingerprint CHAR(64) NOT NULL,
+    crawled_at DATETIME(6) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_tamanh_qa_identifier (qa_identifier),
+    UNIQUE KEY uq_tamanh_qa_fingerprint (fingerprint),
+    KEY idx_tamanh_qa_category (category),
+    KEY idx_tamanh_qa_published_year (published_year),
+    KEY idx_tamanh_qa_source_url (source_url(191))
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;

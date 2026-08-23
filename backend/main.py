@@ -16,7 +16,7 @@ load_ner_dictionary()
 # ── Cấu hình DB ───────────────────────────────────────────────
 db_config = {
     "user":     "root",
-    "password": os.getenv("DB_PASSWORD", "17092005Khang"),
+    "password": os.getenv("DB_PASSWORD", "Chanvu150905@"),
     "host":     "127.0.0.1",
     "database": "yhoc_corpus", # fixed typo yhoc_corpuss -> yhoc_corpus
     "charset":  "utf8mb4",

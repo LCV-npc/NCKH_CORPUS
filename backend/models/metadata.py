@@ -27,6 +27,12 @@ class ExtractedMetadata:
     steps_completed: List[str] = field(default_factory=list)
     processing_steps: List[ProcessingStep] = field(default_factory=list)
     extracted_text: str = ""
+    title: str = ""
+    authors: str = ""
+    abstract: str = ""
+    page_count: int = 0
+    output_directory: str = ""
+    metadata_file: str = ""
     extracted_files: List[Any] = field(default_factory=list)
     headings: List[Any] = field(default_factory=list)
     sections: List[Any] = field(default_factory=list)

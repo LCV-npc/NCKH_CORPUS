@@ -4,12 +4,12 @@
   "kind": "custom_aliases",
   "source": {
     "legacy_file": "Từ_Điển.json",
-    "legacy_sha256": "02eb0ab23dc7fb593eb99aeeb585633fb8258cbd6564e432720cfd7f08f5e419"
+    "legacy_sha256": ""
   },
   "counts": {
-    "all": 295,
+    "all": 292,
     "active": 292,
-    "ambiguous": 3
+    "ambiguous": 0
   },
   "entries": [
     {
@@ -691,16 +691,6 @@
       "ambiguous": false,
       "case_sensitive": false,
       "source": "custom_alias"
-    },
-    {
-      "term": "giang mai",
-      "canonical_term": "giang mai",
-      "type": "Bệnh Lý",
-      "code": "A539",
-      "active_for_ner": false,
-      "ambiguous": true,
-      "case_sensitive": false,
-      "source": "legacy_json"
     },
     {
       "term": "gout",
@@ -2014,13 +2004,13 @@
     },
     {
       "term": "THA",
-      "canonical_term": "THA",
+      "canonical_term": "Tăng huyết áp nguyên phát",
       "type": "Bệnh Lý",
       "code": "I10",
       "active_for_ner": true,
       "ambiguous": false,
       "case_sensitive": true,
-      "source": "legacy_json"
+      "source": "custom_alias"
     },
     {
       "term": "thai chet khong ro nguyen nhan",
@@ -2263,16 +2253,6 @@
       "source": "custom_alias"
     },
     {
-      "term": "tiền sản giật",
-      "canonical_term": "tiền sản giật",
-      "type": "Bệnh Lý",
-      "code": "O14",
-      "active_for_ner": true,
-      "ambiguous": false,
-      "case_sensitive": false,
-      "source": "legacy_json"
-    },
-    {
       "term": "TMNTQ",
       "canonical_term": "Thiếu máu não cục bộ thoáng qua, không xác định",
       "type": "Bệnh Lý",
@@ -2394,13 +2374,13 @@
     },
     {
       "term": "tăng huyết áp",
-      "canonical_term": "tăng huyết áp",
+      "canonical_term": "Tăng huyết áp nguyên phát",
       "type": "Bệnh Lý",
       "code": "I10",
       "active_for_ner": true,
       "ambiguous": false,
       "case_sensitive": false,
-      "source": "legacy_json"
+      "source": "custom_alias"
     },
     {
       "term": "tăng huyết áp hệ thống",
@@ -2513,16 +2493,6 @@
       "source": "custom_alias"
     },
     {
-      "term": "Tổn thương",
-      "canonical_term": "Tổn thương",
-      "type": "Bệnh Lý",
-      "code": "T149",
-      "active_for_ner": false,
-      "ambiguous": true,
-      "case_sensitive": false,
-      "source": "legacy_json"
-    },
-    {
       "term": "tử vong thai nhi",
       "canonical_term": "Thai chết vì nguyên nhân không được định rõ",
       "type": "Bệnh Lý",
@@ -2553,20 +2523,20 @@
       "source": "custom_alias"
     },
     {
-      "term": "u ác tính",
-      "canonical_term": "u ác tính",
-      "type": "Bệnh Lý",
-      "code": "C800",
-      "active_for_ner": false,
-      "ambiguous": true,
-      "case_sensitive": false,
-      "source": "legacy_json"
-    },
-    {
       "term": "ung thu bieu mo tuyen giap the nhu",
       "canonical_term": "u ác của tuyến giáp",
       "type": "Bệnh Lý",
       "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ung thu bieu mo tuyen tien liet",
+      "canonical_term": "U ác của tuyến tiền liệt",
+      "type": "Bệnh Lý",
+      "code": "C61",
       "active_for_ner": true,
       "ambiguous": false,
       "case_sensitive": false,
@@ -2597,6 +2567,16 @@
       "canonical_term": "u ác của tuyến giáp",
       "type": "Bệnh Lý",
       "code": "C73",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "custom_alias"
+    },
+    {
+      "term": "ung thư biểu mô tuyến tiền liệt",
+      "canonical_term": "U ác của tuyến tiền liệt",
+      "type": "Bệnh Lý",
+      "code": "C61",
       "active_for_ner": true,
       "ambiguous": false,
       "case_sensitive": false,
@@ -2871,16 +2851,6 @@
       "ambiguous": false,
       "case_sensitive": false,
       "source": "custom_alias"
-    },
-    {
-      "term": "đau đầu",
-      "canonical_term": "đau đầu",
-      "type": "Triệu Chứng",
-      "code": "R51",
-      "active_for_ner": true,
-      "ambiguous": false,
-      "case_sensitive": false,
-      "source": "legacy_json"
     },
     {
       "term": "đình chỉ thai kì",

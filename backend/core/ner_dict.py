@@ -18,6 +18,7 @@ PROJECT_DIR = BASE_DIR.parent
 DICT_DIR = BASE_DIR / "Tu Dien Y Hoc"
 MANIFEST_PATH = DICT_DIR / "manifest_v1.json"
 VERSIONED_CUSTOM_PATH = PROJECT_DIR / "Kho Ngữ Liệu Y Học Tiếng Việt" / "Từ_Điển_v1.json"
+DATA_DIR = PROJECT_DIR.parent / "data"
 LEGACY_ICD10_JSON = DICT_DIR / "01_icd10_dictionary.json"
 LEGACY_YHCT_JSON = DICT_DIR / "02_phuluc1_yhct.json"
 
@@ -107,6 +108,9 @@ def _add(
         "display_code": str(metadata.get("display_code") or code or "").strip(),
         "label_vn": str(label_vn or metadata.get("canonical_term") or term).strip(),
         "canonical_term": str(metadata.get("canonical_term") or label_vn or term).strip(),
+        # Keep the original spelling so the NER engine can preserve meaningful
+        # punctuation (for example: "Yêu thống)") in the highlighted span.
+        "match_term": str(term).strip(),
         "source": source or str(metadata.get("source") or ""),
         "alias_type": str(metadata.get("alias_type") or "canonical"),
         "case_sensitive": bool(metadata.get("case_sensitive", False)),
@@ -136,6 +140,39 @@ def _verified_payload(path: Path, expected: dict[str, Any]) -> dict[str, Any]:
     if len(entries) != int(expected.get("count", -1)):
         raise ValueError(f"Sai số mục cho {path.name}: {len(entries)}")
     return payload
+
+
+def _verify_source_snapshot(payload: dict[str, Any], artifact_name: str) -> dict[str, str]:
+    """Check that a versioned artifact still represents its source in ``data``.
+
+    The application reads validated, versioned JSON artifacts for speed and
+    deterministic matching.  Their ``source`` block is the link back to the
+    original ICD-10 Excel/YHCT PDF supplied in the repository.  If someone
+    updates a source file without rebuilding the artifact, continuing would
+    silently label text with a stale dictionary, so fail loudly instead.
+    """
+    source = payload.get("source") or {}
+    filename = str(source.get("file") or "").strip()
+    expected_hash = str(source.get("sha256") or "").strip()
+    if not filename or not expected_hash:
+        return {}
+
+    source_path = DATA_DIR / filename
+    if not source_path.is_file():
+        raise FileNotFoundError(
+            f"Không tìm thấy nguồn {artifact_name} trong data/: {source_path}. "
+            "Không thể xác minh từ điển đang dùng."
+        )
+    actual_hash = _sha256(source_path)
+    if actual_hash != expected_hash:
+        raise ValueError(
+            f"Nguồn {source_path.name} đã thay đổi sau khi tạo {artifact_name}. "
+            "Hãy chạy `python -m core.dictionary_builder` để tái tạo từ điển trước khi gán nhãn."
+        )
+    return {
+        "path": str(source_path),
+        "sha256": actual_hash,
+    }
 
 
 def _load_icd(entries: list[dict[str, Any]]) -> None:
@@ -235,6 +272,9 @@ def load_ner_dictionary(force_rebuild: bool = False) -> dict[str, dict[str, Any]
     if versions != {manifest.get("dictionary_version")}:
         raise ValueError(f"Các từ điển không cùng phiên bản: {versions}")
 
+    icd_source = _verify_source_snapshot(icd, files["icd10"]["path"])
+    yhct_source = _verify_source_snapshot(yhct, files["yhct"]["path"])
+
     _load_icd(icd["entries"])
     _load_yhct(yhct["entries"])
     _load_custom(custom["entries"])
@@ -247,6 +287,15 @@ def load_ner_dictionary(force_rebuild: bool = False) -> dict[str, dict[str, Any]
         "accentless_terms": len(accentless_term_dict),
         "categories": dict(Counter(value["cat"] for value in term_dict.values())),
         "manifest": str(MANIFEST_PATH),
+        "source_files": {
+            "icd10": icd_source,
+            "yhct": yhct_source,
+            "custom_aliases": {
+                "path": str(custom_path),
+                "sha256": files["custom"]["sha256"],
+            },
+        },
+        "scope": list(manifest.get("scope") or []),
     })
     _loaded = True
     log.info("Loaded rule dictionary %s: %d exact, %d accentless", dictionary_metadata["dictionary_version"], len(term_dict), len(accentless_term_dict))

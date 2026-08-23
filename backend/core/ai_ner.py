@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+
 # Cấu hình API key từ biến môi trường
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:
@@ -21,7 +23,7 @@ def extract_entities_with_ai(text: str) -> list[dict]:
     if not api_key:
         raise ValueError("Chưa cấu hình GEMINI_API_KEY trong file .env")
         
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel(GEMINI_MODEL)
     
     prompt = f"""Bạn là một chuyên gia y tế và chuyên gia NLP. Hãy đọc đoạn văn bản y khoa tiếng Việt dưới đây và trích xuất tất cả các thực thể y tế.
 Phân loại chúng vào một trong các loại sau:

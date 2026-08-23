@@ -1,11 +1,17 @@
 import hashlib
+import json
 import logging
+import os
+import re
+import unicodedata
 from pathlib import Path
 
 from config.constants import PDF_MAGIC_BYTES, MAX_FILE_SIZE_BYTES
 from models.metadata import ExtractedMetadata, ProcessingStep
 
 logger = logging.getLogger(__name__)
+
+PDF_OUTPUT_ROOT = Path(os.getenv("PDF_EXTRACT_OUTPUT_DIR", "Kho_Ngu_Lieu_Txt/pdf_extracted"))
 
 class PipelineError(Exception):
     def __init__(self, message: str, step: str = ""):
@@ -88,11 +94,15 @@ class ExtractorPipeline:
                 raise PipelineError(result["error"], step="extract_text")
 
             metadata.extracted_text = result["full_text"]
+            metadata.title = result.get("title", "")
+            metadata.authors = result.get("authors", "")
+            metadata.abstract = result.get("abstract", "")
+            metadata.page_count = int(result.get("page_count") or 0)
             metadata.headings = result["headings"]
             metadata.sections = result["sections"]
             metadata.validation_report = result["validation"]
 
-            self._save_sections(result["sections"], Path(file_path).stem, metadata)
+            self._save_extraction(result, Path(file_path).stem, metadata)
 
             metadata.steps_completed.append("extract_text")
             step.complete(success=True)
@@ -102,27 +112,67 @@ class ExtractorPipeline:
         finally:
             metadata.processing_steps.append(step)
 
+    @staticmethod
+    def _safe_directory_name(value: str) -> str:
+        normalized = unicodedata.normalize("NFC", str(value or "")).strip()
+        cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", normalized)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip(" ._")
+        return (cleaned or "pdf_article")[:120]
+
+    def _save_extraction(self, result: dict, base_name: str, metadata: ExtractedMetadata) -> None:
+        """Persist article metadata and section TXT files in one traceable folder."""
+        # Keep this method self-contained so any caller that already has an
+        # extractor result cannot accidentally write empty metadata files.
+        metadata.title = str(result.get("title") or metadata.title or "")
+        metadata.authors = str(result.get("authors") or metadata.authors or "")
+        metadata.abstract = str(result.get("abstract") or metadata.abstract or "")
+        metadata.page_count = int(result.get("page_count") or metadata.page_count or 0)
+        metadata.validation_report = result.get("validation") or metadata.validation_report or {}
+        article_dir = PDF_OUTPUT_ROOT / self._safe_directory_name(base_name)
+        article_dir.mkdir(parents=True, exist_ok=True)
+        metadata.output_directory = str(article_dir)
+
+        # Remove only previously generated output for this exact article.
+        for old_file in article_dir.iterdir():
+            if old_file.is_file() and old_file.suffix.lower() in {".txt", ".json"}:
+                old_file.unlink()
+
+        metadata_payload = {
+            "source": metadata.source,
+            "source_file": Path(metadata.file_path).name,
+            "sha256": metadata.file_hash_sha256,
+            "pageCount": metadata.page_count,
+            "title": metadata.title,
+            "authors": metadata.authors,
+            "abstract": metadata.abstract,
+            "validation": metadata.validation_report,
+        }
+        metadata_path = article_dir / "metadata.json"
+        metadata_path.write_text(json.dumps(metadata_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        metadata.metadata_file = str(metadata_path)
+
+        for filename, content, section_name, label in (
+            ("title.txt", metadata.title, "Tiêu đề", "title"),
+            ("authors.txt", metadata.authors, "Tác giả", "authors"),
+            ("abstract.txt", metadata.abstract, "Tóm tắt", "abstract"),
+        ):
+            out_path = article_dir / filename
+            out_path.write_text(content.strip(), encoding="utf-8")
+            metadata.extracted_files.append({
+                "file_path": str(out_path), "section_name": section_name,
+                "heading": section_name, "label": label,
+                "content_preview": content.strip()[:300],
+            })
+
+        self._save_sections(result["sections"], article_dir, metadata)
+
     def _save_sections(
         self,
         sections: list,
-        base_name: str,
+        out_dir: Path,
         metadata: ExtractedMetadata,
     ) -> None:
         """Lưu các section đã được PyMuPDF phân tách thành từng file .txt."""
-        out_dir = Path("Văn_Bản_Y_Tế_TXT")
-        out_dir.mkdir(exist_ok=True)
-
-        # Loại kết quả cũ của đúng bài này để lần chạy mới không lẫn các section
-        # đã được tạo bởi thuật toán/đề mục trước đó.
-        output_prefix = f"{base_name}_"
-        for old_file in out_dir.iterdir():
-            if (
-                old_file.is_file()
-                and old_file.suffix.lower() == ".txt"
-                and old_file.name.startswith(output_prefix)
-            ):
-                old_file.unlink()
-
         # Map label -> tên hiển thị
         LABEL_DISPLAY = {
             "abstract":           "TÓM TẮT",
@@ -156,10 +206,15 @@ class ExtractorPipeline:
             heading   = sec.get("heading", label)
             sec_name  = LABEL_DISPLAY.get(label, heading)
 
+            # ``abstract.txt`` is already the canonical metadata output
+            # written above. Do not duplicate it in the section list.
+            if label == "abstract":
+                continue
+
             label_counts[label] = label_counts.get(label, 0) + 1
             occurrence = label_counts[label]
             suffix = "" if occurrence == 1 else f"_{occurrence}"
-            file_name = f"{base_name}_{label}{suffix}.txt"
+            file_name = f"{label}{suffix}.txt"
             out_path  = out_dir / file_name
             with open(out_path, "w", encoding="utf-8") as f:
                 f.write(content)
@@ -182,7 +237,7 @@ class ExtractorPipeline:
         found_expected = [L for L in expected_labels if L in found_labels]
         missing_expected = [L for L in expected_labels if L not in found_labels]
         
-        log_msg = f"[{base_name}]: đã tìm thấy {len(found_expected)}/{len(expected_labels)} section"
+        log_msg = f"[{out_dir.name}]: đã tìm thấy {len(found_expected)}/{len(expected_labels)} section"
         if missing_expected:
             log_msg += f" — thiếu {', '.join(missing_expected)}"
         else:

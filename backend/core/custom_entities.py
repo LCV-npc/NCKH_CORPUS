@@ -16,6 +16,23 @@ from typing import Callable
 def inject_custom_entities(_add: Callable) -> None:
     """Thêm các thực thể hoặc từ đồng nghĩa tùy chỉnh vào từ điển."""
 
+    # ICD-10 C61 uses "U ác của tuyến tiền liệt". This clinical synonym must
+    # win as one complete phrase rather than leaving "u" or "mô" as fragments.
+    _LABEL_PROSTATE_CARCINOMA = "U ác của tuyến tiền liệt"
+    _CODE_PROSTATE_CARCINOMA = "C61"
+    _CAT_PROSTATE_CARCINOMA = "Bệnh Lý"
+    for term in [
+        "ung thư biểu mô tuyến tiền liệt",
+        "ung thu bieu mo tuyen tien liet",
+    ]:
+        _add(
+            term,
+            _CAT_PROSTATE_CARCINOMA,
+            _CODE_PROSTATE_CARCINOMA,
+            _LABEL_PROSTATE_CARCINOMA,
+            "custom_alias",
+        )
+
     # ── Bệnh thận mạn giai đoạn 5 ──────────────────────────────────────────
     _LABEL = "Bệnh thận mạn giai đoạn 5 (Suy thận giai đoạn 5)"
     _CODE  = "N18.5"

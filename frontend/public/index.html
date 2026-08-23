@@ -6,7 +6,7 @@
     <title>MedNLP Studio — Hệ thống Quản lý Ngữ liệu Y học</title>
     <meta name="description" content="Nền tảng NLP y học tiếng Việt: thu thập, xử lý, gán nhãn và quản lý từ điển thuật ngữ y tế">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="index.css?v=4.4">
+<link rel="stylesheet" href="index.css?v=4.5">
 </head>
 <body>
 
@@ -57,6 +57,11 @@
             </span>
             <span class="nav-label">Thu thập dữ liệu</span>
             <span class="nav-badge" id="crawl-badge" style="display:none">●</span>
+        </a>
+
+        <a class="nav-item" data-screen="tamanh-crawler" onclick="switchScreen('tamanh-crawler')">
+            <span class="nav-label">Crawler hỏi đáp y khoa</span>
+            <span class="nav-badge-new">Mới</span>
         </a>
 
         <a class="nav-item" data-screen="labeling" onclick="switchScreen('labeling')">
@@ -185,6 +190,72 @@
             </div>
             <div class="recent-list" id="recentArticles">
                 <div class="list-placeholder">Đang tải...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         TÂM ANH MEDICAL Q&A CRAWLER
+    ============================================================ -->
+    <section class="screen" id="screen-tamanh-crawler">
+        <div class="tamanh-layout">
+            <div class="panel config-panel">
+                <div class="panel-header">
+                    <div class="panel-title">Crawler hỏi đáp y khoa</div>
+                    <div class="panel-sub">Chỉ thu thập Q&amp;A công khai, không lấy dữ liệu form.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="tamanhSource">Nguồn</label>
+                    <select id="tamanhSource" class="form-select" onchange="setTamanhSource()">
+                        <option value="https://tamanhhospital.vn/">Tâm Anh Hospital</option>
+                        <option value="" disabled>NCYH — chưa hỗ trợ trong crawler này</option>
+                        <option value="" disabled>YHCD — chưa hỗ trợ trong crawler này</option>
+                        <option value="" disabled>YHVN — chưa hỗ trợ trong crawler này</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="tamanhSourceUrl">URL nguồn</label>
+                    <input type="url" id="tamanhSourceUrl" class="form-input" value="https://tamanhhospital.vn/" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="tamanhStartYear">Từ năm</label>
+                        <input type="number" id="tamanhStartYear" class="form-input" min="1900" value="2020">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="tamanhEndYear">Đến năm</label>
+                        <input type="number" id="tamanhEndYear" class="form-input" min="1900" value="2026">
+                    </div>
+                </div>
+
+                <p class="tamanh-note">Năm chỉ lọc những trang có ngày xuất bản rõ ràng; trang không có năm sẽ không bị gán năm.</p>
+                <button id="btnStartTamanh" class="btn-primary-full" onclick="startTamanhCrawler()">Bắt đầu thu thập</button>
+                <button id="btnStopTamanh" class="btn-danger-full" onclick="stopTamanhCrawler()" style="display:none">Dừng</button>
+            </div>
+
+            <div class="crawl-right">
+                <div class="panel progress-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">Tiến độ Tâm Anh</div>
+                        <div class="crawl-state-badge" id="tamanhStateBadge">Chờ</div>
+                    </div>
+                    <div class="tamanh-progress-grid">
+                        <div><strong id="tamanhCategories">0 / 0</strong><span>Chuyên khoa</span></div>
+                        <div><strong id="tamanhPages">0</strong><span>Trang</span></div>
+                        <div><strong id="tamanhQuestions">0</strong><span>Q&amp;A</span></div>
+                        <div><strong id="tamanhFiles">0</strong><span>File đã tạo</span></div>
+                        <div><strong id="tamanhDuplicates">0</strong><span>Trùng</span></div>
+                        <div><strong id="tamanhErrors">0</strong><span>Lỗi</span></div>
+                    </div>
+                    <div class="progress-msg" id="tamanhProgressMsg">Sẵn sàng thu thập từ https://tamanhhospital.vn/</div>
+                </div>
+                <div class="panel log-panel">
+                    <div class="panel-header"><div class="panel-title">Nhật ký Tâm Anh</div></div>
+                    <div class="log-terminal" id="tamanhLogTerminal"><div class="log-placeholder">Nhật ký crawler sẽ xuất hiện tại đây.</div></div>
+                </div>
             </div>
         </div>
     </section>
@@ -571,7 +642,7 @@
                      ondragover="pdfDragOver(event)"
                      ondragleave="pdfDragLeave(event)"
                      ondrop="splitPdfDrop(event)"
-                     onclick="document.getElementById('splitPdfInput').click()">
+                     onclick="openPdfFolderPicker()">
                     <div class="dropzone-icon">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -580,9 +651,15 @@
                             <polyline points="9 15 12 12 15 15"/>
                         </svg>
                     </div>
-                    <div class="dropzone-text">Chọn thư mục chứa PDF</div>
-                    <div class="dropzone-sub">Hệ thống sẽ lọc toàn bộ file PDF trong thư mục</div>
+                    <div class="dropzone-text">Chọn thư mục hoặc các file PDF</div>
+                    <div class="dropzone-sub">Chọn thư mục sẽ lấy toàn bộ PDF bên trong; bạn cũng có thể chọn từng file để xem danh sách ngay.</div>
                     <input type="file" id="splitPdfInput" webkitdirectory directory multiple accept=".pdf" style="display:none" onchange="splitPdfSelected(event)">
+                    <input type="file" id="splitPdfFileInput" multiple accept="application/pdf,.pdf" style="display:none" onchange="splitPdfSelected(event)">
+                </div>
+
+                <div style="display:flex; justify-content:center; gap:10px; margin-top:12px;">
+                    <button type="button" class="btn-outline-sm" onclick="return openPdfFolderPicker(event)">Chọn thư mục</button>
+                    <button type="button" class="btn-outline-sm" onclick="return openPdfFilePicker(event)">Chọn file PDF</button>
                 </div>
 
                 <div class="pdf-file-info" id="splitPdfInfo" style="display:none">
@@ -590,6 +667,7 @@
                     <div class="file-info-body">
                         <div class="file-info-name" id="splitPdfName">—</div>
                         <div class="file-info-size" id="splitPdfSize">—</div>
+                        <div class="file-info-size" id="splitPdfPreview"></div>
                     </div>
                     <button class="file-info-remove" onclick="clearSplitPdf()" title="Xóa file">✕</button>
                 </div>
@@ -615,7 +693,7 @@
                 <div class="pdf-empty-state" id="splitPdfEmpty">
                     <div class="empty-icon">📄</div>
                     <div class="empty-text">Chưa có file PDF nào được tải lên</div>
-                    <div class="empty-sub">Các phần của file (Tóm tắt, Giới thiệu, Phương pháp...) sẽ được lưu vào thư mục Văn_Bản_Y_Tế_TXT</div>
+                    <div class="empty-sub">Mỗi PDF sẽ có metadata.json, title.txt, authors.txt, abstract.txt và các section trong Kho_Ngu_Lieu_Txt/pdf_extracted/</div>
                 </div>
             </div>
         </div>
@@ -642,6 +720,6 @@
 <!-- TOAST NOTIFICATION -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="script.js?v=4.4"></script>
+<script src="script.js?v=4.8"></script>
 </body>
 </html>

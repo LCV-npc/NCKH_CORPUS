@@ -4,8 +4,8 @@ import os
 import io
 import hashlib
 import mysql.connector
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from pydantic import BaseModel, ConfigDict, Field
 from core.ner_engine import reset_ner_engine, run_ner
 from core.ner_dict import (
     DICT_DIR,
@@ -18,6 +18,7 @@ from core.ner_dict import (
 from core.scraper import scrape_status, run_scraping, clean_filename, stop_scraping
 from core.ai_ner import extract_entities_with_ai
 from core.ai_label import extract_with_ai_label
+from core.tamanh_crawler import TamanhCrawlRequest, TamanhCrawlerJobManager
 
 router = APIRouter()
 
@@ -25,12 +26,14 @@ router = APIRouter()
 DICTIONARY_PATH = VERSIONED_CUSTOM_PATH
 _db_config: dict = {}
 _output_folder: str = ""
+tamanh_job_manager = TamanhCrawlerJobManager()
 
 def init_router(db_config: dict, output_folder: str) -> None:
     """Khởi tạo các biến cấu hình cho router."""
     global _db_config, _output_folder
     _db_config = db_config
     _output_folder = output_folder
+    tamanh_job_manager.configure_db(db_config)
 
 class HighlightRequest(BaseModel):
     text:                str
@@ -56,6 +59,12 @@ class ScrapeRequest(BaseModel):
     start_year: int
     end_year:   int
     target_url: str
+
+class TamanhCrawlerRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    source_url: str = Field("https://tamanhhospital.vn/", alias="sourceUrl")
+    start_year: int | None = Field(None, alias="startYear")
+    end_year: int | None = Field(None, alias="endYear")
 
 class SaveDictionaryRequest(BaseModel):
     matched_concepts: list
@@ -238,8 +247,8 @@ import tempfile
 from core.pdf_pipeline import ExtractorPipeline
 
 @router.post("/api/extract-pdf")
-async def extract_pdf_endpoint(file: UploadFile = File(...)):
-    """Tách file PDF thành các section txt."""
+async def extract_pdf_endpoint(file: UploadFile = File(...), relative_path: str = Form("")):
+    """Extract title/authors/abstract and article sections from one PDF."""
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Chỉ hỗ trợ file PDF (.pdf)")
 
@@ -257,13 +266,21 @@ async def extract_pdf_endpoint(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, buffer)
             
         pipeline = ExtractorPipeline()
-        metadata = pipeline.run(temp_path)
+        metadata = pipeline.run(temp_path, source=relative_path or "upload")
         
         return {
             "message": "Tách PDF thành công",
             "files_created": metadata.extracted_files,
             "hash": metadata.file_hash_sha256,
             "validation": metadata.validation_report,
+            "article": {
+                "title": metadata.title,
+                "authors": metadata.authors,
+                "abstract": metadata.abstract,
+                "pageCount": metadata.page_count,
+            },
+            "outputDirectory": metadata.output_directory,
+            "metadataFile": metadata.metadata_file,
         }
     except Exception as e:
         raise HTTPException(500, f"Lỗi xử lý PDF: {str(e)}")
@@ -342,6 +359,16 @@ def get_dictionary():
                 payload = json.load(f)
                 return payload.get("entries", payload if isinstance(payload, list) else [])
         return []
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/api/dictionary/status")
+def get_dictionary_status():
+    """Return the validated sources and current coverage of rule-based NER."""
+    try:
+        # Import-time loading verifies artifact and original-source hashes.
+        return dictionary_metadata
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -541,3 +568,46 @@ def stop_scraping_endpoint():
     """Yêu cầu dừng tiến trình thu thập đang chạy nền."""
     stop_scraping()
     return {"message": "Đã gửi lệnh dừng crawler"}
+
+
+# ── Tâm Anh Medical Q&A Crawler ────────────────────────────────────────
+
+@router.post("/api/crawler/tamanh/start")
+def start_tamanh_crawler(request: TamanhCrawlerRequest):
+    """Start a background collection job for public Tâm Anh Q&A pages."""
+    if (
+        request.start_year is not None
+        and request.end_year is not None
+        and request.start_year > request.end_year
+    ):
+        raise HTTPException(400, "Năm bắt đầu không được lớn hơn năm kết thúc.")
+    try:
+        job = tamanh_job_manager.start(TamanhCrawlRequest(
+            source_url=request.source_url,
+            start_year=request.start_year,
+            end_year=request.end_year,
+        ))
+        return {
+            "success": True,
+            "message": "Crawler started",
+            "jobId": job.job_id,
+            "status": job.status,
+        }
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@router.get("/api/crawler/tamanh/status/{job_id}")
+def get_tamanh_crawler_status(job_id: str):
+    job = tamanh_job_manager.get(job_id)
+    if not job:
+        raise HTTPException(404, "Không tìm thấy crawler job.")
+    return job.public()
+
+
+@router.post("/api/crawler/tamanh/stop/{job_id}")
+def stop_tamanh_crawler(job_id: str):
+    job = tamanh_job_manager.stop(job_id)
+    if not job:
+        raise HTTPException(404, "Không tìm thấy crawler job.")
+    return {"success": True, "message": "Đã gửi lệnh dừng crawler", "jobId": job.job_id}

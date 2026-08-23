@@ -27,19 +27,36 @@ DICTIONARY_TO_AI_CATEGORY = {
     "Đông Y / YHCT": "Bệnh lý",
 }
 
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+
 
 def _empty_result() -> dict[str, list[dict[str, Any]]]:
     return {category: [] for category in AI_CATEGORIES}
 
 
 def _find_spans(text: str, term: str) -> list[dict[str, int]]:
-    """Tìm đúng các vị trí xuất hiện trên văn bản nguồn, không dùng HTML."""
+    """Find whole-token occurrences without splitting decomposed Vietnamese.
+
+    ``re.finditer`` on a raw substring incorrectly finds ``ho`` inside a
+    decomposed ``học``.  Reusing the rule engine's tokenizer gives AI and
+    dictionary labels the same source-safe word-boundary semantics.
+    """
     if not text or not term:
         return []
-    return [
-        {"start": match.start(), "end": match.end()}
-        for match in re.finditer(re.escape(term), text, flags=re.IGNORECASE)
-    ]
+    from core.ner_engine import NEREngine
+    from core.ner_dict import normalize_match_text
+
+    token_keys = normalize_match_text(term).split()
+    if not token_keys:
+        return []
+    tokens = NEREngine()._tokenize(text)
+    width = len(token_keys)
+    spans: list[dict[str, int]] = []
+    for index in range(0, len(tokens) - width + 1):
+        chunk = tokens[index:index + width]
+        if [token.key for token in chunk] == token_keys:
+            spans.append({"start": chunk[0].start, "end": chunk[-1].end})
+    return spans
 
 
 def _dictionary_candidates(text: str) -> list[dict[str, Any]]:
@@ -76,6 +93,7 @@ def _merge_ai_and_dictionary(
     result = _empty_result()
     dictionary_by_term: dict[str, dict[str, Any]] = {}
     dictionary_spans: dict[tuple[str, str], list[dict[str, int]]] = {}
+    dictionary_intervals: list[tuple[int, int]] = []
 
     for candidate in dictionary_candidates:
         key = normalize_match_text(candidate.get("term", ""))
@@ -85,6 +103,7 @@ def _merge_ai_and_dictionary(
         dictionary_by_term.setdefault(key, candidate)
         span = {"start": int(candidate["start"]), "end": int(candidate["end"])}
         dictionary_spans.setdefault((key, code), []).append(span)
+        dictionary_intervals.append((span["start"], span["end"]))
 
     collected: dict[tuple[str, str, str], dict[str, Any]] = {}
 
@@ -110,6 +129,20 @@ def _merge_ai_and_dictionary(
             matched_by = str(info.get("matched_by") or "dictionary")
             source = "ai+dictionary"
         else:
+            # A shorter AI term cannot be emitted in addition to a validated
+            # dictionary term that fully contains it.  Example: do not label
+            # "u mô" separately inside "ung thư biểu mô tuyến tiền liệt".
+            spans = [
+                span for span in spans
+                if not any(
+                    left <= span["start"]
+                    and span["end"] <= right
+                    and (right - left) > (span["end"] - span["start"])
+                    for left, right in dictionary_intervals
+                )
+            ]
+            if not spans:
+                return
             code = ""
             label_vn = ""
             dictionary_type = ""
@@ -186,7 +219,7 @@ def extract_with_ai_label(text: str) -> dict[str, list[dict[str, Any]]]:
         for item in dictionary_candidates
     ]
 
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel(GEMINI_MODEL)
     prompt = f"""Bạn là chuyên gia NLP y khoa Việt Nam. Hãy trích xuất đúng nguyên văn
 các thực thể y khoa trong văn bản và phân loại vào đúng 6 nhóm sau:
 

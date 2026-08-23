@@ -11,6 +11,9 @@ const API_BASE = "/api";
 let pollingInterval = null;
 let isScraping      = false;
 let autoScroll      = true;
+let tamanhJobId = null;
+let tamanhPollingInterval = null;
+let tamanhLogCount = 0;
 
 let currentArticlesData = [];
 let currentArticleId    = null;
@@ -63,6 +66,7 @@ function entityLabel(type) {
 const SCREENS = {
   dashboard:    { title: "Dashboard",           sub: "Tổng quan hệ thống" },
   crawl:        { title: "Thu thập dữ liệu",    sub: "Crawler & nhật ký" },
+  "tamanh-crawler": { title: "Crawler hỏi đáp y khoa", sub: "Tâm Anh Hospital — Q&A công khai" },
   labeling:     { title: "Gán nhãn văn bản",    sub: "Xử lý & gán nhãn NER" },
   "ai-label":   { title: "AI Gán nhãn",         sub: "Gán nhãn thực thể y khoa bằng AI" },
   logs:         { title: "Nhật ký thu thập",    sub: "Lịch sử thu thập" },
@@ -93,6 +97,127 @@ function switchScreen(name) {
   if (name === "labeling")   loadData();
   if (name === "ai-label")   loadAiLabelData();
   if (name === "logs")       loadCrawlLogs();
+}
+
+// ============================================================
+// TÂM ANH MEDICAL Q&A CRAWLER
+// ============================================================
+function setTamanhSource() {
+  const source = document.getElementById("tamanhSource").value;
+  if (source) document.getElementById("tamanhSourceUrl").value = source;
+}
+
+function appendTamanhLog(message) {
+  const terminal = document.getElementById("tamanhLogTerminal");
+  if (!terminal) return;
+  const placeholder = terminal.querySelector(".log-placeholder");
+  if (placeholder) placeholder.remove();
+  const line = document.createElement("div");
+  line.className = "log-line";
+  line.textContent = message;
+  terminal.appendChild(line);
+  if (autoScroll) terminal.scrollTop = terminal.scrollHeight;
+}
+
+function updateTamanhStatus(status) {
+  document.getElementById("tamanhCategories").textContent = `${status.categories_processed || 0} / ${status.categories_found || 0}`;
+  document.getElementById("tamanhPages").textContent = status.pages_processed || 0;
+  document.getElementById("tamanhQuestions").textContent = status.questions_found || 0;
+  document.getElementById("tamanhFiles").textContent = status.files_created || 0;
+  document.getElementById("tamanhDuplicates").textContent = status.duplicates_skipped || 0;
+  document.getElementById("tamanhErrors").textContent = status.errors || 0;
+  const badge = document.getElementById("tamanhStateBadge");
+  badge.textContent = status.status || "Chờ";
+  badge.className = "crawl-state-badge";
+  if (["RUNNING", "QUEUED"].includes(status.status)) badge.classList.add("running");
+  if (["COMPLETED", "STOPPED"].includes(status.status)) badge.classList.add("done");
+  if (status.status === "ERROR") badge.classList.add("error");
+  document.getElementById("tamanhProgressMsg").textContent = status.current_category
+    ? `Đang xử lý: ${status.current_category}${status.current_url ? ` — ${status.current_url}` : ""}`
+    : (status.message || "Đang chuẩn bị crawler...");
+}
+
+async function startTamanhCrawler() {
+  const sourceUrl = document.getElementById("tamanhSourceUrl").value.trim();
+  const startYear = Number(document.getElementById("tamanhStartYear").value);
+  const endYear = Number(document.getElementById("tamanhEndYear").value);
+  if (!sourceUrl || !Number.isInteger(startYear) || !Number.isInteger(endYear) || startYear > endYear) {
+    showToast("Vui lòng nhập URL và khoảng năm hợp lệ.", "error");
+    return;
+  }
+  const startButton = document.getElementById("btnStartTamanh");
+  startButton.disabled = true;
+  updateTamanhStatus({ status: "QUEUED", message: "Đang gửi yêu cầu khởi động crawler..." });
+  appendTamanhLog("Đang gửi yêu cầu khởi động tới backend...");
+  try {
+    const response = await fetch(`${API_BASE}/crawler/tamanh/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceUrl, startYear, endYear }),
+    });
+    const contentType = response.headers.get("content-type") || "";
+    const payload = contentType.includes("application/json")
+      ? await response.json()
+      : { detail: `Backend trả về HTTP ${response.status} thay vì JSON.` };
+    if (!response.ok) throw new Error(payload.detail || "Không thể khởi động crawler.");
+    tamanhJobId = payload.jobId;
+    tamanhLogCount = 0;
+    document.getElementById("tamanhLogTerminal").innerHTML = "";
+    document.getElementById("btnStopTamanh").style.display = "";
+    appendTamanhLog("Đã khởi động crawler Tâm Anh.");
+    pollTamanhStatus();
+  } catch (error) {
+    const message = `Không thể khởi động crawler: ${error.message}. Hãy kiểm tra/restart backend ở cổng 8000.`;
+    updateTamanhStatus({ status: "ERROR", message, errors: 1 });
+    appendTamanhLog(`ERROR: ${message}`);
+    showToast(message, "error", 7000);
+    startButton.disabled = false;
+  }
+}
+
+function pollTamanhStatus() {
+  if (tamanhPollingInterval) clearInterval(tamanhPollingInterval);
+  const poll = async () => {
+    if (!tamanhJobId) return;
+    try {
+      const response = await fetch(`${API_BASE}/crawler/tamanh/status/${tamanhJobId}`);
+      const contentType = response.headers.get("content-type") || "";
+      const status = contentType.includes("application/json")
+        ? await response.json()
+        : { detail: `Backend trả về HTTP ${response.status} thay vì JSON.` };
+      if (!response.ok) throw new Error(status.detail || "Không đọc được trạng thái crawler.");
+      updateTamanhStatus(status);
+      (status.log_messages || []).slice(tamanhLogCount).forEach(appendTamanhLog);
+      tamanhLogCount = (status.log_messages || []).length;
+      if (!["QUEUED", "RUNNING"].includes(status.status)) {
+        clearInterval(tamanhPollingInterval); tamanhPollingInterval = null;
+        document.getElementById("btnStartTamanh").disabled = false;
+        document.getElementById("btnStopTamanh").style.display = "none";
+        showToast(status.message || status.status, status.status === "ERROR" ? "error" : "success");
+      }
+    } catch (error) {
+      const message = `Lỗi đọc trạng thái: ${error.message}`;
+      updateTamanhStatus({ status: "ERROR", message, errors: 1 });
+      appendTamanhLog(message);
+      clearInterval(tamanhPollingInterval); tamanhPollingInterval = null;
+      document.getElementById("btnStartTamanh").disabled = false;
+      document.getElementById("btnStopTamanh").style.display = "none";
+    }
+  };
+  poll();
+  tamanhPollingInterval = setInterval(poll, 1500);
+}
+
+async function stopTamanhCrawler() {
+  if (!tamanhJobId) return;
+  try {
+    await fetch(`${API_BASE}/crawler/tamanh/stop/${tamanhJobId}`, { method: "POST" });
+    appendTamanhLog("Đã gửi yêu cầu dừng crawler.");
+  } catch {
+    const message = "Không thể gửi yêu cầu dừng crawler.";
+    appendTamanhLog(`ERROR: ${message}`);
+    showToast(message, "error");
+  }
 }
 
 
@@ -929,6 +1054,20 @@ switchScreen = function(screenId) {
 
 let _splitPdfFiles = [];
 
+function openPdfFolderPicker(event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  document.getElementById('splitPdfInput').click();
+  return false;
+}
+
+function openPdfFilePicker(event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  document.getElementById('splitPdfFileInput').click();
+  return false;
+}
+
 function pdfDragOver(e) {
   e.preventDefault();
   document.getElementById('splitPdfDropzone').classList.add('dragging');
@@ -965,6 +1104,12 @@ function _setSplitPdfFiles(files) {
   
   document.getElementById('splitPdfName').textContent = `Đã chọn ${_splitPdfFiles.length} file PDF`;
   document.getElementById('splitPdfSize').textContent = `Tổng dung lượng: ${_fmtSize(totalSize)}`;
+  const preview = _splitPdfFiles.slice(0, 5)
+    .map(file => file.webkitRelativePath || file.name)
+    .join(' • ');
+  document.getElementById('splitPdfPreview').textContent = preview
+    ? `${preview}${_splitPdfFiles.length > 5 ? ` • và ${_splitPdfFiles.length - 5} file khác` : ''}`
+    : '';
   document.getElementById('splitPdfInfo').style.display = 'flex';
   document.getElementById('btnSplitPdf').disabled = false;
   document.getElementById('splitPdfResultPanel').style.display = 'none';
@@ -974,6 +1119,7 @@ function _setSplitPdfFiles(files) {
 function clearSplitPdf() {
   _splitPdfFiles = [];
   document.getElementById('splitPdfInput').value = '';
+  document.getElementById('splitPdfFileInput').value = '';
   document.getElementById('splitPdfInfo').style.display = 'none';
   document.getElementById('btnSplitPdf').disabled = true;
   document.getElementById('splitPdfResultPanel').style.display = 'none';
@@ -1009,6 +1155,7 @@ async function executeSplitPdf() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('relative_path', file.webkitRelativePath || file.name);
 
       const res = await fetch(`${API_BASE}/extract-pdf`, {
         method: 'POST',
@@ -1027,7 +1174,15 @@ async function executeSplitPdf() {
       const validationBadge = validation.ok
         ? `<span style="margin-left:10px; color:var(--success); font-size:12px;">✓ Đã đối chiếu ${validation.section_count || 0} section với PDF nguồn</span>`
         : `<span style="margin-left:10px; color:var(--warning); font-size:12px;">⚠ Có ${(validation.issues || []).length} cảnh báo kiểm chứng</span>`;
-      const fileHeader = `<li><div style="margin-top:15px; margin-bottom: 5px;"><strong style="color:var(--primary); font-size:15px;">📄 ${file.name}</strong>${validationBadge}</div>`;
+      const article = data.article || {};
+      const articleInfo = article.title || article.authors || article.abstract
+        ? `<div style="margin:6px 0 10px 20px; font-size:12px; color:var(--text-2);">
+             <div><strong>Tiêu đề:</strong> ${escapeHtml(article.title || 'Không nhận diện được')}</div>
+             <div><strong>Tác giả:</strong> ${escapeHtml(article.authors || 'Không nhận diện được')}</div>
+             <div title="${escapeHtml(data.outputDirectory || '')}"><strong>Lưu tại:</strong> ${escapeHtml(data.outputDirectory || '')}</div>
+           </div>`
+        : '';
+      const fileHeader = `<li><div style="margin-top:15px; margin-bottom: 5px;"><strong style="color:var(--primary); font-size:15px;">📄 ${escapeHtml(file.webkitRelativePath || file.name)}</strong>${validationBadge}</div>${articleInfo}`;
       const innerList = data.files_created.map((f) => {
         if (typeof f === 'string') return `<div style="margin-left:20px; font-size:13px; margin-bottom:4px;">- ${f}</div>`;
         return `
@@ -1338,11 +1493,12 @@ async function runAiLabel() {
       body: JSON.stringify({ text: article.abstract })
     });
 
+    const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error("Lỗi gọi API AI");
+      throw new Error(payload.detail || `Lỗi gọi API AI (HTTP ${res.status})`);
     }
 
-    const data = await res.json();
+    const data = payload;
     
     let totalCount = 0;
 

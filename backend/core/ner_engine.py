@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -31,11 +32,30 @@ class NEREngine:
     """Longest-match engine. It never rewrites input before computing offsets."""
 
     def _tokenize(self, text: str) -> list[Token]:
+        """Tokenize without splitting Unicode combining marks from a word.
+
+        Some PDFs encode ``học`` as ``ho`` followed by a combining dot/tone.
+        ``\\w`` does not include those marks, which previously fabricated a
+        false token ``ho`` and caused an incorrect symptom label.
+        """
         tokens: list[Token] = []
-        for match in re.finditer(r"[^\W_]+", text, flags=re.UNICODE):
-            word = match.group(0)
+        start: Optional[int] = None
+        for index, char in enumerate(text):
+            if char.isalnum():
+                if start is None:
+                    start = index
+                continue
+            if start is not None and unicodedata.category(char).startswith("M"):
+                continue
+            if start is not None:
+                word = text[start:index]
+                key = normalize_match_text(word)
+                tokens.append(Token(word, key, strip_diacritics(key), start, index))
+                start = None
+        if start is not None:
+            word = text[start:]
             key = normalize_match_text(word)
-            tokens.append(Token(word, key, strip_diacritics(key), match.start(), match.end()))
+            tokens.append(Token(word, key, strip_diacritics(key), start, len(text)))
         return tokens
 
     @staticmethod
@@ -44,6 +64,25 @@ class NEREngine:
             return True
         letters = "".join(char for char in surface if char.isalpha())
         return bool(letters) and letters == letters.upper()
+
+    @staticmethod
+    def _include_dictionary_suffix(text: str, char_end: int, info: dict[str, Any]) -> int:
+        """Include punctuation that belongs to the original dictionary term.
+
+        Lookup intentionally ignores punctuation, but a term such as
+        ``Đau cột sống thắt lưng (Yêu thống)`` should not be displayed as an
+        unmatched-looking ``... (Yêu thống``.  Only suffix punctuation that is
+        explicitly present in the dictionary is included; sentence punctuation
+        is never swallowed.
+        """
+        match_term = str(info.get("match_term") or "")
+        suffix = re.search(r"([^\w\s]+)\s*$", match_term, flags=re.UNICODE)
+        if not suffix:
+            return char_end
+        expected = suffix.group(1)
+        if text.startswith(expected, char_end):
+            return char_end + len(expected)
+        return char_end
 
     def _candidates(self, text: str, tokens: list[Token]) -> list[dict[str, Any]]:
         if not tokens:
@@ -58,11 +97,18 @@ class NEREngine:
                 info = term_dict.get(key)
                 matched_by = "exact"
                 if info is None:
-                    info = accentless_term_dict.get(no_tone)
-                    matched_by = "accentless"
+                    # Accentless matching is only for genuinely unaccented
+                    # source text (e.g. "tang huyet ap").  It must never
+                    # turn a different accented term ("u mô") into an ICD
+                    # term merely because both normalize to "u mo".
+                    source_key = normalize_match_text(" ".join(token.word for token in chunk))
+                    if strip_diacritics(source_key) == source_key:
+                        info = accentless_term_dict.get(no_tone)
+                        matched_by = "accentless"
                 if info is None:
                     continue
                 char_start, char_end = chunk[0].start, chunk[-1].end
+                char_end = self._include_dictionary_suffix(text, char_end, info)
                 surface = text[char_start:char_end]
                 if not self._case_allowed(surface, info):
                     continue
