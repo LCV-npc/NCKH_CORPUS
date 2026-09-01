@@ -6,9 +6,42 @@
     <title>MedNLP Studio — Hệ thống Quản lý Ngữ liệu Y học</title>
     <meta name="description" content="Nền tảng NLP y học tiếng Việt: thu thập, xử lý, gán nhãn và quản lý từ điển thuật ngữ y tế">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="index.css?v=4.5">
+<link rel="stylesheet" href="index.css?v=4.7">
 </head>
-<body>
+<body class="auth-mode">
+
+<!-- Authentication shell. It is shown for /login and /register, while the
+     existing Studio workspace remains untouched for authenticated admins. -->
+<main class="auth-shell" id="authShell" hidden>
+    <section class="auth-card">
+        <div class="auth-brand">MedNLP <span>Corpus Review System</span></div>
+        <div id="loginFormWrap">
+            <h1>Đăng nhập</h1>
+            <p>Truy cập không gian quản trị hoặc chuyên gia.</p>
+            <form id="loginForm" novalidate>
+                <label>Email<input id="loginEmail" type="email" autocomplete="email" required></label>
+                <label>Mật khẩu<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+                <p class="auth-error" id="loginError" role="alert"></p>
+                <button class="auth-submit" type="submit">Đăng nhập</button>
+            </form>
+            <p class="auth-switch">Chưa có tài khoản? <a href="/register" onclick="return showAuthRoute('register')">Tạo tài khoản</a></p>
+        </div>
+        <div id="registerFormWrap" hidden>
+            <h1>Đăng ký chuyên gia</h1>
+            <p>Tài khoản đăng ký mới luôn có vai trò <strong>Expert</strong>.</p>
+            <form id="registerForm" novalidate>
+                <label>Họ và tên<input id="registerName" type="text" autocomplete="name" maxlength="200" required></label>
+                <label>Email<input id="registerEmail" type="email" autocomplete="email" required></label>
+                <label>Mật khẩu<input id="registerPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+                <label>Xác nhận mật khẩu<input id="registerConfirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
+                <p class="auth-error" id="registerError" role="alert"></p>
+                <p class="auth-success" id="registerSuccess" role="status"></p>
+                <button class="auth-submit" type="submit">Đăng ký</button>
+            </form>
+            <p class="auth-switch">Đã có tài khoản? <a href="/login" onclick="return showAuthRoute('login')">Đăng nhập</a></p>
+        </div>
+    </section>
+</main>
 
 <!-- ============================================================
      SIDEBAR NAV
@@ -126,6 +159,11 @@
             <span class="topbar-sub" id="topbarSub">Tổng quan hệ thống</span>
         </div>
         <div class="topbar-right">
+            <div class="user-identity" id="userIdentity" hidden>
+                <span id="currentUserName"></span>
+                <span class="role-chip" id="currentUserRole"></span>
+                <button class="logout-button" type="button" onclick="logoutCurrentUser()">Đăng xuất</button>
+            </div>
             <div class="topbar-time" id="topbarClock"></div>
         </div>
     </header>
@@ -332,6 +370,14 @@
                         <div class="summary-stat danger">
                             <div class="s-num" id="sum-skip">0</div>
                             <div class="s-lbl">Bỏ qua</div>
+                        </div>
+                        <div class="summary-stat danger">
+                            <div class="s-num" id="sum-language-rejected">0</div>
+                            <div class="s-lbl">Loại ngôn ngữ</div>
+                        </div>
+                        <div class="summary-stat warning">
+                            <div class="s-num" id="sum-quarantined">0</div>
+                            <div class="s-lbl">Quarantine</div>
                         </div>
                     </div>
                 </div>
@@ -555,6 +601,9 @@
                     <div class="label-toolbar">
                         <div class="toolbar-left">
                             <button class="btn-primary-sm" id="btnRunAiNer" onclick="runAiLabel()">Gán nhãn bằng AI</button>
+                            <button class="btn-save-ner" id="btnSaveAiLabel" onclick="saveAiLabelResult()" disabled style="margin-left:8px;">
+                                Lưu kết quả AI
+                            </button>
                         </div>
                     </div>
 
@@ -635,7 +684,7 @@
                         <span class="panel-icon">✂️</span>
                         Tách nội dung PDF
                     </div>
-                    <div class="panel-sub">Tải lên bài báo y học dạng PDF để tách thành các file văn bản (txt)</div>
+                    <div class="panel-sub">PyMuPDF dựng layout, Gemini nhận diện cấu trúc, backend kiểm chứng và tạo TXT/JSON nguyên văn</div>
                 </div>
 
                 <div class="pdf-dropzone" id="splitPdfDropzone"
@@ -674,7 +723,11 @@
 
                 <button class="btn-primary-full" id="btnSplitPdf" onclick="executeSplitPdf()" disabled style="margin-top:20px;">
                     <span class="btn-icon">✂️</span>
-                    <span>Tách file PDF ngay</span>
+                    <span>Trích xuất PDF</span>
+                </button>
+                <button class="btn-danger-full" id="btnStopSplitPdf" type="button" onclick="stopSplitPdf()" style="display:none; margin-top:10px;">
+                    <span class="btn-icon">⏹️</span>
+                    <span>Dừng tách</span>
                 </button>
             </div>
             
@@ -693,7 +746,7 @@
                 <div class="pdf-empty-state" id="splitPdfEmpty">
                     <div class="empty-icon">📄</div>
                     <div class="empty-text">Chưa có file PDF nào được tải lên</div>
-                    <div class="empty-sub">Mỗi PDF sẽ có metadata.json, title.txt, authors.txt, abstract.txt và các section trong Kho_Ngu_Lieu_Txt/pdf_extracted/</div>
+                    <div class="empty-sub">Mỗi PDF tạo article.json, structured_article.json, metadata.json, title.txt, authors.txt, abstract.txt, keywords.txt và TXT/JSON từng section trong Kho_Ngu_Lieu_Txt/pdf_extracted/</div>
                 </div>
             </div>
         </div>
@@ -720,6 +773,7 @@
 <!-- TOAST NOTIFICATION -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="script.js?v=4.8"></script>
+<script src="review.js?v=1.2"></script>
+<script src="script.js?v=6.1"></script>
 </body>
 </html>

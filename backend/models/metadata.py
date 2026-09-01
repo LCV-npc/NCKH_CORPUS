@@ -35,5 +35,13 @@ class ExtractedMetadata:
     metadata_file: str = ""
     extracted_files: List[Any] = field(default_factory=list)
     headings: List[Any] = field(default_factory=list)
+    document_blocks: List[Any] = field(default_factory=list)
     sections: List[Any] = field(default_factory=list)
     validation_report: Any = field(default_factory=dict)
+    language_decision: Any = field(default_factory=dict)
+    structured_document_file: str = ""
+    is_duplicate: bool = False
+    duplicate_of: Any = field(default_factory=dict)
+    keywords: List[str] = field(default_factory=list)
+    affiliations: List[str] = field(default_factory=list)
+    extraction: Any = field(default_factory=dict)

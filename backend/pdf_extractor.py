@@ -12,6 +12,8 @@ import logging
 import re
 import unicodedata
 
+from core.section_ontology import ROOT_TYPES, canonical_label, classify_section, known_section_aliases, parent_types_for
+
 log = logging.getLogger(__name__)
 
 
@@ -95,6 +97,11 @@ _KNOWN_SECTIONS.update({
     "credit authorship contribution statement": "author_contributions",
 })
 
+# The legacy map above remains only as historical context for this release.
+# Parsing now reads a single ontology so aliases are not spread across the
+# extraction, hierarchy and export stages.
+_KNOWN_SECTIONS = known_section_aliases()
+
 _BOILERPLATE_PATTERNS = (
     re.compile(r"^\s*(?:received|accepted|revised|published\s+online)\b", re.I),
     re.compile(r"^\s*(?:©|copyright\b)", re.I),
@@ -166,11 +173,13 @@ def _slug_label(text: str) -> str:
 
 
 def _get_label_for_heading(heading_text: str) -> str:
+    canonical_type, _, _ = classify_section(heading_text)
+    if canonical_type not in {"OTHER", "UNKNOWN"}:
+        return canonical_label(canonical_type)
     cleaned = _strip_heading_number(heading_text).casefold()
     compact = _compact_for_match(cleaned)
-    for key, label in sorted(_KNOWN_SECTIONS.items(), key=lambda item: len(item[0]), reverse=True):
-        key_compact = _compact_for_match(key)
-        if cleaned == key or compact == key_compact or cleaned.startswith(key + ":"):
+    for key, label in _KNOWN_SECTIONS.items():
+        if compact == _compact_for_match(key):
             return label
     return _slug_label(cleaned)
 
@@ -178,6 +187,9 @@ def _get_label_for_heading(heading_text: str) -> str:
 def _known_heading_prefix(text: str) -> tuple[str, str, int] | None:
     """Trả heading/label/độ dài khi một heading chuẩn đứng đầu dòng."""
     stripped = _strip_heading_number(text)
+    # A superscript footnote may be extracted as a normal suffix, e.g.
+    # "TÓM TẮT8". It is a marker, not part of the heading text.
+    stripped = re.sub(r"(?<=\D)[\d*]+\s*$", "", stripped).strip()
     compact = _compact_for_match(stripped)
     for key, label in sorted(_KNOWN_SECTIONS.items(), key=lambda item: len(item[0]), reverse=True):
         # PyMuPDF đôi khi chèn khoảng trắng giữa các ký tự khi font thay đổi.
@@ -505,10 +517,75 @@ def _serialize_pages(pages: list[list[dict]], page_widths: list[float]) -> tuple
     return "".join(pieces).strip(), records
 
 
+def _article_front_start_index(lines: list[dict]) -> int | None:
+    """Locate an article front matter cluster within a concatenated PDF.
+
+    Some journal downloads start with the tail/references of a preceding
+    article and place the requested article title later on the first page.
+    A valid front cluster has a larger title directly above an Abstract,
+    Summary or Tóm tắt heading on the same page.
+    """
+    for anchor_index, anchor in enumerate(lines):
+        known = _known_heading_prefix(anchor["text"])
+        if not known or known[1] != "abstract":
+            continue
+        anchor_y0 = float(anchor["bbox"][1])
+        anchor_size = float(anchor["size"])
+        nearby = [
+            index for index, line in enumerate(lines[:anchor_index])
+            if line["page"] == anchor["page"]
+            and 0 <= anchor_y0 - float(line["bbox"][3]) <= 260
+            and _meaningful_heading(line["text"])
+        ]
+        if not nearby:
+            continue
+        title_size = max(float(lines[index]["size"]) for index in nearby)
+        if title_size < anchor_size + 0.7:
+            continue
+
+        title_end = max(
+            (index for index in nearby if abs(float(lines[index]["size"]) - title_size) <= 0.5),
+            key=lambda index: float(lines[index]["bbox"][1]),
+        )
+        title_start = title_end
+        while title_start > 0:
+            previous = lines[title_start - 1]
+            current = lines[title_start]
+            same_size = abs(float(previous["size"]) - title_size) <= 0.5
+            same_page = previous["page"] == anchor["page"]
+            # Bounding boxes of two visual title lines can overlap by a tiny
+            # fraction of a point in PyMuPDF.
+            close = -2.5 <= float(current["bbox"][1]) - float(previous["bbox"][3]) <= title_size * 1.35
+            if not (same_size and same_page and close):
+                break
+            title_start -= 1
+        return title_start
+    return None
+
+
+def _trim_to_article_front(full_text: str, lines: list[dict]) -> tuple[str, list[dict]]:
+    """Discard a preceding article tail when a reliable new front is found."""
+    start_index = _article_front_start_index(lines)
+    if start_index in (None, 0):
+        return full_text, lines
+    start_position = lines[start_index]["position"]
+    trimmed_lines: list[dict] = []
+    for line in lines[start_index:]:
+        clone = dict(line)
+        clone["position"] -= start_position
+        clone["end_position"] -= start_position
+        trimmed_lines.append(clone)
+    log.info("Detected embedded article front on page %s; discarded %s leading text characters.", lines[start_index]["page"], start_position)
+    return full_text[start_position:], trimmed_lines
+
+
 def _body_font_size(lines: list[dict]) -> float:
     counts: Counter[float] = Counter()
     for line in lines:
-        for size, weight in line["span_sizes"]:
+        span_sizes = line.get("span_sizes") or [
+            (float(line.get("size", 10.0) or 10.0), max(1, len(str(line.get("text", "")))))
+        ]
+        for size, weight in span_sizes:
             counts[size] += weight
     return counts.most_common(1)[0][0] if counts else 10.0
 
@@ -577,6 +654,45 @@ def _known_wrapped_heading(lines: list[dict], index: int, body_size: float) -> t
     return heading, label, second["end_position"]
 
 
+def _numbering_depth(text: str) -> int | None:
+    match = re.match(r"^\s*(\d+(?:\.\d+)*|[ivxlcdm]+)\.?\s+", text, re.I)
+    if not match:
+        return None
+    token = match.group(1)
+    return token.count(".") + 1 if token[0].isdigit() else 1
+
+
+def _heading_evidence(line: dict, candidate: str, body_size: float, known_label: str) -> tuple[float, dict]:
+    """Explainable evidence used to decide that a layout line is a heading."""
+    features = {
+        "numbering": 1.0 if _numbering_depth(candidate) else 0.0,
+        "typography": round(min(1.0, max(0.0, (line["size"] - body_size + 1.2) / 2.4)), 2),
+        "bold": round(min(1.0, line["bold_ratio"]), 2),
+        "length": 1.0 if len(candidate) <= 80 and len(candidate.split()) <= 12 else 0.35,
+        "semantic": 1.0 if known_label else 0.0,
+        "layout": 1.0 if line.get("block_line_count", 1) == 1 else 0.45,
+    }
+    score = (
+        features["numbering"] * 0.22 + features["typography"] * 0.20 +
+        features["bold"] * 0.20 + features["length"] * 0.10 +
+        features["semantic"] * 0.20 + features["layout"] * 0.08
+    )
+    return round(score, 3), features
+
+
+class HeadingCandidateDetector:
+    """Layout-aware, explainable heading candidate detector.
+
+    The existing parser supplies its candidate lines; this class exposes the
+    score and features in the master JSON so a reviewer can inspect why a line
+    was treated as a heading.
+    """
+
+    @staticmethod
+    def score(line: dict, candidate: str, body_size: float, known_label: str) -> tuple[float, dict]:
+        return _heading_evidence(line, candidate, body_size, known_label)
+
+
 def _detect_headings(lines: list[dict]) -> list[dict]:
     body_size = _body_font_size(lines)
     headings: list[dict] = []
@@ -615,9 +731,17 @@ def _detect_headings(lines: list[dict]) -> list[dict]:
         if start in seen_positions:
             continue
         seen_positions.add(start)
+        heading_score, features = HeadingCandidateDetector.score(line, candidate, body_size, known_label)
+        canonical_type, classification_confidence, classification_source = classify_section(candidate)
         headings.append({
             "heading": candidate,
             "label": known_label or _get_label_for_heading(candidate),
+            "canonical_type": canonical_type,
+            "classification_confidence": classification_confidence,
+            "classification_source": classification_source,
+            "heading_score": heading_score,
+            "features": features,
+            "numbering_depth": _numbering_depth(candidate),
             "page": line["page"],
             "size": round(line["size"], 1),
             "position": start,
@@ -633,16 +757,30 @@ def _filter_article_headings(headings: list[dict]) -> list[dict]:
     anchors = {"abstract", "introduction", "methods", "results"}
     start = next((i for i, heading in enumerate(headings) if heading["label"] in anchors), 0)
     filtered: list[dict] = []
+    abstract_page: int | None = None
+    # Objective/Methods/Results can be inline labels inside a structured
+    # abstract. They must remain abstract text, not become article sections.
+    abstract_inline_labels = {"objectives", "background", "methods", "results", "conclusion"}
     for heading in headings[start:]:
+        label = heading["label"]
+        if abstract_page is not None:
+            if label == "keywords":
+                abstract_page = None
+            elif heading["page"] == abstract_page and label in abstract_inline_labels:
+                continue
+            elif label == "introduction" or heading["page"] > abstract_page:
+                abstract_page = None
         # Abstract/Summary chỉ hợp lệ trước phần thân bài. Quy tắc thứ tự này
         # chặn header "Summary" trong bảng tạo ra abstract_2.
-        if heading["label"] == "abstract" and any(
-            item["label"] in {"abstract", "introduction", "methods", "results"}
+        if label == "abstract" and any(
+            item["label"] in {"abstract", "introduction"}
             for item in filtered
         ):
             continue
         filtered.append(heading)
-        if heading["label"] == "references":
+        if label == "abstract":
+            abstract_page = heading["page"]
+        if label == "references":
             break
     return filtered
 
@@ -660,6 +798,71 @@ def _split_text_by_headings(full_text: str, headings: list[dict]) -> list[dict]:
             "page": heading["page"],
             "content": content,
         })
+    return sections
+
+
+def _build_hierarchical_sections(full_text: str, headings: list[dict]) -> list[dict]:
+    """Build hierarchy plus direct and aggregate content from heading bounds."""
+    sections: list[dict] = []
+    stack: list[dict] = []
+    for index, heading in enumerate(headings):
+        expected_parents = parent_types_for(heading.get("canonical_type", ""))
+        parent = next(
+            (candidate for candidate in reversed(stack) if candidate["canonical_type"] in expected_parents),
+            None,
+        ) if expected_parents else None
+        numbering_depth = heading.get("numbering_depth")
+        if heading.get("canonical_type") in ROOT_TYPES:
+            level, parent = 1, None
+        elif parent is not None:
+            level = parent["level"] + 1
+        elif numbering_depth and numbering_depth > 1:
+            level = numbering_depth
+            parent = next((candidate for candidate in reversed(stack) if candidate["level"] < level), None)
+        elif numbering_depth == 1:
+            parent = next((candidate for candidate in reversed(stack) if candidate["level"] == 1), None)
+            level = 2 if parent else 1
+        else:
+            # An unnumbered heading with no ontology parent is a new top-level
+            # section; do not incorrectly turn every bold heading into a child.
+            parent, level = None, 1
+
+        while stack and stack[-1]["level"] >= level:
+            stack.pop()
+        if parent is not None and parent not in stack:
+            parent = next((candidate for candidate in reversed(stack) if candidate["level"] < level), None)
+
+        end = headings[index + 1]["position"] if index + 1 < len(headings) else len(full_text)
+        raw_content = full_text[heading["end_position"]:end]
+        direct_content = _normalize_section_content(re.sub(r"^[\s:.\-–—]+", "", raw_content))
+        canonical_type, confidence, source = classify_section(
+            heading["heading"], parent["canonical_type"] if parent else "", direct_content[:500]
+        )
+        raw_heading = heading["heading"]
+        section = {
+            "section_id": f"S{index + 1:03d}", "order": index + 1, "level": level,
+            "parent_id": parent["section_id"] if parent else None, "children": [],
+            "heading": _strip_heading_number(raw_heading), "original_heading": raw_heading,
+            "label": canonical_label(canonical_type) if canonical_type not in {"OTHER", "UNKNOWN"} else heading["label"],
+            "canonical_type": canonical_type,
+            "heading_score": heading.get("heading_score", 0.0),
+            "heading_features": heading.get("features", {}),
+            "classification_confidence": confidence, "classification_source": source,
+            "page": heading["page"], "page_start": heading["page"],
+            "page_end": headings[index + 1]["page"] if index + 1 < len(headings) else heading["page"],
+            "direct_content": direct_content, "content": direct_content,
+            "aggregate_content": direct_content,
+        }
+        if parent:
+            parent["children"].append(section["section_id"])
+        sections.append(section)
+        stack.append(section)
+
+    by_id = {section["section_id"]: section for section in sections}
+    for section in reversed(sections):
+        parts = [section["direct_content"]] if section["direct_content"] else []
+        parts.extend(by_id[child_id]["aggregate_content"] for child_id in section["children"] if by_id[child_id]["aggregate_content"])
+        section["aggregate_content"] = "\n\n".join(parts).strip()
     return sections
 
 
@@ -682,6 +885,49 @@ def _normalize_section_content(content: str) -> str:
             else:
                 paragraphs.append(normalized)
     return _clean_text("\n\n".join(paragraphs))
+
+
+def _sanitize_abstract_content(content: str, authors: str = "") -> str:
+    """Remove author/contact artefacts accidentally interleaved into an abstract."""
+    if not content:
+        return ""
+    text = content
+    # A journal footer can be interleaved into a two-column abstract. Remove
+    # each known metadata field independently; never drop all text after a
+    # contact marker because the second abstract column can follow it.
+    text = re.sub(
+        r"(?is)\*[^\n]{0,180}?(?=\s*(?:corresponding\s+author|chịu\s+trách\s+nhiệm))",
+        "", text,
+    )
+    text = re.sub(
+        r"(?is)\b(?:corresponding\s+author|chịu\s+trách\s+nhiệm(?:\s+chính)?)\s*:?\s*"
+        r".*?(?=\s*(?:e[- ]?mail|phone|điện\s+thoại|fax|ngày\s+(?:nhận|phản|duyệt))\b|$)",
+        "", text,
+    )
+    text = re.sub(
+        r"(?i)\b(?:e[- ]?mail(?:\s+address)?|phone(?:\s+number)?|điện\s+thoại|fax)\s*:?\s*"
+        r"(?:[A-Z0-9._%+()\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}|[+()\-\d ]{7,})",
+        "", text,
+    )
+    text = re.sub(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", "", text)
+    text = re.sub(
+        r"(?i)\bngày\s+(?:nhận\s+bài|phản\s+biện\s+khoa\s+học|duyệt\s+bài)\s*:\s*\d{1,2}/\d{1,2}/\d{2,4}",
+        "", text,
+    )
+    text = re.sub(
+        r"(?i)(?<=\s)\d{1,3}(?=\s+(?:mục\s+tiêu|các\s+mẫu|kết\s+quả|objectives?|methods?|results?|conclusion)\b)",
+        "", text,
+    )
+
+    # Remove only complete author names extracted from the front matter. This
+    # avoids deleting ordinary medical terms that merely resemble a name.
+    for name in re.split(r"[,;]", authors or ""):
+        name = re.sub(r"[*\d]+", "", name).strip()
+        if len(name.split()) >= 2 and len(name) >= 6:
+            text = re.sub(rf"(?i)(?<!\w){re.escape(name)}(?!\w)", "", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    return text.strip()
 
 
 def _comparison_text(text: str) -> str:
@@ -714,23 +960,238 @@ def _validate_sections(full_text: str, sections: list[dict]) -> dict:
     return {"ok": not issues, "section_count": len(sections), "issues": issues, "sections": details}
 
 
-def _extract_title_and_authors(lines: list[dict], headings: list[dict]) -> tuple[str, str]:
-    first_anchor = headings[0]["position"] if headings else float("inf")
-    preamble = [line for line in lines if line["page"] == 1 and line["position"] < first_anchor]
+_FRONT_MATTER_EXCLUSIONS = re.compile(
+    r"\b(?:t[oó]m\s*t[aá]t|abstract|summary|keywords?|t[ừu]\s*kh[oó]a|"
+    r"email|e-mail|corresponding\s+author|ch[ịi]u\s+tr[aá]ch\s+nhi[ệe]m|"
+    r"ng[aà]y\s+(?:nh[ậa]n|duy[ệe]t|ph[aả]n)|doi\s*:|vol(?:ume)?\.?\s*\d+|"
+    r"\bjournal\b|t[ạa]p\s*ch[ií])\b",
+    re.I,
+)
+
+
+def _line_size(line: dict) -> float:
+    """Read a layout size defensively so synthetic tests remain simple."""
+    try:
+        return float(line.get("size", 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _author_likelihood(text: str) -> float:
+    """Return a conservative score that a front-matter line is an author list.
+
+    This intentionally requires strong person-name evidence.  A short article
+    title must not be discarded merely because it uses Title Case, whereas a
+    comma-separated list of 2--5-word names (especially with affiliation
+    markers) is a very reliable author signal in Vietnamese journal PDFs.
+    """
+    original = _clean_text(text)
+    if not original or len(original) > 180 or _FRONT_MATTER_EXCLUSIONS.search(original):
+        return 0.0
+    if "@" in original or re.search(r"https?://|www\.", original, re.I):
+        return 0.0
+
+    parts = [part.strip() for part in re.split(r"\s*[,;]\s*|\s+v[àa]\s+", original) if part.strip()]
+    if not parts:
+        return 0.0
+
+    valid_names = 0
+    has_affiliation_marker = bool(re.search(r"(?:\d+|[*†‡])(?:\s*[,;]|$)", original))
+    for part in parts:
+        without_markers = re.sub(r"(?:\d+|[*†‡]+)", "", part).strip()
+        words = re.findall(r"[A-Za-zÀ-ỹĐđ]+(?:[-'][A-Za-zÀ-ỹĐđ]+)?", without_markers)
+        # Personal names normally have 2--5 lexical words.  Requiring the
+        # complete part to be almost exclusively alphabetic avoids accepting
+        # sentences such as "Kết quả điều trị...".
+        alpha_coverage = sum(len(word) for word in words) / max(1, len(without_markers.replace(" ", "")))
+        capitalised = sum(word[0].isupper() for word in words if word) / max(1, len(words))
+        if 2 <= len(words) <= 5 and alpha_coverage >= 0.78 and capitalised >= 0.60:
+            valid_names += 1
+
+    valid_ratio = valid_names / len(parts)
+    if valid_ratio < 1.0:
+        return 0.0
+
+    # One bare name is deliberately treated as uncertain.  It becomes strong
+    # only when the PDF provides an affiliation/footnote marker.
+    if len(parts) == 1 and not has_affiliation_marker:
+        return 0.42
+
+    score = 0.50 + min(0.30, 0.10 * valid_names)
+    if len(parts) >= 2:
+        score += 0.10
+    if has_affiliation_marker:
+        score += 0.14
+    return min(1.0, score)
+
+
+def _title_from_source_hint(source_hint: str) -> str:
+    """Return a safe title fallback from an original PDF filename.
+
+    Some portal PDFs expose only an author line before ``TÓM TẮT`` because the
+    visual title is an image or lies in an unreadable embedded page object.  In
+    that case an uploader's original filename is better provenance than
+    inventing a title or writing the authors to ``title.txt``.
+    """
+    name = str(source_hint or "").replace("\\", "/").rsplit("/", 1)[-1]
+    name = re.sub(r"\.pdf$", "", name, flags=re.I)
+    # Crawler/upload filenames append content hashes for uniqueness.  They are
+    # not part of the scholarly title.
+    name = re.sub(r"(?:[_\-][0-9a-f]{12,64}){1,2}$", "", name, flags=re.I)
+    name = _clean_text(name.replace("_", " "))
+    if len(name) < 8 or re.fullmatch(r"(?:upload|document|scan|pdf|untitled)(?:\s*\d+)?", name, re.I):
+        return ""
+    if re.fullmatch(r"[0-9a-f]{12,64}", name, re.I):
+        return ""
+    return name
+
+
+def _title_group(candidate_lines: list[dict], index: int) -> tuple[int, int, str]:
+    """Join neighbouring visual title lines with matching typography."""
+    title_size = _line_size(candidate_lines[index])
+    size_tolerance = max(0.4, title_size * 0.05)
+    start = index
+    while start > 0:
+        previous, current = candidate_lines[start - 1], candidate_lines[start]
+        gap = float(current["bbox"][1]) - float(previous["bbox"][3])
+        if (
+            abs(_line_size(previous) - title_size) > size_tolerance
+            or not -2.5 <= gap <= title_size * 1.35
+            or _author_likelihood(previous["text"]) >= 0.70
+        ):
+            break
+        start -= 1
+    end = index
+    while end + 1 < len(candidate_lines):
+        current, following = candidate_lines[end], candidate_lines[end + 1]
+        gap = float(following["bbox"][1]) - float(current["bbox"][3])
+        if (
+            abs(_line_size(following) - title_size) > size_tolerance
+            or not -2.5 <= gap <= title_size * 1.35
+            or _author_likelihood(following["text"]) >= 0.70
+        ):
+            break
+        end += 1
+    return start, end, _clean_text(" ".join(line["text"] for line in candidate_lines[start:end + 1]))
+
+
+def _title_score(title: str, lines: list[dict], body_size: float, source_title: str) -> float:
+    """Combine independent layout, language and provenance signals."""
+    if not title or _FRONT_MATTER_EXCLUSIONS.search(title) or _author_likelihood(title) >= 0.70:
+        return float("-inf")
+    words = re.findall(r"[A-Za-zÀ-ỹĐđ]+", title)
+    if len(words) < 2 or len(words) > 42 or len(title) > 300:
+        return float("-inf")
+    max_size = max((_line_size(line) for line in lines), default=0.0)
+    bold_ratio = sum(float(line.get("bold_ratio", 0.0)) for line in lines) / max(1, len(lines))
+    typography = min(3.0, max(0.0, max_size - body_size) * 0.55)
+    shape = 0.55 if len(words) >= 4 else 0.20
+    uppercase_ratio = sum(char.isupper() for char in title if char.isalpha()) / max(1, sum(char.isalpha() for char in title))
+    case_signal = 0.35 if uppercase_ratio >= 0.45 else 0.10
+    filename_signal = 0.0
+    if source_title:
+        title_words = {word.casefold() for word in words if len(word) >= 3}
+        source_words = {word.casefold() for word in re.findall(r"[A-Za-zÀ-ỹĐđ]+", source_title) if len(word) >= 3}
+        if title_words:
+            filename_signal = min(0.80, len(title_words & source_words) / len(title_words))
+    return typography + shape + case_signal + min(0.70, bold_ratio * 0.70) + filename_signal
+
+
+def _extract_title_and_authors(
+    lines: list[dict], headings: list[dict], source_hint: str = "",
+) -> tuple[str, str]:
+    """Extract title/authors using layout, person-name and filename evidence.
+
+    The old implementation selected the largest line before the first heading.
+    That is unsafe for pages whose actual title is graphical or absent from the
+    PDF text layer: the author list can be the largest readable line.  This
+    routine only accepts a title after it passes all applicable signals.
+    """
+    abstract_headings = []
+    for heading in headings:
+        known = _known_heading_prefix(str(heading.get("heading", "")))
+        if str(heading.get("canonical_type", "")).casefold() == "abstract" or (known and known[1] == "abstract"):
+            abstract_headings.append(heading)
+    anchor = abstract_headings[0] if abstract_headings else (headings[0] if headings else None)
+    source_title = _title_from_source_hint(source_hint)
+    if not anchor:
+        return source_title, ""
+
+    anchor_page = anchor.get("page") or (lines[0].get("page") if lines else None)
+    anchor_position = float(anchor.get("position", float("inf")))
+    preamble = [
+        line for line in lines
+        if line.get("page") == anchor_page and float(line.get("position", 0)) < anchor_position
+    ][-40:]
     if not preamble:
-        return "", ""
-    title_line = max(preamble[:20], key=lambda line: (line["size"], len(line["text"])), default=None)
-    if not title_line:
-        return "", ""
-    title = title_line["text"]
-    later = [line["text"] for line in preamble if line["position"] > title_line["position"]]
-    return title, (later[0] if later else "")
+        return source_title, ""
+
+    # The document-wide body font is normally the best baseline.  Tiny test
+    # fixtures and malformed PDFs can contain only front matter, however, so
+    # also keep the smallest visible front-matter size as a conservative
+    # typography baseline.
+    visible_sizes = [_line_size(line) for line in preamble if _line_size(line) > 0]
+    body_size = min(_body_font_size(lines), min(visible_sizes, default=10.0))
+    candidates: list[tuple[float, int, int, str]] = []
+    seen_groups: set[tuple[int, int]] = set()
+    for index, line in enumerate(preamble):
+        text = str(line.get("text", ""))
+        if not _meaningful_heading(text) or _author_likelihood(text) >= 0.70:
+            continue
+        start, end, title = _title_group(preamble, index)
+        key = (start, end)
+        if key in seen_groups:
+            continue
+        seen_groups.add(key)
+        score = _title_score(title, preamble[start:end + 1], body_size, source_title)
+        candidates.append((score, start, end, title))
+
+    # A score below 1.35 usually means ordinary body/header text rather than a
+    # typographically distinguished title.  Returning a filename fallback is
+    # safer than silently assigning an author name as the title.
+    best = max(candidates, default=(float("-inf"), 0, -1, ""), key=lambda item: item[0])
+    title = best[3] if best[0] >= 1.35 else source_title
+
+    author_candidates = [
+        (score, index, _clean_text(str(line.get("text", ""))))
+        for index, line in enumerate(preamble)
+        for score in [_author_likelihood(str(line.get("text", "")))]
+        if score >= 0.70
+    ]
+    # Prefer author lines below a detected title; otherwise preserve the best
+    # strong author candidate even when title came from the filename fallback.
+    if author_candidates:
+        if best[0] >= 1.35:
+            below_title = [item for item in author_candidates if item[1] > best[2]]
+            if below_title:
+                author_candidates = below_title
+        authors = max(author_candidates, key=lambda item: (item[0], item[1]))[2]
+    else:
+        authors = ""
+    return title, authors
 
 
-def extract_from_pdf_bytes(pdf_bytes: bytes) -> dict:
+def _document_blocks(lines: list[dict]) -> list[dict]:
+    """Expose cleaned layout lines as traceable document blocks in master JSON."""
+    blocks: list[dict] = []
+    for order, line in enumerate(lines, 1):
+        x0, y0, x1, y1 = line["bbox"]
+        blocks.append({
+            "id": f"B{order:04d}", "order": order, "page": line["page"],
+            "text": line["text"],
+            "bbox": {"x0": round(x0, 2), "y0": round(y0, 2), "x1": round(x1, 2), "y1": round(y1, 2)},
+            "font_size": round(line["size"], 2), "bold": bool(line["bold_ratio"] >= 0.6),
+            "line_count": line.get("block_line_count", 1),
+            "previous_block": f"B{order - 1:04d}" if order > 1 else None,
+            "next_block": f"B{order + 1:04d}" if order < len(lines) else None,
+        })
+    return blocks
+
+
+def extract_from_pdf_bytes(pdf_bytes: bytes, source_hint: str = "") -> dict:
     result = {
         "title": "", "authors": "", "abstract": "", "body": "", "full_text": "",
-        "page_count": 0, "sections": [], "headings": [], "validation": {}, "error": None,
+        "page_count": 0, "sections": [], "headings": [], "blocks": [], "validation": {}, "error": None,
     }
     try:
         import pymupdf
@@ -749,16 +1210,35 @@ def extract_from_pdf_bytes(pdf_bytes: bytes) -> dict:
         clean_pages = _remove_headers_and_footers(raw_pages)
         page_widths = [float(document[index].rect.width) for index in range(document.page_count)]
         full_text, lines = _serialize_pages(clean_pages, page_widths)
+        full_text, lines = _trim_to_article_front(full_text, lines)
         headings = _detect_headings(lines)
-        sections = _split_text_by_headings(full_text, headings)
+        sections = _build_hierarchical_sections(full_text, headings)
         if not sections and full_text:
-            sections = [{"heading": "Content", "label": "content", "page": 1, "content": full_text}]
+            sections = [{
+                "section_id": "S001", "order": 1, "level": 1, "parent_id": None,
+                "children": [], "heading": "Content", "original_heading": "Content",
+                "label": "content", "canonical_type": "OTHER", "heading_score": 0.0,
+                "heading_features": {}, "classification_confidence": 0.0,
+                "classification_source": "no_heading_detected", "page": 1, "page_start": 1,
+                "page_end": document.page_count, "direct_content": full_text,
+                "content": full_text, "aggregate_content": full_text,
+            }]
 
         result["full_text"] = full_text
         result["headings"] = headings
+        result["blocks"] = _document_blocks(lines)
         result["sections"] = sections
+        result["title"], result["authors"] = _extract_title_and_authors(
+            lines, headings, source_hint=source_hint,
+        )
+        for section in sections:
+            if section["label"] != "abstract":
+                continue
+            cleaned_abstract = _sanitize_abstract_content(section["direct_content"], result["authors"])
+            section["direct_content"] = cleaned_abstract
+            section["content"] = cleaned_abstract
+            section["aggregate_content"] = cleaned_abstract
         result["validation"] = _validate_sections(full_text, sections)
-        result["title"], result["authors"] = _extract_title_and_authors(lines, headings)
         result["abstract"] = next((s["content"] for s in sections if s["label"] == "abstract"), "")
         result["body"] = "\n\n".join(
             section["content"] for section in sections
@@ -773,18 +1253,18 @@ def extract_from_pdf_bytes(pdf_bytes: bytes) -> dict:
     return result
 
 
-def extract_from_pdf_path(pdf_path: str) -> dict:
+def extract_from_pdf_path(pdf_path: str, source_hint: str = "") -> dict:
     try:
         with open(pdf_path, "rb") as file:
-            return extract_from_pdf_bytes(file.read())
+            return extract_from_pdf_bytes(file.read(), source_hint=source_hint or pdf_path)
     except FileNotFoundError:
         return {
             "title": "", "authors": "", "abstract": "", "body": "", "full_text": "",
-            "page_count": 0, "sections": [], "headings": [], "validation": {},
+            "page_count": 0, "sections": [], "headings": [], "blocks": [], "validation": {},
             "error": f"Không tìm thấy file: {pdf_path}",
         }
     except Exception as exc:
         return {
             "title": "", "authors": "", "abstract": "", "body": "", "full_text": "",
-            "page_count": 0, "sections": [], "headings": [], "validation": {}, "error": str(exc),
+            "page_count": 0, "sections": [], "headings": [], "blocks": [], "validation": {}, "error": str(exc),
         }

@@ -3,6 +3,9 @@ import time
 import random
 import os
 import threading
+import hashlib
+from pathlib import Path
+from collections import deque
 import requests
 import mysql.connector
 from bs4 import BeautifulSoup
@@ -10,11 +13,28 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
 from urllib.parse import urlparse, urljoin
-from core.lang_detector import detect_language
+from config.constants import MAX_FILE_SIZE_BYTES, PDF_MAGIC_BYTES
+from config.language_filter import VietnameseCorpusSettings
+from core.language_audit import (
+    LanguageAuditRepository,
+    ensure_language_audit_schema,
+    is_allowed_journal_url,
+    quarantine_pdf,
+)
+from core.language_validation import (
+    LANGUAGE_VALIDATION_VERSION,
+    AdmissionDecision,
+    assess_metadata,
+    decide_admission,
+    select_pdf_text_for_language,
+)
+from pdf_extractor import extract_from_pdf_path
 
 # Trạng thái scraping toàn cục — được đọc bởi /api/status
 scrape_status: dict = {
     "running": False, "success": 0, "skipped": 0, "duplicates": 0,
+    "rejected_english": 0, "rejected_mixed": 0, "rejected_no_text": 0,
+    "quarantined": 0, "pages_processed": 0, "total_urls": 0,
     "current_year": None, "current_url": None, "error": None,
     "done": False, "summary": None, "log_messages": [],
 }
@@ -28,8 +48,13 @@ def stop_scraping():
     _stop_requested = True
 
 def _log(msg: str):
-    """Ghi log vào scrape_status để frontend đọc realtime."""
-    scrape_status["log_messages"].append(msg)
+    """Ghi log realtime, không thêm lại cùng một thông điệp liên tiếp."""
+    messages = scrape_status["log_messages"]
+    if messages and messages[-1] == msg:
+        return
+    messages.append(msg)
+    if len(messages) > _MAX_LOGS:
+        del messages[:-_MAX_LOGS]
     try:
         print(msg)
     except UnicodeEncodeError:
@@ -43,6 +68,166 @@ def clean_filename(fn: str) -> str:
 def _make_absolute(href: str, base: str) -> str:
     """FIX #3: Chuyển mọi href (tương đối hoặc tuyệt đối) về URL đầy đủ."""
     return urljoin(base, href)
+
+
+def _html_language(soup: BeautifulSoup) -> str:
+    html = soup.find("html")
+    if html and html.get("lang"):
+        return str(html.get("lang"))
+    for name in ("citation_language", "DC.Language", "language"):
+        tag = soup.find("meta", attrs={"name": name})
+        if tag and tag.get("content"):
+            return str(tag.get("content"))
+    return ""
+
+
+def _find_pdf_url(soup: BeautifulSoup, base_url: str) -> str | None:
+    meta_pdf = soup.find("meta", attrs={"name": "citation_pdf_url"})
+    pdf_url = meta_pdf.get("content") if meta_pdf else None
+    if not pdf_url:
+        for a_tag in soup.find_all("a", href=True):
+            text_lower = a_tag.get_text(strip=True).lower()
+            classes = " ".join(a_tag.get("class", []))
+            href_val = a_tag["href"]
+            if ("pdf" in text_lower or "pdf" in classes.lower()) and (
+                "/article/view/" in href_val or "/article/download/" in href_val
+            ):
+                pdf_url = _make_absolute(href_val, base_url)
+                break
+    if pdf_url and "/article/view/" in pdf_url:
+        pdf_url = pdf_url.replace("/article/view/", "/article/download/")
+    return pdf_url
+
+
+def _candidate_pdf_path(site_folder: str, target_year: str, title: str, source_url: str, settings: VietnameseCorpusSettings) -> Path:
+    digest = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:12]
+    candidate_dir = settings.candidates_dir / site_folder / target_year
+    candidate_dir.mkdir(parents=True, exist_ok=True)
+    return candidate_dir / f"{title}_{digest}.pdf"
+
+
+def _download_candidate(session: requests.Session, pdf_url: str, candidate_path: Path) -> str | None:
+    """Download a bounded PDF candidate. Returns an error reason, if any."""
+    response = session.get(pdf_url, verify=False, timeout=120, stream=True)
+    if response.status_code != 200:
+        return f"PDF_HTTP_{response.status_code}"
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "pdf" not in content_type and "octet-stream" not in content_type:
+        return "PDF_CONTENT_TYPE_INVALID"
+    written = 0
+    with open(candidate_path, "wb") as destination:
+        for chunk in response.iter_content(chunk_size=8192):
+            if not chunk:
+                continue
+            written += len(chunk)
+            if written > MAX_FILE_SIZE_BYTES:
+                destination.close()
+                candidate_path.unlink(missing_ok=True)
+                return "PDF_TOO_LARGE"
+            destination.write(chunk)
+    with open(candidate_path, "rb") as source:
+        if source.read(4) != PDF_MAGIC_BYTES:
+            return "PDF_MAGIC_INVALID"
+    return None
+
+
+def _accept_candidate(candidate_path: Path) -> Path:
+    """Mark a validated candidate as accepted without creating a duplicate.
+
+    ``candidates/<source-domain>/<year>`` is the sole on-disk PDF store for
+    successful crawler downloads. Rejected files are moved to quarantine;
+    accepted files remain at their original, traceable candidate path.
+    """
+    return candidate_path
+
+
+def _record_rejection(status: str) -> None:
+    scrape_status["skipped"] += 1
+    if status == "REJECTED_ENGLISH":
+        scrape_status["rejected_english"] += 1
+    elif status == "REJECTED_MIXED":
+        scrape_status["rejected_mixed"] += 1
+    elif status in {"REJECTED_NO_TEXT", "REJECTED_NO_PDF"}:
+        scrape_status["rejected_no_text"] += 1
+
+
+def _same_host(first_url: str, second_url: str) -> bool:
+    return urlparse(first_url).netloc.lower() == urlparse(second_url).netloc.lower()
+
+
+def _year_from_text(value: str) -> str | None:
+    match = re.search(r"(?<!\d)(20\d{2})(?!\d)", value or "")
+    return match.group(1) if match else None
+
+
+def _issue_year(anchor) -> str | None:
+    """Get the closest OJS archive year without a brittle CSS selector."""
+    direct = _year_from_text(anchor.get_text(" ", strip=True))
+    if direct:
+        return direct
+    parent = anchor.parent
+    for _ in range(3):
+        if not parent:
+            break
+        text = parent.get_text(" ", strip=True)
+        if len(text) <= 220:
+            parent_year = _year_from_text(text)
+            if parent_year:
+                return parent_year
+        parent = parent.parent
+    for heading in anchor.find_all_previous(["h1", "h2", "h3", "h4"]):
+        candidate = heading.get_text(" ", strip=True)
+        if re.fullmatch(r"20\d{2}", candidate):
+            return candidate
+    return None
+
+
+def _archive_issue_links(soup: BeautifulSoup, page_url: str) -> list[dict]:
+    """Find issue links and the displayed year on one OJS archive page."""
+    issues: list[dict] = []
+    seen: set[str] = set()
+    for anchor in soup.find_all("a", href=True):
+        url = _make_absolute(anchor["href"], page_url)
+        if "/issue/view/" not in url or not _same_host(page_url, url) or url in seen:
+            continue
+        seen.add(url)
+        issues.append({
+            "url": url,
+            "name": clean_filename(anchor.get_text(" ", strip=True)),
+            "year": _issue_year(anchor),
+        })
+    return issues
+
+
+def _archive_next_links(soup: BeautifulSoup, page_url: str) -> list[str]:
+    """Follow actual OJS pagination links rather than assuming `/1`, `/2`, ..."""
+    result: list[str] = []
+    for anchor in soup.find_all("a", href=True):
+        text = anchor.get_text(" ", strip=True).casefold()
+        rel = " ".join(anchor.get("rel", [])).casefold()
+        classes = " ".join(anchor.get("class", [])).casefold()
+        if not ("next" in rel or "next" in classes or "sau" in text or "next" in text or text in {"→", "›", ">"}):
+            continue
+        url = _make_absolute(anchor["href"], page_url)
+        if "/issue/archive" in url and _same_host(page_url, url) and url not in result:
+            result.append(url)
+    return result
+
+
+def _article_view_links(soup: BeautifulSoup, page_url: str) -> list[str]:
+    """Collect canonical OJS article pages, excluding PDF child URLs."""
+    links: list[str] = []
+    for anchor in soup.find_all("a", href=True):
+        url = _make_absolute(anchor["href"], page_url).split("#", 1)[0]
+        if not _same_host(page_url, url):
+            continue
+        parsed = urlparse(url)
+        if not re.search(r"/article/view/\d+/?$", parsed.path):
+            continue
+        canonical = parsed._replace(query="").geturl().rstrip("/")
+        if canonical not in links:
+            links.append(canonical)
+    return links
 
 def run_scraping(request, db_config: dict, output_folder: str):
     """
@@ -58,6 +243,8 @@ def run_scraping(request, db_config: dict, output_folder: str):
     scrape_status.clear()
     scrape_status.update({
         "running": True, "success": 0, "skipped": 0, "duplicates": 0,
+        "rejected_english": 0, "rejected_mixed": 0, "rejected_no_text": 0,
+        "quarantined": 0, "pages_processed": 0, "total_urls": 0,
         "current_year": None, "current_url": None, "error": None,
         "done": False, "summary": None, "log_messages": [],
     })
@@ -72,9 +259,15 @@ def run_scraping(request, db_config: dict, output_folder: str):
         parsed_check = urlparse(request.target_url)
         if not parsed_check.scheme or not parsed_check.netloc:
             raise ValueError(f"URL không hợp lệ: '{request.target_url}'. Vui lòng nhập đầy đủ https://...")
+        settings = VietnameseCorpusSettings()
+        if not is_allowed_journal_url(request.target_url, settings):
+            allowed = ", ".join(settings.allowed_domains)
+            raise ValueError(f"Tên miền không nằm trong danh sách nguồn được phép: {allowed}")
 
         _log("Đang kết nối tới DB...")
         conn   = mysql.connector.connect(**db_config)
+        ensure_language_audit_schema(db_config)
+        language_audit = LanguageAuditRepository(db_config)
         _log("Đã kết nối DB thành công.")
         cursor = conn.cursor()
 
@@ -166,44 +359,43 @@ def run_scraping(request, db_config: dict, output_folder: str):
             _log(f"\n=== BẮT ĐẦU QUÉT NĂM {target_year} ===")
             issue_links = []
 
-            # Thu thập link số/tập
-            for page in range(1, 10):
-                pu = f"{archive_url}/{page}" if page > 1 else archive_url
-                _log(f"  Đang fetch danh sách trang {page}: {pu}")
+            # Follow the pagination advertised by the archive itself. A page
+            # that does not contain the selected year is normal; older years
+            # can appear many pages later, so it is never a stop condition.
+            pages_to_visit = deque([archive_url])
+            visited_archive_pages: set[str] = set()
+            while pages_to_visit:
+                if _stop_requested:
+                    break
+                pu = pages_to_visit.popleft()
+                if pu in visited_archive_pages:
+                    continue
+                visited_archive_pages.add(pu)
+                _log(f"  Đang fetch archive: {pu}")
                 try:
                     r = session.get(pu, verify=False, timeout=60)
                     if r.status_code != 200:
-                        _log(f"  ⚠️ Trang {page} trả về HTTP {r.status_code}, dừng phân trang.")
-                        break
-                    soup    = BeautifulSoup(r.text, "html.parser")
-                    cur_blk = None
+                        _log(f"  ⚠️ Archive trả về HTTP {r.status_code}, bỏ qua trang này.")
+                        continue
+                    scrape_status["pages_processed"] += 1
+                    soup = BeautifulSoup(r.text, "html.parser")
+                    discovered = _archive_issue_links(soup, pu)
                     found_on_page = 0
-                    for tag in soup.find_all(["div", "h2", "h3", "a"]):
-                        t = tag.get_text(strip=True)
-                        if tag.name in ("div", "h2", "h3") and re.fullmatch(r"20\d{2}", t):
-                            cur_blk = t
-
-                        if _stop_requested: break
-
-                        if tag.name == "a" and "/issue/view/" in tag.get("href", ""):
-                            # FIX #3: dùng _make_absolute thay vì ghép thủ công
-                            lnk = _make_absolute(tag["href"], base_url)
-                            if target_year in t or cur_blk == target_year:
-                                if not any(il["url"] == lnk for il in issue_links):
-                                    issue_links.append({"url": lnk, "name": clean_filename(t)})
-                                    found_on_page += 1
-
-                    _log(f"  → Trang {page}: tìm thấy {found_on_page} số mới của năm {target_year}")
-                    # Nếu không tìm thấy gì trong trang này → dừng phân trang
-                    if found_on_page == 0 and page > 1:
-                        break
+                    for issue in discovered:
+                        if issue["year"] == target_year and not any(existing["url"] == issue["url"] for existing in issue_links):
+                            issue_links.append({"url": issue["url"], "name": issue["name"]})
+                            found_on_page += 1
+                    _log(f"  → Archive: tìm thấy {found_on_page} số mới của năm {target_year}")
+                    for next_url in _archive_next_links(soup, pu):
+                        if next_url not in visited_archive_pages:
+                            pages_to_visit.append(next_url)
 
                 except requests.exceptions.ConnectionError as ex:
                     _log(f"  ❌ Lỗi kết nối khi fetch trang {pu}: {ex}")
-                    break
+                    continue
                 except Exception as ex:
                     _log(f"  ❌ Lỗi khi fetch page {pu}: {ex}")
-                    break
+                    continue
 
             if not issue_links:
                 _log(f"  (Không tìm thấy số tạp chí nào trong năm {target_year}, bỏ qua)")
@@ -235,16 +427,8 @@ def run_scraping(request, db_config: dict, output_folder: str):
 
                     _log(f"  🔍 Đang quét số tạp chí: {issue_name}...")
 
-                    # FIX #4: Chuẩn hóa URL bài báo về dạng tuyệt đối
-                    art_links = []
-                    for a in soup_i.find_all("a", href=True):
-                        lnk = _make_absolute(a["href"], base_url)
-                        if (
-                            "/article/view/" in lnk
-                            and re.search(r"/article/view/\d+$", lnk)
-                            and lnk not in art_links
-                        ):
-                            art_links.append(lnk)
+                    art_links = _article_view_links(soup_i, iu)
+                    scrape_status["total_urls"] += len(art_links)
 
                     _log(f"  📄 Tìm thấy {len(art_links)} bài báo trong số tạp chí này.")
 
@@ -254,6 +438,15 @@ def run_scraping(request, db_config: dict, output_folder: str):
                         if cursor.fetchone():
                             scrape_status["duplicates"] += 1
                             _log(f"    ⏩ [TRÙNG] {au.split('/')[-1]}")
+                            continue
+                        previous = language_audit.previous_decision(au)
+                        if (
+                            previous
+                            and previous["status"].startswith("REJECTED")
+                            and previous["validation_version"] == LANGUAGE_VALIDATION_VERSION
+                        ):
+                            scrape_status["duplicates"] += 1
+                            _log(f"    ⏩ [ĐÃ KIỂM DUYỆT - {previous['status']}] {au.split('/')[-1]}")
                             continue
 
                         time.sleep(random.uniform(1.5, 3.0))
@@ -287,24 +480,94 @@ def run_scraping(request, db_config: dict, output_folder: str):
                             if ab:
                                 abstract = ab.get_text(separator=" ").strip()
                             else:
-                                # Fallback: tìm theo heading "tóm tắt"
+                                # Fallback for OJS themes that do not expose a
+                                # standard abstract class.
                                 for h in s.find_all(["h2", "h3", "h4", "strong", "b", "span"]):
-                                    if h.text and "tóm tắt" in h.text.lower():
+                                    heading = h.get_text(" ", strip=True).casefold()
+                                    if heading in {"tóm tắt", "abstract"}:
                                         p = h.find_next_sibling() or h.find_parent("div") or h.find_parent("section")
                                         if p:
                                             abstract = p.get_text(separator=" ").strip()
                                             break
 
-                            if not abstract or len(abstract) < 50:
-                                scrape_status["skipped"] += 1
-                                _log(f"    [BỎ QUA - KHÔNG TÓM TẮT] {title[:80]}")
-                                continue
-
                             abstract_clean = re.sub(
                                 r"^(Tóm tắt|Abstract|TÓM TẮT)[\s:\.\-]*", "",
                                 abstract, flags=re.IGNORECASE
                             ).strip()
+                            safe_title = clean_filename(title)
+                            if len(safe_title) > 50:
+                                safe_title = safe_title[:47] + "..."
 
+                            # Metadata is audit evidence only. A bilingual OJS page can
+                            # expose an English abstract while its public PDF is Vietnamese,
+                            # so final admission always waits for PDF evidence.
+                            metadata_assessment = assess_metadata(
+                                title, abstract_clean, _html_language(s), settings
+                            )
+
+                            pdf_url = _find_pdf_url(s, base_url)
+                            if not pdf_url:
+                                no_pdf = AdmissionDecision(
+                                    "REJECTED_NO_PDF", "PDF_NOT_FOUND", metadata_assessment, None
+                                )
+                                language_audit.record(
+                                    source_url=au, title=title, pdf_url=None, decision=no_pdf
+                                )
+                                _record_rejection(no_pdf.status)
+                                _log(f"    [LOẠI - KHÔNG CÓ PDF] {title[:70]}")
+                                continue
+
+                            candidate_path = _candidate_pdf_path(
+                                site_folder, target_year, safe_title, au, settings
+                            )
+                            download_error = _download_candidate(session, pdf_url, candidate_path)
+                            if download_error:
+                                no_pdf = AdmissionDecision(
+                                    "REJECTED_NO_PDF", download_error, metadata_assessment, None
+                                )
+                                if candidate_path.exists():
+                                    quarantine_path = quarantine_pdf(
+                                        candidate_path, no_pdf.status, (site_folder, target_year), settings
+                                    )
+                                    scrape_status["quarantined"] += 1
+                                    stored_path = str(quarantine_path)
+                                else:
+                                    stored_path = None
+                                language_audit.record(
+                                    source_url=au, title=title, pdf_url=pdf_url, decision=no_pdf,
+                                    file_path=stored_path,
+                                )
+                                _record_rejection(no_pdf.status)
+                                _log(f"    [LOẠI - PDF KHÔNG HỢP LỆ] {download_error}: {title[:70]}")
+                                continue
+
+                            extracted = extract_from_pdf_path(str(candidate_path))
+                            pdf_text = select_pdf_text_for_language(
+                                extracted.get("body"), extracted.get("full_text")
+                            )
+                            decision = decide_admission(metadata_assessment, pdf_text, settings)
+                            if extracted.get("error"):
+                                decision = AdmissionDecision(
+                                    "REJECTED_NO_TEXT", "PDF_EXTRACTION_FAILED", metadata_assessment, None
+                                )
+
+                            if not decision.accepted:
+                                quarantine_path = quarantine_pdf(
+                                    candidate_path, decision.status, (site_folder, target_year), settings
+                                )
+                                scrape_status["quarantined"] += 1
+                                language_audit.record(
+                                    source_url=au, title=title, pdf_url=pdf_url, decision=decision,
+                                    file_path=str(quarantine_path),
+                                )
+                                _record_rejection(decision.status)
+                                _log(f"    [LOẠI - {decision.reason}] {title[:70]}")
+                                continue
+
+                            # Only now is the record admitted to MySQL and the final corpus.
+                            if not abstract_clean:
+                                abstract_clean = (extracted.get("abstract") or "").strip()
+                            final_pdf_path = _accept_candidate(candidate_path)
                             cursor.execute(
                                 "INSERT INTO articles "
                                 "(title,authors,abstract,publication_year,source_url) "
@@ -313,62 +576,13 @@ def run_scraping(request, db_config: dict, output_folder: str):
                             )
                             conn.commit()
                             aid = cursor.lastrowid
+                            language_audit.record(
+                                source_url=au, title=title, pdf_url=pdf_url, decision=decision,
+                                file_path=str(final_pdf_path), article_id=aid,
+                            )
 
-                            safe_title = clean_filename(title)
-                            if len(safe_title) > 50:
-                                safe_title = safe_title[:47] + "..."
-
-                            # ============ TÌM VÀ TẢI PDF ============
-                            pdf_url = None
-                            meta_pdf = s.find("meta", attrs={"name": "citation_pdf_url"})
-                            if meta_pdf:
-                                pdf_url = meta_pdf.get("content")
-                            else:
-                                for a_tag in s.find_all("a", href=True):
-                                    text_lower = a_tag.get_text(strip=True).lower()
-                                    classes = " ".join(a_tag.get("class", []))
-                                    if "pdf" in text_lower or "pdf" in classes.lower():
-                                        href_val = a_tag["href"]
-                                        if "/article/view/" in href_val or "/article/download/" in href_val:
-                                            pdf_url = _make_absolute(href_val, base_url)
-                                            break
-
-                            if pdf_url and "/article/view/" in pdf_url:
-                                pdf_url = pdf_url.replace("/article/view/", "/article/download/")
-
-                            if pdf_url:
-                                try:
-                                    pdf_r = session.get(pdf_url, verify=False, timeout=120, stream=True)
-                                    if pdf_r.status_code == 200:
-                                        content_type = pdf_r.headers.get("Content-Type", "")
-                                        if "pdf" in content_type or "octet-stream" in content_type:
-                                            pdf_target_dir = os.path.join(
-                                                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                                "Văn_Bản_Y_Tế_PDF",
-                                                site_folder,
-                                                target_year,
-                                            )
-                                            os.makedirs(pdf_target_dir, exist_ok=True)
-                                            pdf_path = os.path.join(pdf_target_dir, f"{safe_title}.pdf")
-                                            with open(pdf_path, "wb") as pdf_out:
-                                                for chunk in pdf_r.iter_content(chunk_size=8192):
-                                                    pdf_out.write(chunk)
-                                            _log(f"    ✅ Đã tải PDF: {safe_title}.pdf")
-                                        else:
-                                            _log(f"    [PDF SAI ĐỊNH DẠNG] Content-Type: {content_type}")
-                                    else:
-                                        _log(f"    [LỖI TẢI PDF] HTTP {pdf_r.status_code}: {pdf_url}")
-                                except Exception as e_pdf:
-                                    _log(f"    [LỖI TẢI PDF] {e_pdf}")
-                            else:
-                                _log(f"    [KHÔNG TÌM THẤY LINK PDF] {safe_title}")
-                            # ========================================
-
-                            # Xác định ngôn ngữ và lưu file txt
-                            lang = detect_language(abstract_clean)
-                            issue_dir = os.path.join(output_folder, site_folder, lang, target_year, issue_name)
+                            issue_dir = os.path.join(output_folder, site_folder, "Vietnamese", target_year, issue_name)
                             os.makedirs(issue_dir, exist_ok=True)
-
                             fp = os.path.join(
                                 issue_dir,
                                 f"{datetime.now().strftime('%d%m%Y')}_{aid:04d}_{safe_title}.txt",
@@ -376,12 +590,11 @@ def run_scraping(request, db_config: dict, output_folder: str):
                             with open(fp, "w", encoding="utf-8-sig") as fout:
                                 fout.write(
                                     f"TIÊU ĐỀ: {title}\n"
-                                    f"TÁC GIẢ: {authors}\n"
-                                    + "-" * 40 +
+                                    f"TÁC GIẢ: {authors}\n" + "-" * 40 +
                                     f"\nTÓM TẮT:\n{abstract_clean}\n"
                                 )
                             scrape_status["success"] += 1
-                            _log(f"    💾 Đã lưu: {title[:70]}")
+                            _log(f"    💾 Đã nhận vào corpus tiếng Việt: {title[:70]}")
                             total_proc = scrape_status["success"] + scrape_status["duplicates"] + scrape_status["skipped"]
                             _log(f"    Tiến độ: {total_proc} bài (✅{scrape_status['success']} | 🔁{scrape_status['duplicates']} | ⏭{scrape_status['skipped']})")
 
@@ -401,7 +614,10 @@ def run_scraping(request, db_config: dict, output_folder: str):
         _log(f"❌ LỖI NGHIÊM TRỌNG: {e}")
     finally:
         scrape_status["summary"] = {
-            k: scrape_status[k] for k in ("success", "duplicates", "skipped")
+            k: scrape_status[k] for k in (
+                "success", "duplicates", "skipped", "rejected_english",
+                "rejected_mixed", "rejected_no_text", "quarantined",
+            )
         }
         total_processed = sum(scrape_status[k] for k in ("success", "duplicates", "skipped"))
         scrape_status["summary"]["total_processed"] = total_processed

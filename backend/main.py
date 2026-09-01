@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from api import routes as api_routes
+from core.auth import ensure_auth_review_schema
+from core.language_audit import ensure_language_audit_schema
 from core.ner_dict import load_ner_dictionary
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -16,7 +18,7 @@ load_ner_dictionary()
 # ── Cấu hình DB ───────────────────────────────────────────────
 db_config = {
     "user":     "root",
-    "password": os.getenv("DB_PASSWORD", "Chanvu150905@"),
+    "password": os.getenv("DB_PASSWORD", ""),
     "host":     "127.0.0.1",
     "database": "yhoc_corpus", # fixed typo yhoc_corpuss -> yhoc_corpus
     "charset":  "utf8mb4",
@@ -41,6 +43,8 @@ app.include_router(api_routes.router)
 # ── Migration: đảm bảo crawl_logs có cột status ──────────────
 try:
     import mysql.connector
+    ensure_auth_review_schema(db_config)
+    ensure_language_audit_schema(db_config)
     _conn = mysql.connector.connect(**db_config)
     _cur = _conn.cursor()
     _cur.execute(

@@ -5,6 +5,140 @@
 
 const API_BASE = "/api";
 
+// Authentication is enforced by the FastAPI backend.  The browser only keeps
+// an opaque, short-lived session token; passwords and password hashes are
+// never exposed to this script.
+let authToken = sessionStorage.getItem("mednlp.sessionToken") || "";
+let currentAuthUser = null;
+const nativeFetch = window.fetch.bind(window);
+
+function installAuthenticatedFetch() {
+  if (window.__mednlpAuthenticatedFetchInstalled) return;
+  window.__mednlpAuthenticatedFetchInstalled = true;
+
+  window.fetch = (input, init = {}) => {
+    const url = typeof input === "string" ? input : (input && input.url) || "";
+    const needsToken = authToken && (url.startsWith("/api/") || url.includes("/api/"))
+      && !url.includes("/api/auth/login")
+      && !url.includes("/api/auth/register");
+    if (!needsToken) return nativeFetch(input, init);
+
+    const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+    headers.set("Authorization", `Bearer ${authToken}`);
+    return nativeFetch(input, { ...init, headers });
+  };
+}
+
+function setApplicationVisible(visible) {
+  const sidebar = document.getElementById("sidebar");
+  const main = document.querySelector(".main-content");
+  const authShell = document.getElementById("authShell");
+  document.body.classList.toggle("auth-mode", !visible);
+  if (sidebar) sidebar.hidden = !visible;
+  if (main) main.hidden = !visible;
+  if (authShell) authShell.hidden = visible;
+}
+
+function showAuthRoute(mode = "login") {
+  const login = mode !== "register";
+  setApplicationVisible(false);
+  document.getElementById("loginFormWrap").hidden = !login;
+  document.getElementById("registerFormWrap").hidden = login;
+  if (location.pathname !== `/${login ? "login" : "register"}`) {
+    history.pushState({}, "", login ? "/login" : "/register");
+  }
+  return false;
+}
+
+function showAuthError(targetId, message = "") {
+  const target = document.getElementById(targetId);
+  if (target) target.textContent = message;
+}
+
+async function loadAuthenticatedUser() {
+  if (!authToken) return null;
+  const response = await nativeFetch(`${API_BASE}/auth/me`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  if (!response.ok) {
+    sessionStorage.removeItem("mednlp.sessionToken");
+    authToken = "";
+    return null;
+  }
+  const payload = await response.json();
+  return payload.user || null;
+}
+
+function renderAuthenticatedIdentity(user) {
+  const identity = document.getElementById("userIdentity");
+  document.getElementById("currentUserName").textContent = user.name;
+  document.getElementById("currentUserRole").textContent = user.role === "admin" ? "Admin" : "Expert";
+  identity.hidden = false;
+}
+
+async function logoutCurrentUser() {
+  try {
+    if (authToken) await nativeFetch(`${API_BASE}/auth/logout`, {
+      method: "POST", headers: { Authorization: `Bearer ${authToken}` },
+    });
+  } finally {
+    sessionStorage.removeItem("mednlp.sessionToken");
+    authToken = "";
+    currentAuthUser = null;
+    history.replaceState({}, "", "/login");
+    showAuthRoute("login");
+  }
+}
+
+function bindAuthForms() {
+  document.getElementById("loginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showAuthError("loginError");
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    try {
+      const response = await nativeFetch(`${API_BASE}/auth/login`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || "Unable to login.");
+      authToken = payload.token;
+      if (!authToken) throw new Error("Máy chủ không trả về phiên đăng nhập hợp lệ.");
+      sessionStorage.setItem("mednlp.sessionToken", authToken);
+      const target = payload.user.role === "expert" ? "/expert/dashboard" : "/";
+      location.assign(target);
+    } catch (error) {
+      showAuthError("loginError", error.message);
+    }
+  });
+
+  document.getElementById("registerForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showAuthError("registerError");
+    const name = document.getElementById("registerName").value.trim();
+    const email = document.getElementById("registerEmail").value.trim();
+    const password = document.getElementById("registerPassword").value;
+    const confirmPassword = document.getElementById("registerConfirmPassword").value;
+    if (password !== confirmPassword) {
+      showAuthError("registerError", "Confirm Password must match Password.");
+      return;
+    }
+    try {
+      const response = await nativeFetch(`${API_BASE}/auth/register`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName: name, email, password, confirmPassword }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || "Unable to register.");
+      document.getElementById("registerSuccess").textContent = payload.message;
+      setTimeout(() => showAuthRoute("login"), 700);
+    } catch (error) {
+      showAuthError("registerError", error.message);
+    }
+  });
+}
+
 // ============================================================
 // STATE
 // ============================================================
@@ -23,6 +157,8 @@ let isNerActive         = false;
 let aiLabelArticlesData = [];
 let currentAiArticleId  = null;
 let currentAiFilter     = "all";
+let currentAiLabelResult = null;
+let currentAiLabelResultArticleId = null;
 
 // Color mapping for entity types
 const ENTITY_COLORS = {
@@ -236,29 +372,65 @@ updateClock();
 // ============================================================
 // SERVER STATUS CHECK
 // ============================================================
+let serverHealthFailures = 0;
+const SERVER_HEALTH_TIMEOUT_MS = 8000;
+const SERVER_HEALTH_FAILURE_LIMIT = 2;
+
 async function checkServerStatus() {
   const dot  = document.getElementById("statusDot");
   const text = document.getElementById("statusText");
-  dot.className = "status-dot checking";
-  text.textContent = "Đang kết nối...";
+  if (serverHealthFailures === 0) {
+    dot.className = "status-dot checking";
+    text.textContent = "Đang kết nối...";
+  }
   try {
-    const res = await fetch(`${API_BASE}/status`, { signal: AbortSignal.timeout(3000) });
-    if (res.ok) {
-      dot.className = "status-dot online";
-      text.textContent = "Máy chủ hoạt động";
-
-      // Nếu crawl đang chạy trên server mà frontend chưa polling → tự resume
-      const status = await res.json();
-      if (status.running && !pollingInterval) {
-        appendLog("🔄 Phát hiện crawler đang chạy — tự động kết nối lại...", "info");
-        document.getElementById("btnScrape").disabled = true;
-        document.getElementById("btnStopScrape").style.display = "";
-        _startPolling();
+    // Do not use crawler progress as the connectivity probe: a scraper's
+    // transient state must not make a healthy API appear offline.
+    const healthResponse = await fetch(`${API_BASE}/health`, {
+      signal: AbortSignal.timeout(SERVER_HEALTH_TIMEOUT_MS),
+    });
+    let status = null;
+    if (healthResponse.ok) {
+      // Nếu crawl đang chạy trên server mà frontend chưa polling → tự resume.
+      // Status is optional; it must not affect the online indicator.
+      try {
+        const statusResponse = await fetch(`${API_BASE}/status`, {
+          signal: AbortSignal.timeout(SERVER_HEALTH_TIMEOUT_MS),
+        });
+        status = statusResponse.ok ? await statusResponse.json() : null;
+      } catch {
+        // The health probe above already proved the API is reachable.
       }
-    } else throw new Error();
+    } else if (healthResponse.status === 404) {
+      // Compatibility for a backend process that has not restarted after the
+      // health route was added. Its established status endpoint is enough.
+      const legacyResponse = await fetch(`${API_BASE}/status`, {
+        signal: AbortSignal.timeout(SERVER_HEALTH_TIMEOUT_MS),
+      });
+      if (!legacyResponse.ok) throw new Error(`HTTP ${legacyResponse.status}`);
+      status = await legacyResponse.json();
+    } else {
+      throw new Error(`HTTP ${healthResponse.status}`);
+    }
+
+    serverHealthFailures = 0;
+    dot.className = "status-dot online";
+    text.textContent = "Máy chủ hoạt động";
+    if (status?.running && !pollingInterval) {
+      appendLog("🔄 Phát hiện crawler đang chạy — tự động kết nối lại...", "info");
+      document.getElementById("btnScrape").disabled = true;
+      document.getElementById("btnStopScrape").style.display = "";
+      _startPolling();
+    }
   } catch {
-    dot.className = "status-dot offline";
-    text.textContent = "Mất kết nối";
+    serverHealthFailures += 1;
+    if (serverHealthFailures >= SERVER_HEALTH_FAILURE_LIMIT) {
+      dot.className = "status-dot offline";
+      text.textContent = "Mất kết nối";
+    } else {
+      dot.className = "status-dot checking";
+      text.textContent = "Đang kết nối lại...";
+    }
   }
 }
 
@@ -487,7 +659,10 @@ function setUrl(url) {
   document.getElementById("targetUrl").value = url;
 }
 
+const displayedCrawlLogMessages = new Set();
+
 function clearLog() {
+  displayedCrawlLogMessages.clear();
   document.getElementById("logTerminal").innerHTML =
     `<div class="log-placeholder"><span class="log-cursor">█</span> Log đã được xóa.</div>`;
 }
@@ -499,6 +674,11 @@ function toggleAutoScroll() {
 
 function appendLog(msg, type = "") {
   const term = document.getElementById("logTerminal");
+  const logKey = String(msg || "").trim();
+  // Status polling can return the same message more than once. Keep one
+  // visible record of an identical message in the current terminal session.
+  if (displayedCrawlLogMessages.has(logKey)) return;
+  displayedCrawlLogMessages.add(logKey);
   const placeholder = term.querySelector(".log-placeholder");
   if (placeholder) placeholder.remove();
 
@@ -538,7 +718,6 @@ function updateProgressUI(s) {
 
   if (s.current_url) {
     document.getElementById("progressMsg").textContent = `Đang xử lý: ${s.current_url}`;
-    appendLog(`🌐 Đang cào: ${s.current_url}`);
   }
 
   const badge = document.getElementById("crawlStateBadge");
@@ -566,6 +745,9 @@ function _showSummaryBox(summary) {
   document.getElementById("sum-success").textContent = summary.success    || 0;
   document.getElementById("sum-dup").textContent     = summary.duplicates || 0;
   document.getElementById("sum-skip").textContent    = summary.skipped    || 0;
+  document.getElementById("sum-language-rejected").textContent =
+    (summary.rejected_english || 0) + (summary.rejected_mixed || 0) + (summary.rejected_no_text || 0);
+  document.getElementById("sum-quarantined").textContent = summary.quarantined || 0;
   box.style.display = "block";
 }
 
@@ -983,29 +1165,6 @@ async function saveToDict() {
 }
 
 // ============================================================
-// INIT
-// ============================================================
-document.addEventListener("DOMContentLoaded", () => {
-  checkServerStatus();
-  setInterval(checkServerStatus, 30000);
-
-  // Init year fields
-  const currentYear = new Date().getFullYear();
-  const sy = document.getElementById("startYear");
-  const ey = document.getElementById("endYear");
-  if (sy) { sy.value = 2020; sy.max = currentYear; }
-  if (ey) { ey.value = currentYear; ey.max = currentYear; }
-
-  // Restore saved screen from URL hash, or default to dashboard
-  const savedScreen = location.hash.replace('#', '');
-  if (savedScreen && (SCREENS[savedScreen] || document.getElementById(`screen-${savedScreen}`))) {
-    switchScreen(savedScreen);
-  } else {
-    switchScreen('dashboard');
-  }
-});
-
-// ============================================================
 // CRAWL LOGS
 // ============================================================
 async function loadCrawlLogs() {
@@ -1053,6 +1212,22 @@ switchScreen = function(screenId) {
 // ============================================================
 
 let _splitPdfFiles = [];
+let _splitPdfRunning = false;
+let _splitPdfStopRequested = false;
+let _splitPdfAbortController = null;
+
+function stopSplitPdf() {
+  if (!_splitPdfRunning) return;
+
+  _splitPdfStopRequested = true;
+  document.getElementById('btnStopSplitPdf').disabled = true;
+  document.getElementById('splitPdfMessage').textContent =
+    'Đang dừng… File đang xử lý sẽ không được chờ nữa; các file chưa bắt đầu sẽ không được gửi.';
+  // Abort lets the browser leave a synchronous request immediately. The
+  // backend may still finish the one file it already received, but no further
+  // PDF from this batch is submitted after the stop request.
+  _splitPdfAbortController?.abort();
+}
 
 function openPdfFolderPicker(event) {
   event?.preventDefault();
@@ -1088,6 +1263,10 @@ function splitPdfSelected(e) {
 }
 
 function _setSplitPdfFiles(files) {
+  if (_splitPdfRunning) {
+    showToast('Không thể thay đổi danh sách khi đang tách. Hãy bấm Dừng tách trước.', 'warning');
+    return;
+  }
   _splitPdfFiles = [];
   let totalSize = 0;
   for (let i = 0; i < files.length; i++) {
@@ -1117,6 +1296,10 @@ function _setSplitPdfFiles(files) {
 }
 
 function clearSplitPdf() {
+  if (_splitPdfRunning) {
+    stopSplitPdf();
+    return;
+  }
   _splitPdfFiles = [];
   document.getElementById('splitPdfInput').value = '';
   document.getElementById('splitPdfFileInput').value = '';
@@ -1134,10 +1317,17 @@ function _fmtSize(bytes) {
 
 async function executeSplitPdf() {
   if (_splitPdfFiles.length === 0) { showToast('Chưa chọn file PDF', 'warning'); return; }
+  if (_splitPdfRunning) return;
 
   const btn = document.getElementById('btnSplitPdf');
+  const stopBtn = document.getElementById('btnStopSplitPdf');
   const oldHtml = btn.innerHTML;
+  const filesToProcess = [..._splitPdfFiles];
+  _splitPdfRunning = true;
+  _splitPdfStopRequested = false;
   btn.disabled = true;
+  stopBtn.disabled = false;
+  stopBtn.style.display = 'block';
 
   document.getElementById('splitPdfEmpty').style.display = 'none';
   document.getElementById('splitPdfResultPanel').style.display = 'block';
@@ -1146,20 +1336,28 @@ async function executeSplitPdf() {
   filesList.innerHTML = '';
   
   let successCount = 0;
+  let duplicateCount = 0;
+  let stopped = false;
 
-  for (let i = 0; i < _splitPdfFiles.length; i++) {
-    const file = _splitPdfFiles[i];
-    btn.innerHTML = `<span>⏳ Đang xử lý file ${i+1}/${_splitPdfFiles.length}...</span>`;
-    document.getElementById('splitPdfMessage').textContent = `Đang xử lý ${i+1}/${_splitPdfFiles.length} file... (${file.name})`;
+  for (let i = 0; i < filesToProcess.length; i++) {
+    if (_splitPdfStopRequested) {
+      stopped = true;
+      break;
+    }
+    const file = filesToProcess[i];
+    btn.innerHTML = `<span>⏳ Gemini đang trích xuất ${i+1}/${filesToProcess.length}...</span>`;
+    document.getElementById('splitPdfMessage').textContent = `Đang dựng layout và gọi Gemini cho file ${i+1}/${filesToProcess.length}... (${file.name})`;
     
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('relative_path', file.webkitRelativePath || file.name);
 
+      _splitPdfAbortController = new AbortController();
       const res = await fetch(`${API_BASE}/extract-pdf`, {
         method: 'POST',
         body: formData,
+        signal: _splitPdfAbortController.signal,
       });
 
       if (!res.ok) {
@@ -1168,6 +1366,12 @@ async function executeSplitPdf() {
       }
 
       const data = await res.json();
+      if (data.duplicate) {
+        duplicateCount++;
+        const existingPath = escapeHtml(data.outputDirectory || data.duplicateOf?.outputDirectory || 'kho PDF đã tách');
+        filesList.innerHTML += `<li><div style="margin-top:15px; margin-bottom:5px; color:var(--text-2);"><strong style="color:var(--warning); font-size:15px;">↪ ${escapeHtml(file.webkitRelativePath || file.name)}</strong> — Đã bỏ qua vì nội dung PDF trùng (SHA-256); không tạo file TXT/JSON mới.<div style="margin:4px 0 0 20px; font-size:12px;">Bản đã có: ${existingPath}</div></div></li>`;
+        continue;
+      }
       successCount++;
 
       const validation = data.validation || {};
@@ -1175,20 +1379,32 @@ async function executeSplitPdf() {
         ? `<span style="margin-left:10px; color:var(--success); font-size:12px;">✓ Đã đối chiếu ${validation.section_count || 0} section với PDF nguồn</span>`
         : `<span style="margin-left:10px; color:var(--warning); font-size:12px;">⚠ Có ${(validation.issues || []).length} cảnh báo kiểm chứng</span>`;
       const article = data.article || {};
+      const extraction = data.extraction || {};
+      const extractionInfo = extraction.method
+        ? `<div><strong>Trích xuất:</strong> ${escapeHtml(extraction.provider || 'LLM')} · ${escapeHtml(extraction.model || '')} · prompt ${escapeHtml(extraction.prompt_version || '')} · ${Number(article.sections || 0)} section</div>`
+        : '';
       const articleInfo = article.title || article.authors || article.abstract
         ? `<div style="margin:6px 0 10px 20px; font-size:12px; color:var(--text-2);">
              <div><strong>Tiêu đề:</strong> ${escapeHtml(article.title || 'Không nhận diện được')}</div>
              <div><strong>Tác giả:</strong> ${escapeHtml(article.authors || 'Không nhận diện được')}</div>
+             ${extractionInfo}
              <div title="${escapeHtml(data.outputDirectory || '')}"><strong>Lưu tại:</strong> ${escapeHtml(data.outputDirectory || '')}</div>
+             <div title="${escapeHtml(data.structuredDocumentFile || '')}"><strong>Master JSON:</strong> ${escapeHtml(data.structuredDocumentFile || 'Không có')}</div>
            </div>`
         : '';
       const fileHeader = `<li><div style="margin-top:15px; margin-bottom: 5px;"><strong style="color:var(--primary); font-size:15px;">📄 ${escapeHtml(file.webkitRelativePath || file.name)}</strong>${validationBadge}</div>${articleInfo}`;
-      const innerList = data.files_created.map((f) => {
+      // abstract.txt is the corpus-facing abstract. Its section JSON is kept
+      // for provenance in Master JSON, but must not appear as a second
+      // duplicate abstract card in the UI.
+      const displayFiles = data.files_created.filter((f) =>
+        typeof f === 'string' || !(f.label === 'abstract' && f.json_file_path)
+      );
+      const innerList = displayFiles.map((f) => {
         if (typeof f === 'string') return `<div style="margin-left:20px; font-size:13px; margin-bottom:4px;">- ${f}</div>`;
         return `
           <div style="margin-left:20px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; overflow: hidden;">
             <div style="background: var(--bg-soft); padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const content = this.nextElementSibling; content.style.display = content.style.display === 'none' ? 'block' : 'none';">
-              <strong style="color: var(--primary); font-size: 13px;">📑 ${f.section_name}</strong>
+              <strong style="color: var(--primary); font-size: 13px;">📑 ${f.section_name}${f.canonical_type ? ` · ${f.canonical_type}` : ''}</strong>
               <span style="font-size: 12px; color: var(--text-3); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${f.file_path}">${f.file_path.split(/[\\/\\\\]/).pop()}</span>
             </div>
             <div style="padding: 14px; font-size: 12px; color: var(--text-2); background: white; display: none; line-height: 1.5;">
@@ -1201,13 +1417,30 @@ async function executeSplitPdf() {
       filesList.innerHTML += fileHeader + innerList + "</li>";
 
     } catch (e) {
+      if (_splitPdfStopRequested || e?.name === 'AbortError') {
+        stopped = true;
+        filesList.innerHTML += `<li><div style="margin-top:15px; margin-bottom:5px; color:var(--warning);"><strong>⏹ ${escapeHtml(file.webkitRelativePath || file.name)}</strong> — Đã dừng theo yêu cầu; không chờ kết quả file này.</div></li>`;
+        break;
+      }
       filesList.innerHTML += `<li><div style="margin-top:15px; margin-bottom: 5px;"><strong style="color:var(--danger); font-size:15px;">❌ ${file.name}</strong> - Lỗi: ${e.message}</div></li>`;
+    } finally {
+      _splitPdfAbortController = null;
     }
   }
 
-  document.getElementById('splitPdfMessage').textContent = `Hoàn tất: Xử lý thành công ${successCount}/${_splitPdfFiles.length} file.`;
-  showToast(`Tách xong ${successCount}/${_splitPdfFiles.length} file PDF!`, 'success');
+  stopped = stopped || _splitPdfStopRequested;
+  if (stopped) {
+    document.getElementById('splitPdfMessage').textContent = `Đã dừng: Tách mới ${successCount} file, bỏ qua ${duplicateCount} file trùng. Các file còn lại không được gửi.`;
+    showToast('Đã dừng tách PDF. Các kết quả đã hoàn tất vẫn được giữ lại.', 'info');
+  } else {
+    document.getElementById('splitPdfMessage').textContent = `Hoàn tất: Tách mới ${successCount} file, bỏ qua ${duplicateCount} file trùng.`;
+    showToast(`Tách mới ${successCount} file; bỏ qua ${duplicateCount} file trùng.`, duplicateCount ? 'info' : 'success');
+  }
   
+  _splitPdfRunning = false;
+  _splitPdfStopRequested = false;
+  stopBtn.style.display = 'none';
+  stopBtn.disabled = false;
   btn.disabled = false;
   btn.innerHTML = oldHtml;
 }
@@ -1399,15 +1632,15 @@ function filterAiArticles() {
     const text = (a.title + " " + a.authors + " " + a.abstract).toLowerCase();
     if (!text.includes(query)) return false;
 
-    if (currentAiFilter === "labeled") return (a.matched_concepts && a.matched_concepts.length > 0) || a.highlighted_html;
-    if (currentAiFilter === "unlabeled") return !(a.matched_concepts && a.matched_concepts.length > 0) && !a.highlighted_html;
+    if (currentAiFilter === "labeled") return (a.matched_concepts && a.matched_concepts.length > 0) || a.highlighted_html || a._aiSaved;
+    if (currentAiFilter === "unlabeled") return !(a.matched_concepts && a.matched_concepts.length > 0) && !a.highlighted_html && !a._aiSaved;
     return true;
   });
 
   const listEl = document.getElementById("aiArticleListScroll");
   listEl.innerHTML = filtered.map(a => {
     const isActive = a.id === currentAiArticleId ? "active" : "";
-    const isLabeled = (a.matched_concepts && a.matched_concepts.length > 0) || a.highlighted_html;
+    const isLabeled = (a.matched_concepts && a.matched_concepts.length > 0) || a.highlighted_html || a._aiSaved;
     return `
       <div class="article-list-item ${isActive}" onclick="selectAiArticle(${a.id})">
         <div class="ali-title">${a.title || "Không có tiêu đề"}</div>
@@ -1437,6 +1670,8 @@ function renderAiArticleList() {
 
 async function selectAiArticle(id) {
   currentAiArticleId = id;
+  currentAiLabelResult = null;
+  currentAiLabelResultArticleId = null;
   renderAiArticleList(); // highlight active card
 
   const article = aiLabelArticlesData.find(a => a.id === id);
@@ -1448,6 +1683,9 @@ async function selectAiArticle(id) {
 
   document.getElementById("btnRunAiNer").disabled = false;
   document.getElementById("btnRunAiNer").textContent = "Gán nhãn bằng AI";
+  const saveButton = document.getElementById("btnSaveAiLabel");
+  saveButton.disabled = true;
+  saveButton.textContent = "Lưu kết quả AI";
   
   const aiTextBodyArea = document.getElementById("aiTextBodyArea");
   if (!article._loaded) {
@@ -1482,6 +1720,11 @@ async function runAiLabel() {
   }
 
   const btn = document.getElementById("btnRunAiNer");
+  const saveButton = document.getElementById("btnSaveAiLabel");
+  currentAiLabelResult = null;
+  currentAiLabelResultArticleId = null;
+  saveButton.disabled = true;
+  saveButton.textContent = "Lưu kết quả AI";
   btn.disabled = true;
   btn.textContent = "Đang phân tích...";
   document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">Đang gọi Gemini AI...</div>`;
@@ -1499,6 +1742,8 @@ async function runAiLabel() {
     }
 
     const data = payload;
+    currentAiLabelResult = data;
+    currentAiLabelResultArticleId = article.id;
     
     let totalCount = 0;
 
@@ -1587,6 +1832,7 @@ async function runAiLabel() {
     if (totalCount > 0) {
         document.getElementById("aiTotalEntitiesCount").textContent = totalCount;
         document.getElementById("aiEntitiesList").innerHTML = entitiesHtml;
+        document.getElementById("btnSaveAiLabel").disabled = false;
     } else {
         document.getElementById("aiTotalEntitiesCount").textContent = "0";
         document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">AI không tìm thấy thực thể nào</div>`;
@@ -1601,23 +1847,73 @@ async function runAiLabel() {
   }
 }
 
+async function saveAiLabelResult() {
+  const article = aiLabelArticlesData.find(a => a.id === currentAiArticleId);
+  if (!article || currentAiLabelResultArticleId !== article.id || !currentAiLabelResult) {
+    showToast("Hãy chạy gán nhãn AI cho bài báo này trước khi lưu.", "error");
+    return;
+  }
+
+  const button = document.getElementById("btnSaveAiLabel");
+  button.disabled = true;
+  button.textContent = "Đang lưu...";
+  try {
+    const response = await fetch(`${API_BASE}/ai-label/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ articleId: article.id, labels: currentAiLabelResult }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || `Lỗi lưu kết quả AI (HTTP ${response.status})`);
+
+    article._aiSaved = true;
+    button.textContent = payload.duplicate ? "Đã lưu trước đó" : "Đã lưu kết quả AI";
+    renderAiArticleList();
+    showToast(payload.message || "Kết quả AI đã được lưu.", "success");
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Lưu kết quả AI";
+    showToast(error.message, "error");
+  }
+}
+
 window.onerror = function(msg, url, lineNo, columnNo, error) { console.error(msg + ' at line ' + lineNo); return false; };
 
 // ============================================================
 // KHỜI TẠO KHI TRANG LOAD — auto-resume nếu crawl đang chạy
 // ============================================================
 document.addEventListener("DOMContentLoaded", async () => {
-  // Kiểm tra server + tự resume polling nếu cần
-  await checkServerStatus();
+  bindAuthForms();
+  installAuthenticatedFetch();
 
-  // Restore screen từ URL hash (ví dụ nếu user đang ở tab crawl thì giữ nguyên)
-  const hash = location.hash.replace("#", "");
-  if (hash && document.getElementById(`screen-${hash}`)) {
-    switchScreen(hash);
-  } else {
-    switchScreen("dashboard");
+  try {
+    currentAuthUser = await loadAuthenticatedUser();
+  } catch {
+    currentAuthUser = null;
   }
 
-  // Poll server status mỗi 10 giây để cập nhật status dot + tự resume nếu cần
+  if (!currentAuthUser) {
+    showAuthRoute(location.pathname === "/register" ? "register" : "login");
+    return;
+  }
+
+  setApplicationVisible(true);
+  renderAuthenticatedIdentity(currentAuthUser);
+  initializeReviewWorkspace(currentAuthUser);
+
+  // Experts never initialise the current administration tools. Their routes
+  // use only the protected review APIs.
+  if (currentAuthUser.role === "expert") return;
+
+  await checkServerStatus();
+  const currentYear = new Date().getFullYear();
+  const sy = document.getElementById("startYear");
+  const ey = document.getElementById("endYear");
+  if (sy) { sy.value = 2020; sy.max = currentYear; }
+  if (ey) { ey.value = currentYear; ey.max = currentYear; }
+
+  const hash = location.hash.replace("#", "");
+  if (hash && document.getElementById(`screen-${hash}`)) switchScreen(hash);
+  else switchScreen("dashboard");
   setInterval(checkServerStatus, 10000);
 });

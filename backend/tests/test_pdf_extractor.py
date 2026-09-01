@@ -6,13 +6,19 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-from core.pdf_pipeline import ExtractorPipeline
+from core.pdf_pipeline import ExtractorPipeline, PipelineError
 from models.metadata import ExtractedMetadata
 from pdf_extractor import (
+    _build_hierarchical_sections,
     _clean_text,
+    _extract_title_and_authors,
+    _filter_article_headings,
     _get_label_for_heading,
+    _known_heading_prefix,
     _line_text_from_chars,
     _order_page_blocks,
+    _sanitize_abstract_content,
+    _trim_to_article_front,
     _validate_sections,
     extract_from_pdf_bytes,
 )
@@ -204,7 +210,7 @@ class PdfExtractorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
                 os.chdir(temp_dir)
-                output = Path("Kho_Ngu_Lieu_Txt/pdf_extracted/article")
+                output = Path("Kho_Ngu_Lieu_Txt/pdf_extracted/article_unhashed")
                 output.mkdir(parents=True)
                 stale = output / "old.txt"
                 stale.write_text("stale", encoding="utf-8")
@@ -216,12 +222,15 @@ class PdfExtractorTests(unittest.TestCase):
                 }, "article", metadata)
 
                 self.assertFalse(stale.exists())
-                self.assertEqual((output / "custom.txt").read_text(encoding="utf-8"), "First content")
-                self.assertEqual((output / "custom_2.txt").read_text(encoding="utf-8"), "Second content")
+                self.assertEqual((output / "sections/01_custom.txt").read_text(encoding="utf-8"), "First content")
+                self.assertEqual((output / "sections/02_custom_2.txt").read_text(encoding="utf-8"), "Second content")
                 self.assertEqual((output / "title.txt").read_text(encoding="utf-8"), "Article title")
                 self.assertEqual((output / "authors.txt").read_text(encoding="utf-8"), "Author One")
                 self.assertEqual((output / "abstract.txt").read_text(encoding="utf-8"), "Article abstract")
                 self.assertEqual(json.loads((output / "metadata.json").read_text(encoding="utf-8"))["title"], "Article title")
+                structured = json.loads((output / "structured_article.json").read_text(encoding="utf-8"))
+                self.assertEqual("2.0", structured["schemaVersion"])
+                self.assertEqual(2, len(structured["sections"]))
             finally:
                 os.chdir(original_cwd)
 
@@ -238,21 +247,218 @@ class PdfExtractorTests(unittest.TestCase):
                 self.assertIn("abstract", labels)
                 self.assertIn("references", labels)
                 self.assertTrue(metadata.validation_report["ok"])
-                article_dir = Path("Kho_Ngu_Lieu_Txt/pdf_extracted/sample")
+                article_dir = Path(metadata.output_directory)
                 abstract_path = article_dir / "abstract.txt"
                 self.assertTrue(abstract_path.exists())
                 self.assertNotIn("Introduction", abstract_path.read_text(encoding="utf-8"))
-                data_path = article_dir / "data_availability.txt"
+                data_path = next(Path(item["file_path"]) for item in metadata.extracted_files if item["label"] == "data_availability")
                 self.assertTrue(data_path.exists())
                 self.assertIn("Zenodo Deposit", data_path.read_text(encoding="utf-8"))
                 self.assertTrue((article_dir / "metadata.json").exists())
+                self.assertTrue((article_dir / "structured_article.json").exists())
                 self.assertTrue((article_dir / "title.txt").exists())
                 self.assertTrue((article_dir / "authors.txt").exists())
-                self.assertFalse((article_dir / "zenodo.txt").exists())
-                self.assertFalse((article_dir / "figure.txt").exists())
-                self.assertFalse((article_dir / "table.txt").exists())
+                self.assertFalse((article_dir / "sections/zenodo.txt").exists())
+                self.assertFalse((article_dir / "sections/figure.txt").exists())
+                self.assertFalse((article_dir / "sections/table.txt").exists())
             finally:
                 os.chdir(original_cwd)
+
+    def test_pipeline_skips_pdf_with_existing_sha256(self):
+        original_cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pdf_path = Path(temp_dir) / "same-content.pdf"
+            pdf_path.write_bytes(_sample_pdf())
+            try:
+                os.chdir(temp_dir)
+                first = ExtractorPipeline().run(str(pdf_path))
+                second = ExtractorPipeline().run(str(pdf_path))
+
+                self.assertFalse(first.is_duplicate)
+                self.assertTrue(second.is_duplicate)
+                self.assertEqual(first.file_hash_sha256, second.file_hash_sha256)
+                self.assertEqual(first.output_directory, second.output_directory)
+                self.assertEqual([], second.extracted_files)
+                self.assertEqual(
+                    1,
+                    len(list(Path("Kho_Ngu_Lieu_Txt/pdf_extracted").rglob("metadata.json"))),
+                )
+            finally:
+                os.chdir(original_cwd)
+
+    def test_vietnamese_gate_does_not_persist_english_pdf_output(self):
+        original_cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pdf_path = Path(temp_dir) / "english.pdf"
+            pdf_path.write_bytes(_sample_pdf())
+            try:
+                os.chdir(temp_dir)
+                with self.assertRaises(PipelineError):
+                    ExtractorPipeline().run(str(pdf_path), require_vietnamese=True)
+                self.assertFalse(Path("Kho_Ngu_Lieu_Txt/pdf_extracted/english").exists())
+            finally:
+                os.chdir(original_cwd)
+
+    def test_hierarchy_keeps_direct_content_separate_from_child_content(self):
+        text = "II. ĐỐI TƯỢNG VÀ PHƯƠNG PHÁP\nMở đầu phương pháp.\n1. Đối tượng nghiên cứu\nNgười bệnh.\nTiêu chuẩn lựa chọn\nĐủ điều kiện."
+        methods = "II. ĐỐI TƯỢNG VÀ PHƯƠNG PHÁP"
+        population = "1. Đối tượng nghiên cứu"
+        inclusion = "Tiêu chuẩn lựa chọn"
+        headings = [
+            {"heading": methods, "canonical_type": "METHODS", "label": "methods", "page": 1, "position": text.index(methods), "end_position": text.index(methods) + len(methods), "numbering_depth": 1, "heading_score": 0.9, "features": {}},
+            {"heading": population, "canonical_type": "STUDY_POPULATION", "label": "study_population", "page": 1, "position": text.index(population), "end_position": text.index(population) + len(population), "numbering_depth": 1, "heading_score": 0.9, "features": {}},
+            {"heading": inclusion, "canonical_type": "INCLUSION_CRITERIA", "label": "inclusion_criteria", "page": 1, "position": text.index(inclusion), "end_position": text.index(inclusion) + len(inclusion), "numbering_depth": None, "heading_score": 0.85, "features": {}},
+        ]
+        sections = _build_hierarchical_sections(text, headings)
+        self.assertEqual("METHODS", sections[0]["canonical_type"])
+        self.assertEqual("S001", sections[1]["parent_id"])
+        self.assertEqual("S002", sections[2]["parent_id"])
+        self.assertNotIn("Người bệnh", sections[0]["direct_content"])
+        self.assertIn("Người bệnh", sections[0]["aggregate_content"])
+
+
+    def test_structured_abstract_keeps_inline_labels_as_abstract_content(self):
+        text = (
+            "ABSTRACT\nObjective: Evaluate the intervention.\n"
+            "Methods: We examined 47 patients.\n"
+            "Results: The intervention was effective.\n"
+            "Key words: intervention."
+        )
+
+        def heading(value, label, canonical_type):
+            start = text.index(value)
+            return {
+                "heading": value, "label": label, "canonical_type": canonical_type,
+                "page": 1, "position": start, "end_position": start + len(value),
+                "numbering_depth": None, "heading_score": 0.9, "features": {},
+            }
+
+        headings = [
+            heading("ABSTRACT", "abstract", "ABSTRACT"),
+            heading("Objective", "objectives", "OBJECTIVES"),
+            heading("Methods", "methods", "METHODS"),
+            heading("Results", "results", "RESULTS"),
+            heading("Key words", "keywords", "KEYWORDS"),
+        ]
+        filtered = _filter_article_headings(headings)
+        self.assertEqual(["abstract", "keywords"], [item["label"] for item in filtered])
+
+        abstract = _build_hierarchical_sections(text, filtered)[0]
+        self.assertIn("Objective: Evaluate the intervention.", abstract["direct_content"])
+        self.assertIn("Methods: We examined 47 patients.", abstract["direct_content"])
+        self.assertIn("Results: The intervention was effective.", abstract["direct_content"])
+
+    def test_abstract_is_not_discarded_when_title_starts_with_results_or_methods(self):
+        headings = [
+            {"heading": "RESULTS OF A STUDY", "label": "results", "page": 1, "position": 0},
+            {"heading": "ABSTRACT", "label": "abstract", "page": 1, "position": 30},
+            {"heading": "Keywords", "label": "keywords", "page": 1, "position": 100},
+        ]
+        labels = [item["label"] for item in _filter_article_headings(headings)]
+        self.assertIn("abstract", labels)
+
+    def test_footnote_marked_vietnamese_abstract_and_embedded_article_front(self):
+        self.assertEqual("abstract", _known_heading_prefix("T\u00d3M T\u1eaeT8")[1])
+
+        specs = [
+            ("REFERENCES", 12.0, 90.0, 104.0),
+            ("THE REQUESTED ARTICLE TITLE", 14.0, 260.0, 276.0),
+            ("CONTINUES ON THIS LINE", 14.0, 278.0, 294.0),
+            ("Author One, Author Two", 12.0, 302.0, 316.0),
+            ("T\u00d3M T\u1eaeT8", 12.0, 330.0, 344.0),
+            ("N\u1ed9i dung t\u00f3m t\u1eaft.", 9.0, 350.0, 361.0),
+        ]
+        full_text = "\n".join(item[0] for item in specs)
+        lines, position = [], 0
+        for text, size, y0, y1 in specs:
+            lines.append({
+                "text": text, "size": size, "page": 1,
+                "bbox": (40.0, y0, 560.0, y1),
+                "position": position, "end_position": position + len(text),
+            })
+            position += len(text) + 1
+
+        trimmed_text, trimmed_lines = _trim_to_article_front(full_text, lines)
+        self.assertTrue(trimmed_text.startswith("THE REQUESTED ARTICLE TITLE"))
+        self.assertEqual("THE REQUESTED ARTICLE TITLE", trimmed_lines[0]["text"])
+        self.assertEqual(0, trimmed_lines[0]["position"])
+
+    def test_abstract_removes_author_and_contact_artifacts(self):
+        content = (
+            "Mục tiêu: Đánh giá hiệu quả điều trị.\n\n"
+            "Nguyễn Văn A là tác giả liên hệ. Email: nguyenvana@example.org\n\n"
+            "Chịu trách nhiệm chính: Nguyễn Văn A. Điện thoại: 0900000000"
+        )
+        cleaned = _sanitize_abstract_content(content, "Nguyễn Văn A, Trần Thị B")
+        self.assertIn("Mục tiêu: Đánh giá hiệu quả điều trị.", cleaned)
+        self.assertNotIn("Nguyễn Văn A", cleaned)
+        self.assertNotIn("example.org", cleaned)
+        self.assertNotIn("Điện thoại", cleaned)
+
+    def test_abstract_keeps_text_after_interleaved_contact_footer(self):
+        content = (
+            "Mục tiêu: Đánh giá can thiệp. *Đại học Y Chịu trách nhiệm chính: Nguyễn Văn A "
+            "Email: nguyenvana@example.org Ngày nhận bài: 16/3/2021 26 "
+            "Các mẫu được đo bằng quy trình chuẩn. Kết quả: cải thiện rõ rệt."
+        )
+        cleaned = _sanitize_abstract_content(content, "Nguyễn Văn A")
+        self.assertNotIn("nguyenvana@example.org", cleaned)
+        self.assertNotIn("Nguyễn Văn A", cleaned)
+        self.assertNotIn("Ngày nhận bài", cleaned)
+        self.assertIn("Các mẫu được đo bằng quy trình chuẩn.", cleaned)
+        self.assertIn("Kết quả: cải thiện rõ rệt.", cleaned)
+
+    def test_section_display_heading_omits_numeric_prefix_but_keeps_original(self):
+        text = "2.5. Kỹ thuật thu thập số liệu\nNội dung."
+        sections = _build_hierarchical_sections(text, [{
+            "heading": "2.5. Kỹ thuật thu thập số liệu", "label": "data_collection",
+            "canonical_type": "DATA_COLLECTION", "page": 1, "position": 0,
+            "end_position": len("2.5. Kỹ thuật thu thập số liệu"), "numbering_depth": 2,
+            "heading_score": 0.9, "features": {},
+        }])
+        self.assertEqual("Kỹ thuật thu thập số liệu", sections[0]["heading"])
+        self.assertEqual("2.5. Kỹ thuật thu thập số liệu", sections[0]["original_heading"])
+
+    def test_title_extraction_joins_wrapped_title_lines(self):
+        def line(text, size, y0, y1, position):
+            return {
+                "text": text, "size": size, "page": 1, "position": position,
+                "bbox": (40.0, y0, 560.0, y1),
+            }
+
+        lines = [
+            line("Journal header", 9.0, 20.0, 30.0, 0),
+            line("CLINICAL CHARACTERISTICS OF GINGIVAL", 19.3, 70.0, 93.0, 20),
+            line("ENLARGEMENT IN A GROUP OF VIETNAMESE PEOPLE", 19.3, 92.5, 115.5, 60),
+            line("Nguyen Thi Hong Minh, Do Thi Thu Huong", 13.5, 145.0, 159.0, 110),
+        ]
+        title, authors = _extract_title_and_authors(lines, [{"position": 200}])
+        self.assertEqual(
+            "CLINICAL CHARACTERISTICS OF GINGIVAL ENLARGEMENT IN A GROUP OF VIETNAMESE PEOPLE",
+            title,
+        )
+        self.assertEqual("Nguyen Thi Hong Minh, Do Thi Thu Huong", authors)
+
+    def test_author_list_is_never_promoted_to_title_when_pdf_title_is_missing(self):
+        def line(text, size, y0, y1, position):
+            return {
+                "text": text, "size": size, "page": 1, "position": position,
+                "bbox": (40.0, y0, 560.0, y1),
+            }
+
+        author_line = "Vũ Hải Linh1, Nguyễn Văn Chủ2, Bùi Thị Bích Phương2"
+        lines = [
+            line(author_line, 12.0, 567.0, 581.0, 0),
+            line("TÓM TẮT6", 12.0, 590.0, 602.0, 80),
+        ]
+        title, authors = _extract_title_and_authors(
+            lines,
+            [{"heading": "TÓM TẮT6", "canonical_type": "abstract", "page": 1, "position": 80}],
+            "2022/ĐÁNH GIÁ KẾT QUẢ ĐIỀU TRỊ TỔN THƯƠNG CỔ TỬ CUNG_dd19416d4935.pdf",
+        )
+        self.assertEqual("ĐÁNH GIÁ KẾT QUẢ ĐIỀU TRỊ TỔN THƯƠNG CỔ TỬ CUNG", title)
+        self.assertEqual(author_line, authors)
+        self.assertNotEqual(title, authors)
 
 
 if __name__ == "__main__":
