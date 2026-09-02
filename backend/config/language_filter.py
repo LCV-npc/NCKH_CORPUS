@@ -11,8 +11,10 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from config.env import backend_path_from_env, load_backend_env
 
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
+
+load_backend_env()
 
 
 def _csv(name: str, default: str) -> tuple[str, ...]:
@@ -36,12 +38,12 @@ class VietnameseCorpusSettings:
     chunk_chars: int = int(os.getenv("CORPUS_LANGUAGE_CHUNK_CHARS", "1200"))
     min_vietnamese_ratio: float = float(os.getenv("CORPUS_LANGUAGE_MIN_VI_RATIO", "0.72"))
     english_reject_ratio: float = float(os.getenv("CORPUS_LANGUAGE_EN_REJECT_RATIO", "0.65"))
-    candidates_dir: Path = Path(
-        os.getenv("CORPUS_PDF_CANDIDATES_DIR", str(BACKEND_ROOT / "Văn_Bản_Y_Tế_PDF" / "candidates"))
+    candidates_dir: Path = backend_path_from_env(
+        "CORPUS_PDF_CANDIDATES_DIR", "Văn_Bản_Y_Tế_PDF/candidates"
     )
-    quarantine_dir: Path = Path(
-        os.getenv("CORPUS_PDF_QUARANTINE_DIR", str(BACKEND_ROOT / "Văn_Bản_Y_Tế_PDF" / "quarantine"))
+    quarantine_dir: Path = backend_path_from_env(
+        "CORPUS_PDF_QUARANTINE_DIR", "Văn_Bản_Y_Tế_PDF/quarantine"
     )
-    audit_report_dir: Path = Path(
-        os.getenv("CORPUS_LANGUAGE_AUDIT_REPORT_DIR", str(BACKEND_ROOT / "reports"))
+    audit_report_dir: Path = backend_path_from_env(
+        "CORPUS_LANGUAGE_AUDIT_REPORT_DIR", "reports"
     )

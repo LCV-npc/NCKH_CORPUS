@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import pymupdf as fitz
 
@@ -208,18 +209,20 @@ class PdfExtractorTests(unittest.TestCase):
         metadata = ExtractedMetadata(source="test", file_path="article.pdf")
         original_cwd = os.getcwd()
         with tempfile.TemporaryDirectory() as temp_dir:
+            output_root = Path(temp_dir) / "Kho_Ngu_Lieu_Txt" / "pdf_extracted"
             try:
                 os.chdir(temp_dir)
-                output = Path("Kho_Ngu_Lieu_Txt/pdf_extracted/article_unhashed")
+                output = output_root / "article_unhashed"
                 output.mkdir(parents=True)
                 stale = output / "old.txt"
                 stale.write_text("stale", encoding="utf-8")
 
-                ExtractorPipeline()._save_extraction({
-                    "title": "Article title", "authors": "Author One",
-                    "abstract": "Article abstract", "page_count": 1,
-                    "validation": {}, "sections": sections,
-                }, "article", metadata)
+                with patch("core.pdf_pipeline.PDF_OUTPUT_ROOT", output_root):
+                    ExtractorPipeline()._save_extraction({
+                        "title": "Article title", "authors": "Author One",
+                        "abstract": "Article abstract", "page_count": 1,
+                        "validation": {}, "sections": sections,
+                    }, "article", metadata)
 
                 self.assertFalse(stale.exists())
                 self.assertEqual((output / "sections/01_custom.txt").read_text(encoding="utf-8"), "First content")
@@ -239,9 +242,11 @@ class PdfExtractorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             pdf_path = Path(temp_dir) / "sample.pdf"
             pdf_path.write_bytes(_sample_pdf())
+            output_root = Path(temp_dir) / "Kho_Ngu_Lieu_Txt" / "pdf_extracted"
             try:
                 os.chdir(temp_dir)
-                metadata = ExtractorPipeline().run(str(pdf_path))
+                with patch("core.pdf_pipeline.PDF_OUTPUT_ROOT", output_root):
+                    metadata = ExtractorPipeline().run(str(pdf_path))
 
                 labels = [section["label"] for section in metadata.sections]
                 self.assertIn("abstract", labels)
@@ -269,10 +274,12 @@ class PdfExtractorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             pdf_path = Path(temp_dir) / "same-content.pdf"
             pdf_path.write_bytes(_sample_pdf())
+            output_root = Path(temp_dir) / "Kho_Ngu_Lieu_Txt" / "pdf_extracted"
             try:
                 os.chdir(temp_dir)
-                first = ExtractorPipeline().run(str(pdf_path))
-                second = ExtractorPipeline().run(str(pdf_path))
+                with patch("core.pdf_pipeline.PDF_OUTPUT_ROOT", output_root):
+                    first = ExtractorPipeline().run(str(pdf_path))
+                    second = ExtractorPipeline().run(str(pdf_path))
 
                 self.assertFalse(first.is_duplicate)
                 self.assertTrue(second.is_duplicate)
@@ -281,7 +288,7 @@ class PdfExtractorTests(unittest.TestCase):
                 self.assertEqual([], second.extracted_files)
                 self.assertEqual(
                     1,
-                    len(list(Path("Kho_Ngu_Lieu_Txt/pdf_extracted").rglob("metadata.json"))),
+                    len(list(output_root.rglob("metadata.json"))),
                 )
             finally:
                 os.chdir(original_cwd)
@@ -291,11 +298,13 @@ class PdfExtractorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             pdf_path = Path(temp_dir) / "english.pdf"
             pdf_path.write_bytes(_sample_pdf())
+            output_root = Path(temp_dir) / "Kho_Ngu_Lieu_Txt" / "pdf_extracted"
             try:
                 os.chdir(temp_dir)
-                with self.assertRaises(PipelineError):
-                    ExtractorPipeline().run(str(pdf_path), require_vietnamese=True)
-                self.assertFalse(Path("Kho_Ngu_Lieu_Txt/pdf_extracted/english").exists())
+                with patch("core.pdf_pipeline.PDF_OUTPUT_ROOT", output_root):
+                    with self.assertRaises(PipelineError):
+                        ExtractorPipeline().run(str(pdf_path), require_vietnamese=True)
+                self.assertFalse((output_root / "english").exists())
             finally:
                 os.chdir(original_cwd)
 

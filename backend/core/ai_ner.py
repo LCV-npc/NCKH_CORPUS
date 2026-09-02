@@ -1,9 +1,9 @@
 import os
 import json
 import google.generativeai as genai
-from dotenv import load_dotenv
+from config.env import load_backend_env
 
-load_dotenv()
+load_backend_env()
 
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 

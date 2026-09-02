@@ -2,9 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import urllib3
 import os
-from dotenv import load_dotenv
+from config.env import BACKEND_ROOT, ENV_FILE, load_backend_env
 
-load_dotenv()
+load_backend_env()
+
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+if not DB_PASSWORD:
+    raise RuntimeError(
+        f"Thiếu DB_PASSWORD. Hãy thêm DB_PASSWORD=<mật khẩu MySQL> vào {ENV_FILE} "
+        "rồi khởi động lại backend."
+    )
 
 from api import routes as api_routes
 from core.auth import ensure_auth_review_schema
@@ -17,14 +24,14 @@ load_ner_dictionary()
 
 # ── Cấu hình DB ───────────────────────────────────────────────
 db_config = {
-    "user":     "root",
-    "password": os.getenv("DB_PASSWORD", ""),
-    "host":     "127.0.0.1",
-    "database": "yhoc_corpus", # fixed typo yhoc_corpuss -> yhoc_corpus
+    "user":     os.getenv("DB_USER", "root"),
+    "password": DB_PASSWORD,
+    "host":     os.getenv("DB_HOST", "127.0.0.1"),
+    "database": os.getenv("DB_NAME", "yhoc_corpus"),
     "charset":  "utf8mb4",
 }
 
-OUTPUT_FOLDER = "Kho_Ngu_Lieu_Txt"
+OUTPUT_FOLDER = str(BACKEND_ROOT / "Kho_Ngu_Lieu_Txt")
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # ── Khởi tạo app ──────────────────────────────────────────────
@@ -57,8 +64,11 @@ try:
         _conn.commit()
     _cur.close()
     _conn.close()
-except Exception:
-    pass
+except Exception as exc:
+    raise RuntimeError(
+        "Không thể khởi tạo MySQL. Hãy kiểm tra DB_USER, DB_PASSWORD, DB_HOST, "
+        "DB_NAME và bảo đảm dịch vụ MySQL đang chạy."
+    ) from exc
 
 # ── Entry point ───────────────────────────────────────────────
 if __name__ == "__main__":

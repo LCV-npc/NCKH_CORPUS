@@ -19,6 +19,10 @@ from typing import Any
 import mysql.connector
 from fastapi import HTTPException
 
+from config.env import load_backend_env
+
+
+load_backend_env()
 
 ROLE_ADMIN = "ADMIN"
 ROLE_EXPERT = "EXPERT"

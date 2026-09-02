@@ -19,8 +19,7 @@ function installAuthenticatedFetch() {
   window.fetch = (input, init = {}) => {
     const url = typeof input === "string" ? input : (input && input.url) || "";
     const needsToken = authToken && (url.startsWith("/api/") || url.includes("/api/"))
-      && !url.includes("/api/auth/login")
-      && !url.includes("/api/auth/register");
+      && !url.includes("/api/auth/login");
     if (!needsToken) return nativeFetch(input, init);
 
     const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
@@ -39,14 +38,10 @@ function setApplicationVisible(visible) {
   if (authShell) authShell.hidden = visible;
 }
 
-function showAuthRoute(mode = "login") {
-  const login = mode !== "register";
+function showAuthRoute() {
   setApplicationVisible(false);
-  document.getElementById("loginFormWrap").hidden = !login;
-  document.getElementById("registerFormWrap").hidden = login;
-  if (location.pathname !== `/${login ? "login" : "register"}`) {
-    history.pushState({}, "", login ? "/login" : "/register");
-  }
+  document.getElementById("loginFormWrap").hidden = false;
+  if (location.pathname !== "/login") history.replaceState({}, "", "/login");
   return false;
 }
 
@@ -113,30 +108,6 @@ function bindAuthForms() {
     }
   });
 
-  document.getElementById("registerForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    showAuthError("registerError");
-    const name = document.getElementById("registerName").value.trim();
-    const email = document.getElementById("registerEmail").value.trim();
-    const password = document.getElementById("registerPassword").value;
-    const confirmPassword = document.getElementById("registerConfirmPassword").value;
-    if (password !== confirmPassword) {
-      showAuthError("registerError", "Confirm Password must match Password.");
-      return;
-    }
-    try {
-      const response = await nativeFetch(`${API_BASE}/auth/register`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName: name, email, password, confirmPassword }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.detail || "Unable to register.");
-      document.getElementById("registerSuccess").textContent = payload.message;
-      setTimeout(() => showAuthRoute("login"), 700);
-    } catch (error) {
-      showAuthError("registerError", error.message);
-    }
-  });
 }
 
 // ============================================================
@@ -1893,7 +1864,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (!currentAuthUser) {
-    showAuthRoute(location.pathname === "/register" ? "register" : "login");
+    showAuthRoute();
     return;
   }
 

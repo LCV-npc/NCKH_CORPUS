@@ -6,12 +6,11 @@
     <title>MedNLP Studio — Hệ thống Quản lý Ngữ liệu Y học</title>
     <meta name="description" content="Nền tảng NLP y học tiếng Việt: thu thập, xử lý, gán nhãn và quản lý từ điển thuật ngữ y tế">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="index.css?v=4.7">
+<link rel="stylesheet" href="index.css?v=4.8">
 </head>
 <body class="auth-mode">
 
-<!-- Authentication shell. It is shown for /login and /register, while the
-     existing Studio workspace remains untouched for authenticated admins. -->
+<!-- Authentication shell. Accounts are provisioned by an authenticated Admin. -->
 <main class="auth-shell" id="authShell" hidden>
     <section class="auth-card">
         <div class="auth-brand">MedNLP <span>Corpus Review System</span></div>
@@ -24,21 +23,7 @@
                 <p class="auth-error" id="loginError" role="alert"></p>
                 <button class="auth-submit" type="submit">Đăng nhập</button>
             </form>
-            <p class="auth-switch">Chưa có tài khoản? <a href="/register" onclick="return showAuthRoute('register')">Tạo tài khoản</a></p>
-        </div>
-        <div id="registerFormWrap" hidden>
-            <h1>Đăng ký chuyên gia</h1>
-            <p>Tài khoản đăng ký mới luôn có vai trò <strong>Expert</strong>.</p>
-            <form id="registerForm" novalidate>
-                <label>Họ và tên<input id="registerName" type="text" autocomplete="name" maxlength="200" required></label>
-                <label>Email<input id="registerEmail" type="email" autocomplete="email" required></label>
-                <label>Mật khẩu<input id="registerPassword" type="password" autocomplete="new-password" minlength="10" required></label>
-                <label>Xác nhận mật khẩu<input id="registerConfirmPassword" type="password" autocomplete="new-password" minlength="10" required></label>
-                <p class="auth-error" id="registerError" role="alert"></p>
-                <p class="auth-success" id="registerSuccess" role="status"></p>
-                <button class="auth-submit" type="submit">Đăng ký</button>
-            </form>
-            <p class="auth-switch">Đã có tài khoản? <a href="/login" onclick="return showAuthRoute('login')">Đăng nhập</a></p>
+            <p class="auth-account-note">Tài khoản chuyên gia do quản trị viên hệ thống cấp.</p>
         </div>
     </section>
 </main>
@@ -773,7 +758,7 @@
 <!-- TOAST NOTIFICATION -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="review.js?v=1.2"></script>
-<script src="script.js?v=6.1"></script>
+<script src="review.js?v=1.3"></script>
+<script src="script.js?v=6.2"></script>
 </body>
 </html>

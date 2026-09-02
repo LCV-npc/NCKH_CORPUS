@@ -6,9 +6,9 @@ import re
 from typing import Any
 
 import google.generativeai as genai
-from dotenv import load_dotenv
+from config.env import load_backend_env
 
-load_dotenv()
+load_backend_env()
 
 AI_CATEGORIES = (
     "Bệnh lý",

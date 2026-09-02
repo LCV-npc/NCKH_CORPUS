@@ -328,7 +328,7 @@ function initializeAdminReviewLinks() {
   if (document.getElementById("adminReviewNav")) return;
   const extra = document.createElement("div");
   extra.id = "adminReviewNav";
-  extra.innerHTML = `<div class="nav-section-label" style="margin-top:12px">Quản trị review</div><a class="nav-item" onclick="showAdminReviewView('reviews')"><span class="nav-label">Expert Reviews</span></a><a class="nav-item" onclick="showAdminReviewView('users')"><span class="nav-label">Users</span></a>`;
+  extra.innerHTML = `<div class="nav-section-label" style="margin-top:12px">Quản trị review</div><a class="nav-item" onclick="showAdminReviewView('reviews')"><span class="nav-label">Expert Reviews</span></a><a class="nav-item" onclick="showAdminReviewView('users')"><span class="nav-label">Tài khoản chuyên gia</span></a>`;
   nav.appendChild(extra);
 }
 
@@ -336,16 +336,119 @@ async function showAdminReviewView(view) {
   document.querySelectorAll(".screen").forEach(item => item.classList.remove("active"));
   const screen = ensureReviewScreen("screen-admin-review-workspace");
   screen.classList.add("active");
-  setReviewHeader(view === "reviews" ? "Expert Reviews" : "Users", "Quản trị dữ liệu review");
-  screen.innerHTML = `<div class="review-workspace"><div class="review-panel"><h3>${view === "reviews" ? "Expert Reviews" : "Users"}</h3><div id="adminReviewArea" class="review-loading">Loading...</div></div></div>`;
+  setReviewHeader(
+    view === "reviews" ? "Expert Reviews" : "Tài khoản chuyên gia",
+    view === "reviews" ? "Quản trị dữ liệu review" : "Cấp và quản lý tài khoản dành cho chuyên gia",
+  );
+  screen.innerHTML = `<div class="review-workspace"><div id="adminReviewArea"><div class="review-loading">Đang tải dữ liệu...</div></div></div>`;
   try {
     const data = await reviewRequest(view === "reviews" ? "/admin/reviews?page_size=50" : "/admin/users?page_size=50");
     const rows = (data.items || []).map(item => view === "reviews"
       ? `<tr><td class="document-cell">${reviewEscape(item.document_title)}</td><td>${reviewEscape(item.expert_name)}</td><td>${statusBadge(item.review_status)}</td><td>${reviewEscape([item.suggested_icd10_code, item.suggested_icd10_label].filter(Boolean).join(" - ") || "—")}</td><td>${reviewEscape(item.comment)}</td><td>${reviewDate(item.created_at)}</td><td><button class="review-action" onclick="openAdminReviewDocument(${Number(item.document_id)})">View</button></td></tr>`
-      : `<tr><td>${item.id}</td><td>${reviewEscape(item.name)}</td><td>${reviewEscape(item.email)}</td><td>${statusBadge(item.role)}</td><td>${item.review_count}</td><td>${reviewDate(item.created_at)}</td></tr>`).join("");
-    const headings = view === "reviews" ? "<th>Document</th><th>Expert</th><th>Review</th><th>Suggested Label</th><th>Comment</th><th>Date</th><th>Action</th>" : "<th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Reviews</th><th>Created</th>";
-    document.getElementById("adminReviewArea").innerHTML = rows ? `<div class="review-table-wrap"><table class="review-table"><thead><tr>${headings}</tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="review-empty">No data available.</div>';
+      : `<tr><td class="account-id">#${item.id}</td><td class="account-name">${reviewEscape(item.name)}</td><td>${reviewEscape(item.email)}</td><td>${userRoleBadge(item.role)}</td><td>${accountStatusBadge(item.is_active)}</td><td>${Number(item.review_count) || 0}</td><td>${reviewDate(item.created_at)}</td></tr>`).join("");
+    const headings = view === "reviews" ? "<th>Document</th><th>Expert</th><th>Review</th><th>Suggested Label</th><th>Comment</th><th>Date</th><th>Action</th>" : "<th>ID</th><th>Họ và tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Lượt review</th><th>Ngày tạo</th>";
+    const table = rows ? `<div class="review-table-wrap"><table class="review-table"><thead><tr>${headings}</tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="review-empty">No data available.</div>';
+    const area = document.getElementById("adminReviewArea");
+    area.innerHTML = view === "users"
+      ? renderAdminUsersPage(table, Number(data.total) || 0)
+      : `<div class="review-panel"><h3>Expert Reviews</h3>${table}</div>`;
   } catch (error) { document.getElementById("adminReviewArea").innerHTML = `<div class="review-error">Unable to load: ${reviewEscape(error.message)}</div>`; }
+}
+
+function userRoleBadge(role) {
+  const normalized = String(role || "expert").toLowerCase();
+  return `<span class="account-role account-role-${reviewEscape(normalized)}">${normalized === "admin" ? "Admin" : "Expert"}</span>`;
+}
+
+function accountStatusBadge(isActive) {
+  return isActive
+    ? '<span class="account-status account-status-active"><i></i>Đang hoạt động</span>'
+    : '<span class="account-status account-status-inactive"><i></i>Đã khóa</span>';
+}
+
+function renderAdminUsersPage(table, total) {
+  return `<div class="admin-accounts-page">
+    <section class="admin-account-summary">
+      <div class="admin-summary-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+      </div>
+      <div><h2>Quản lý tài khoản chuyên gia</h2><p>Cấp tài khoản truy cập khu vực đánh giá corpus và theo dõi hoạt động review.</p></div>
+      <div class="admin-account-total"><strong>${total}</strong><span>Tổng tài khoản</span></div>
+    </section>
+    ${renderCreateExpertForm()}
+    <section class="review-panel admin-users-list">
+      <div class="admin-card-header admin-list-header">
+        <div><h3>Danh sách tài khoản</h3><p>Thông tin tài khoản đang được lưu trong cơ sở dữ liệu MySQL.</p></div>
+        <span class="admin-count-badge">${total} tài khoản</span>
+      </div>
+      ${table}
+    </section>
+  </div>`;
+}
+
+function renderCreateExpertForm() {
+  return `<section class="review-panel admin-user-create-card">
+    <div class="admin-card-header">
+      <div class="admin-card-title">
+        <span class="admin-card-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+        </span>
+        <div><h3>Tạo tài khoản chuyên gia</h3><p>Tài khoản mới được cấp cố định vai trò Expert và có thể đăng nhập ngay sau khi tạo.</p></div>
+      </div>
+      <span class="admin-security-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Chỉ Admin
+      </span>
+    </div>
+    <form class="admin-user-form" onsubmit="return createExpertAccount(event)" novalidate>
+      <label><span>Họ và tên</span><input id="adminExpertName" type="text" autocomplete="name" minlength="2" maxlength="200" placeholder="Ví dụ: Nguyễn Văn An" required></label>
+      <label><span>Email đăng nhập</span><input id="adminExpertEmail" type="email" autocomplete="off" maxlength="254" placeholder="chuyengia@example.com" required></label>
+      <label><span>Mật khẩu tạm thời</span><input id="adminExpertPassword" type="password" autocomplete="new-password" minlength="10" maxlength="256" placeholder="Tối thiểu 10 ký tự" required></label>
+      <label><span>Xác nhận mật khẩu</span><input id="adminExpertConfirmPassword" type="password" autocomplete="new-password" minlength="10" maxlength="256" placeholder="Nhập lại mật khẩu" required></label>
+      <p class="auth-error admin-user-form-message" id="adminCreateUserError" role="alert"></p>
+      <div class="admin-user-form-footer">
+        <span class="admin-password-note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+          Mật khẩu được hash trước khi lưu vào database.
+        </span>
+        <button class="admin-create-button" id="adminCreateUserButton" type="submit">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+          Tạo tài khoản Expert
+        </button>
+      </div>
+    </form>
+  </section>`;
+}
+
+async function createExpertAccount(event) {
+  event.preventDefault();
+  const error = document.getElementById("adminCreateUserError");
+  const button = document.getElementById("adminCreateUserButton");
+  const fullName = document.getElementById("adminExpertName").value.trim();
+  const email = document.getElementById("adminExpertEmail").value.trim();
+  const password = document.getElementById("adminExpertPassword").value;
+  const confirmPassword = document.getElementById("adminExpertConfirmPassword").value;
+  error.textContent = "";
+  if (password !== confirmPassword) {
+    error.textContent = "Xác nhận mật khẩu không khớp.";
+    return false;
+  }
+  button.disabled = true;
+  button.textContent = "Đang tạo...";
+  try {
+    const payload = await reviewRequest("/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, email, password, confirmPassword }),
+    });
+    if (typeof showToast === "function") showToast(payload.message || "Đã tạo tài khoản chuyên gia.", "success");
+    await showAdminReviewView("users");
+  } catch (requestError) {
+    error.textContent = requestError.message;
+    button.disabled = false;
+    button.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>Tạo tài khoản Expert';
+  }
+  return false;
 }
 
 async function openAdminReviewDocument(documentId) {

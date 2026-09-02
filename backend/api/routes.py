@@ -179,18 +179,6 @@ def _require_expert(user: dict[str, Any] = Depends(_current_user)) -> dict[str, 
     return user
 
 
-@router.post("/api/auth/register", status_code=201)
-def register_endpoint(req: RegisterRequest):
-    """Public registration always creates an EXPERT account."""
-    if req.password != req.confirm_password:
-        raise HTTPException(status_code=422, detail="Xác nhận mật khẩu không khớp.")
-    try:
-        register_expert(_db_config, req.full_name, req.email, req.password)
-        return {"message": "Registration successful. Please login."}
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-
-
 @router.post("/api/auth/login")
 def login_endpoint(req: LoginRequest):
     try:
@@ -1071,6 +1059,18 @@ def admin_users(page: int = 1, page_size: int = 30, _: dict[str, Any] = Depends(
     finally:
         if cursor: cursor.close()
         if connection: connection.close()
+
+
+@router.post("/api/admin/users", status_code=201)
+def create_expert_account(req: RegisterRequest, _: dict[str, Any] = Depends(_require_admin)):
+    """Create an Expert account from the authenticated Admin workspace."""
+    if req.password != req.confirm_password:
+        raise HTTPException(status_code=422, detail="Xác nhận mật khẩu không khớp.")
+    try:
+        user = register_expert(_db_config, req.full_name, req.email, req.password)
+        return {"message": "Đã tạo tài khoản chuyên gia thành công.", "user": user}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 @router.get("/api/admin/documents/{document_id}")

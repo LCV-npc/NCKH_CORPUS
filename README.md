@@ -11,7 +11,7 @@ Repository: <https://github.com/LCV-npc/NCKH_CORPUS>
 - Tách PDF thành tiêu đề, tác giả, tóm tắt và các section dưới dạng TXT/JSON.
 - Nhận diện thực thể y khoa bằng từ điển ICD-10, YHCT và từ điển tùy chỉnh.
 - Gán nhãn văn bản bằng Gemini và lưu kết quả vào MySQL.
-- Đăng ký, đăng nhập và phân quyền `admin`/`expert` ở backend.
+- Admin tạo tài khoản chuyên gia; hệ thống đăng nhập và phân quyền `admin`/`expert` ở backend.
 - Chuyên gia duyệt nhãn ICD-10/AI, nhận xét và xem lịch sử review.
 - Admin quản lý toàn bộ corpus, người dùng và review của chuyên gia.
 
@@ -153,10 +153,23 @@ Copy-Item backend\.env.example backend\.env
 
 ```dotenv
 DB_PASSWORD=your_mysql_password
+DB_USER=root
+DB_HOST=127.0.0.1
+DB_NAME=yhoc_corpus
 GEMINI_API_KEY=your_gemini_api_key
 ```
 
 Các tùy chọn PDF/Gemini đã được mô tả trong `backend/.env.example`, gồm model, timeout, số lần retry, prompt version và ngưỡng kiểm tra ngôn ngữ.
+
+`backend/.env.example` là mẫu đầy đủ được lưu trên Git để mô tả mọi biến hỗ trợ; `backend/.env` là cấu hình thật của riêng máy và bị Git bỏ qua. Các biến tùy chọn có thể vắng mặt vì source đã có giá trị mặc định, nhưng:
+
+- `DB_PASSWORD` là bắt buộc để đăng nhập và sử dụng mọi chức năng cần MySQL.
+- `GEMINI_API_KEY` là bắt buộc cho AI labeling và bước kiểm chứng PDF bằng Gemini.
+- `DB_USER`, `DB_HOST`, `DB_NAME`, các biến `PDF_LLM_*`, `AUTH_SESSION_HOURS` và `CORPUS_LANGUAGE_*` có giá trị mặc định nhưng nên ghi rõ để môi trường chạy có thể tái lập.
+- `CORPUS_PDF_CANDIDATES_DIR`, `CORPUS_PDF_QUARANTINE_DIR`, `CORPUS_LANGUAGE_AUDIT_REPORT_DIR` và `PDF_EXTRACT_OUTPUT_DIR` kiểm soát nơi lưu PDF, quarantine, báo cáo audit và kết quả tách PDF.
+- `CRAWLER_TAMANH_*` kiểm soát URL nguồn, retry, độ trễ, timeout và thư mục lưu Q&A Tâm Anh.
+
+Các đường dẫn tương đối trong `.env` luôn được tính từ thư mục `backend`, vì vậy vị trí lưu không thay đổi khi chạy lệnh từ thư mục gốc hoặc từ `backend`.
 
 Không commit `backend/.env`, API key hoặc mật khẩu thật lên Git.
 
@@ -204,7 +217,7 @@ Frontend: <http://localhost:5173>
 
 ## Tạo tài khoản admin
 
-Người dùng đăng ký từ giao diện luôn nhận role `expert`; không thể tự chọn role admin. Tạo admin từ terminal trong thư mục `backend`:
+Hệ thống không cho đăng ký tài khoản công khai. Admin được tạo từ terminal; sau khi đăng nhập, Admin tạo tài khoản Expert trong mục **Users**. Tạo Admin từ thư mục `backend` bằng lệnh:
 
 ```powershell
 .\.venv\Scripts\python.exe seed_admin.py --name "Admin Corpus" --email "admin@example.com"
@@ -335,10 +348,10 @@ backend/Kho Ngữ Liệu Y Học Tiếng Việt/Từ_Điển_v1.json
 
 ## Authentication và phân quyền
 
-- `POST /api/auth/register`: đăng ký tài khoản Expert.
 - `POST /api/auth/login`: xác thực email/mật khẩu và tạo session.
 - `GET /api/auth/me`: đọc người dùng hiện tại.
 - `POST /api/auth/logout`: hủy session.
+- `POST /api/admin/users`: chỉ Admin được tạo tài khoản Expert.
 - Mật khẩu được hash ở backend; API không trả password/hash.
 - Backend lấy role từ database, không tin role do frontend gửi lên.
 
@@ -364,7 +377,7 @@ Review được lưu trong `expert_reviews`, gồm document, expert, quyết đ�
 
 | Nhóm | Endpoint |
 | --- | --- |
-| Auth | `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout` |
+| Auth | `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout` |
 | Corpus | `GET /api/articles`, `GET /api/articles/{article_id}` |
 | NER | `POST /api/ner`, `POST /api/highlight-text`, `POST /api/save-highlight` |
 | AI label | `POST /api/ai-ner`, `POST /api/ai-label`, `POST /api/ai-label/save` |
@@ -373,7 +386,7 @@ Review được lưu trong `expert_reviews`, gồm document, expert, quyết đ�
 | Crawler PDF | `POST /api/scrape`, `POST /api/scrape/stop`, `GET /api/status`, `GET /api/crawl-logs` |
 | Crawler Tâm Anh | `POST /api/crawler/tamanh/start`, `GET /api/crawler/tamanh/status/{job_id}`, `POST /api/crawler/tamanh/stop/{job_id}` |
 | Expert | `GET /api/expert/dashboard`, các API `/api/expert/documents/*` và review |
-| Admin | `GET /api/admin/reviews`, `GET /api/admin/users`, `GET /api/admin/documents/{document_id}` |
+| Admin | `GET /api/admin/reviews`, `GET/POST /api/admin/users`, `GET /api/admin/documents/{document_id}` |
 | Health | `GET /api/health` |
 
 Chi tiết request/response hiện hành có tại Swagger UI: <http://127.0.0.1:8000/docs>.
@@ -395,7 +408,7 @@ npm run build
 
 Các luồng nên kiểm tra trước khi triển khai:
 
-- Đăng ký và đăng nhập Expert.
+- Admin tạo tài khoản Expert trong trang Users, sau đó Expert đăng nhập.
 - Đăng nhập Admin; Expert không truy cập được route Admin.
 - Expert chỉ thấy document ICD-10/AI-labeled.
 - Lưu review/comment, reload và đọc lại từ database.

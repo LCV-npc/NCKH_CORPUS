@@ -13,15 +13,14 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from dotenv import load_dotenv
-
+from config.env import load_backend_env
 from config.language_filter import VietnameseCorpusSettings
 from core.language_audit import LanguageAuditRepository, ensure_language_audit_schema, quarantine_pdf
 from core.language_validation import AdmissionDecision, assess_metadata, decide_admission
 from pdf_extractor import extract_from_pdf_path
 
 
-load_dotenv()
+load_backend_env()
 
 
 def _db_config() -> dict | None:

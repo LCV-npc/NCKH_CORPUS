@@ -24,7 +24,7 @@ No existing corpus table is changed or replaced.
 
 ## Authentication and authorization
 
-- `POST /api/auth/register` only creates an `EXPERT`; role from the browser is ignored.
+- Expert accounts are created only by an authenticated Admin through `POST /api/admin/users`; there is no public registration route.
 - Passwords are hashed using PBKDF2-HMAC-SHA256 with a per-user salt and 600,000 iterations.
 - Successful login returns an opaque session token. Only its SHA-256 hash is kept in MySQL.
 - All corpus management endpoints require an Admin session.
@@ -44,7 +44,7 @@ cd backend
 
 | Method | Route | Access |
 | --- | --- | --- |
-| POST | `/api/auth/register` | Public, creates Expert |
+| POST | `/api/admin/users` | Admin only, creates Expert |
 | POST | `/api/auth/login` | Public |
 | GET / POST | `/api/auth/me`, `/api/auth/logout` | Authenticated |
 | POST | `/api/ai-label`, `/api/ai-label/save` | Admin |
@@ -67,7 +67,7 @@ cd frontend
 npm run dev
 ```
 
-Open the Vite URL, register an Expert or sign in as a seeded Admin. If needed, copy `backend/.env.example` to `backend/.env` and set `DB_PASSWORD`, `GEMINI_API_KEY`, and optional `AUTH_SESSION_HOURS`.
+Open the Vite URL and sign in as a seeded Admin. Create Expert accounts from the Admin **Users** page. If needed, copy `backend/.env.example` to `backend/.env` and set `DB_PASSWORD`, `GEMINI_API_KEY`, and optional `AUTH_SESSION_HOURS`.
 
 ## Verification commands
 

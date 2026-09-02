@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 
-from dotenv import load_dotenv
+from config.env import load_backend_env
 
 
-load_dotenv()
+load_backend_env()
 
 PDF_TEXT_NORMALIZATION_VERSION = "continuous_paragraph_v1"
 

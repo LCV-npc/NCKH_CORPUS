@@ -1,13 +1,13 @@
 import hashlib
 import json
 import logging
-import os
 import re
 import shutil
 import unicodedata
 from pathlib import Path
 
 from config.constants import PDF_MAGIC_BYTES, MAX_FILE_SIZE_BYTES
+from config.env import backend_path_from_env
 from config.llm import PDFLLMSettings, PDF_TEXT_NORMALIZATION_VERSION
 from core.article_exporter import LLMArticleExporter
 from core.language_validation import assess_metadata, decide_admission, select_pdf_text_for_language
@@ -16,7 +16,7 @@ from models.metadata import ExtractedMetadata, ProcessingStep
 
 logger = logging.getLogger(__name__)
 
-PDF_OUTPUT_ROOT = Path(os.getenv("PDF_EXTRACT_OUTPUT_DIR", "Kho_Ngu_Lieu_Txt/pdf_extracted"))
+PDF_OUTPUT_ROOT = backend_path_from_env("PDF_EXTRACT_OUTPUT_DIR", "Kho_Ngu_Lieu_Txt/pdf_extracted")
 PDF_HASH_INDEX_FILE = ".processed_pdf_hashes.json"
 
 class PipelineError(Exception):
