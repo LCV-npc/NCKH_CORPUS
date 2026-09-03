@@ -4,6 +4,7 @@ import os
 import io
 import hashlib
 from typing import Any
+from urllib.parse import urlparse
 import mysql.connector
 from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, ConfigDict, Field
@@ -1140,6 +1141,11 @@ def get_status():
 @router.post("/api/scrape")
 def trigger_scraping(request: ScrapeRequest, _: dict[str, Any] = Depends(_require_admin)):
     """Kích hoạt thu thập dữ liệu ở nền."""
+    parsed_target = urlparse(request.target_url.strip())
+    if parsed_target.scheme not in {"http", "https"} or not parsed_target.netloc:
+        raise HTTPException(400, "URL crawler phải là địa chỉ HTTP/HTTPS đầy đủ.")
+    if request.start_year > request.end_year:
+        raise HTTPException(400, "Năm bắt đầu không được lớn hơn năm kết thúc.")
     if scrape_status["running"]:
         raise HTTPException(409, "Đang có tác vụ chạy, vui lòng đợi!")
     threading.Thread(

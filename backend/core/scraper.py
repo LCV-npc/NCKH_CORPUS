@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
-from urllib.parse import urlparse, urljoin
+from urllib.parse import parse_qs, urlparse, urljoin
 from config.constants import MAX_FILE_SIZE_BYTES, PDF_MAGIC_BYTES
 from config.language_filter import VietnameseCorpusSettings
 from core.language_audit import (
@@ -155,6 +155,40 @@ def _same_host(first_url: str, second_url: str) -> bool:
     return urlparse(first_url).netloc.lower() == urlparse(second_url).netloc.lower()
 
 
+def _url_without_fragment(url: str) -> str:
+    parsed = urlparse(url.strip())
+    return parsed._replace(fragment="").geturl()
+
+
+def _archive_url_from_input(url: str) -> str | None:
+    """Return the first archive page when *url* already points into an archive."""
+    parsed = urlparse(_url_without_fragment(url))
+    match = re.search(r"(?P<archive>/issue/archive)(?:/\d+)?/?$", parsed.path, re.IGNORECASE)
+    if not match:
+        return None
+    archive_path = parsed.path[:match.start("archive")] + match.group("archive")
+    return parsed._replace(path=archive_path, query="", fragment="").geturl().rstrip("/")
+
+
+def _journal_base_url(url: str) -> str:
+    """Reduce an OJS article/issue URL to its journal-level application URL."""
+    parsed = urlparse(_url_without_fragment(url))
+    path = re.sub(r"/(?:article|issue)/.*$", "", parsed.path, flags=re.IGNORECASE).rstrip("/")
+    return parsed._replace(path=path, query="", fragment="").geturl().rstrip("/")
+
+
+def _find_archive_url(soup: BeautifulSoup, page_url: str) -> str | None:
+    """Find an OJS archive link by URL shape, independent of visible language/text."""
+    for anchor in soup.find_all("a", href=True):
+        candidate = _make_absolute(anchor["href"], page_url)
+        if not _same_host(page_url, candidate):
+            continue
+        archive_url = _archive_url_from_input(candidate)
+        if archive_url:
+            return archive_url
+    return None
+
+
 def _year_from_text(value: str) -> str | None:
     match = re.search(r"(?<!\d)(20\d{2})(?!\d)", value or "")
     return match.group(1) if match else None
@@ -179,6 +213,18 @@ def _issue_year(anchor) -> str | None:
         candidate = heading.get_text(" ", strip=True)
         if re.fullmatch(r"20\d{2}", candidate):
             return candidate
+
+    # Some OJS themes (including tapchiyhcd.vn) render the archive year as a
+    # plain ``<div>2025</div>`` followed by many sibling issue cards. That
+    # marker is neither an ancestor nor a heading, so the checks above cannot
+    # associate most issue links with their year. Walk backwards in document
+    # order and use the nearest standalone year marker. Requiring the entire
+    # element text to be a year prevents dates in issue titles/descriptions
+    # from changing the active archive group.
+    for previous in anchor.find_all_previous(True):
+        candidate = previous.get_text(" ", strip=True)
+        if re.fullmatch(r"20\d{2}", candidate):
+            return candidate
     return None
 
 
@@ -187,8 +233,14 @@ def _archive_issue_links(soup: BeautifulSoup, page_url: str) -> list[dict]:
     issues: list[dict] = []
     seen: set[str] = set()
     for anchor in soup.find_all("a", href=True):
-        url = _make_absolute(anchor["href"], page_url)
-        if "/issue/view/" not in url or not _same_host(page_url, url) or url in seen:
+        raw_url = _url_without_fragment(_make_absolute(anchor["href"], page_url))
+        if not _same_host(page_url, raw_url):
+            continue
+        parsed = urlparse(raw_url)
+        if not re.search(r"/issue/view/\d+/?$", parsed.path, re.IGNORECASE):
+            continue
+        url = parsed._replace(query="", fragment="").geturl().rstrip("/")
+        if url in seen:
             continue
         seen.add(url)
         issues.append({
@@ -200,16 +252,29 @@ def _archive_issue_links(soup: BeautifulSoup, page_url: str) -> list[dict]:
 
 
 def _archive_next_links(soup: BeautifulSoup, page_url: str) -> list[str]:
-    """Follow actual OJS pagination links rather than assuming `/1`, `/2`, ..."""
+    """Collect advertised OJS archive pages (next, numbered, or query based)."""
     result: list[str] = []
     for anchor in soup.find_all("a", href=True):
         text = anchor.get_text(" ", strip=True).casefold()
         rel = " ".join(anchor.get("rel", [])).casefold()
         classes = " ".join(anchor.get("class", [])).casefold()
-        if not ("next" in rel or "next" in classes or "sau" in text or "next" in text or text in {"→", "›", ">"}):
+        url = _url_without_fragment(_make_absolute(anchor["href"], page_url))
+        parsed = urlparse(url)
+        if not _same_host(page_url, url) or "/issue/archive" not in parsed.path.casefold():
             continue
-        url = _make_absolute(anchor["href"], page_url)
-        if "/issue/archive" in url and _same_host(page_url, url) and url not in result:
+        query_keys = {key.casefold() for key in parse_qs(parsed.query)}
+        is_page_url = bool(
+            re.search(r"/issue/archive/\d+/?$", parsed.path, re.IGNORECASE)
+            or any("page" in key for key in query_keys)
+        )
+        is_next = bool(
+            "next" in rel
+            or "next" in classes
+            or "sau" in text
+            or "next" in text
+            or text in {"→", "›", ">"}
+        )
+        if (is_page_url or is_next) and url not in result:
             result.append(url)
     return result
 
@@ -228,6 +293,48 @@ def _article_view_links(soup: BeautifulSoup, page_url: str) -> list[str]:
         if canonical not in links:
             links.append(canonical)
     return links
+
+
+def _discover_archive_issues(session: requests.Session, archive_url: str) -> list[dict]:
+    """Traverse every archive page advertised by OJS and return unique issues."""
+    pages_to_visit = deque([archive_url])
+    visited_pages: set[str] = set()
+    issues_by_url: dict[str, dict] = {}
+
+    while pages_to_visit:
+        if _stop_requested:
+            break
+        requested_page = _url_without_fragment(pages_to_visit.popleft()).rstrip("/")
+        if requested_page in visited_pages:
+            continue
+        visited_pages.add(requested_page)
+        _log(f"  Đang fetch archive: {requested_page}")
+        try:
+            response = session.get(requested_page, verify=False, timeout=60)
+            if response.status_code != 200:
+                _log(f"  ⚠️ Archive trả về HTTP {response.status_code}, bỏ qua trang này.")
+                continue
+            scrape_status["pages_processed"] += 1
+            page_url = _url_without_fragment(response.url or requested_page)
+            soup = BeautifulSoup(response.text, "html.parser")
+            discovered = _archive_issue_links(soup, page_url)
+            new_count = 0
+            for issue in discovered:
+                if issue["url"] not in issues_by_url:
+                    issues_by_url[issue["url"]] = issue
+                    new_count += 1
+            _log(f"  → Archive: phát hiện {new_count} số mới ({len(discovered)} liên kết trên trang)")
+            for page_link in _archive_next_links(soup, page_url):
+                normalized_link = _url_without_fragment(page_link).rstrip("/")
+                if normalized_link not in visited_pages and normalized_link not in pages_to_visit:
+                    pages_to_visit.append(normalized_link)
+        except requests.exceptions.ConnectionError as ex:
+            _log(f"  ❌ Lỗi kết nối khi fetch trang {requested_page}: {ex}")
+        except Exception as ex:
+            _log(f"  ❌ Lỗi khi fetch trang {requested_page}: {ex}")
+
+    return list(issues_by_url.values())
+
 
 def run_scraping(request, db_config: dict, output_folder: str):
     """
@@ -319,83 +426,71 @@ def run_scraping(request, db_config: dict, output_folder: str):
         session.mount("http://",  HTTPAdapter(max_retries=retry))
         session.mount("https://", HTTPAdapter(max_retries=retry))
 
-        base_url    = re.sub(r"/(article|issue)/.*", "", request.target_url).rstrip("/")
-        archive_url = f"{base_url}/issue/archive"
+        requested_url = _url_without_fragment(request.target_url)
+        archive_url = _archive_url_from_input(requested_url)
 
-        # Tạo tên thư mục từ domain (ví dụ: tapchiyhocvietnam.vn)
-        parsed      = urlparse(base_url)
+        # A direct archive URL is authoritative. For a homepage/journal URL,
+        # inspect the returned page (including redirects) and discover the
+        # archive from href shape instead of relying on Vietnamese link text.
+        if archive_url:
+            _log(f"✅ URL đầu vào là trang archive: {archive_url}")
+        else:
+            _log(f"Đang tìm trang archive từ URL đầu vào: {requested_url} ...")
+            try:
+                entry_response = session.get(requested_url, verify=False, timeout=60)
+                if entry_response.status_code != 200:
+                    raise RuntimeError(f"HTTP {entry_response.status_code}")
+                resolved_entry_url = entry_response.url or requested_url
+                entry_soup = BeautifulSoup(entry_response.text, "html.parser")
+                archive_url = _find_archive_url(entry_soup, resolved_entry_url)
+                if archive_url:
+                    _log(f"✅ Tìm thấy trang archive: {archive_url}")
+                else:
+                    base_guess = _journal_base_url(resolved_entry_url)
+                    archive_url = f"{base_guess}/issue/archive"
+                    _log(f"⚠️ Không thấy liên kết archive; thử URL OJS chuẩn: {archive_url}")
+            except requests.exceptions.ConnectionError as ex:
+                _log(f"❌ Không thể kết nối đến '{requested_url}': {ex}")
+                _log("👉 Kiểm tra lại URL hoặc kết nối mạng. Crawler sẽ dừng.")
+                return
+            except Exception as ex:
+                base_guess = _journal_base_url(requested_url)
+                archive_url = f"{base_guess}/issue/archive"
+                _log(f"⚠️ Không thể dò archive từ trang đầu vào ({ex}); thử {archive_url}")
+
+        base_url = _journal_base_url(archive_url)
+        parsed = urlparse(base_url)
         site_folder = re.sub(r"^www\.", "", parsed.netloc or "unknown")
         site_folder = re.sub(r"[^\w\-\.]", "_", site_folder)
         _log(f"📁 Thư mục lưu trữ: {site_folder}")
-
-        # ── FIX #3: Tìm trang lưu trữ, xử lý URL tương đối ─────────────────
-        _log(f"Đang truy cập trang chủ: {base_url} ...")
-        try:
-            r_home = session.get(base_url, verify=False, timeout=60)
-            if r_home.status_code == 200:
-                soup_home = BeautifulSoup(r_home.text, "html.parser")
-                for a in soup_home.find_all("a", href=True):
-                    txt = a.get_text(strip=True).lower()
-                    href = a["href"]
-                    if any(w in txt for w in ("lưu trữ", "archives", "archive")):
-                        archive_url = _make_absolute(href, base_url)
-                        _log(f"✅ Tìm thấy trang lưu trữ: {archive_url}")
-                        break
-            else:
-                _log(f"⚠️ Trang chủ trả về HTTP {r_home.status_code}, dùng URL archive mặc định.")
-        except requests.exceptions.ConnectionError as ex:
-            _log(f"❌ Không thể kết nối đến '{base_url}': {ex}")
-            _log("👉 Kiểm tra lại URL hoặc kết nối mạng. Crawler sẽ dừng.")
-            return
-        except Exception as ex:
-            _log(f"⚠️ Lỗi khi tìm trang lưu trữ: {ex}. Dùng URL archive mặc định.")
-
         _log(f"🗂️ Archive URL sẽ dùng: {archive_url}")
+
+        _log("Bắt đầu duyệt toàn bộ các trang archive được website công bố...")
+        discovered_issues = _discover_archive_issues(session, archive_url)
+        issues_by_year: dict[str, list[dict]] = {}
+        unknown_year_count = 0
+        for issue in discovered_issues:
+            issue_year = issue.get("year")
+            if not issue_year:
+                unknown_year_count += 1
+                continue
+            bucket = issues_by_year.setdefault(issue_year, [])
+            if not any(existing["url"] == issue["url"] for existing in bucket):
+                bucket.append({"url": issue["url"], "name": issue["name"]})
+
+        _log(
+            f"✅ Đã duyệt {scrape_status['pages_processed']} trang archive, "
+            f"phát hiện {len(discovered_issues)} số duy nhất."
+        )
+        if unknown_year_count:
+            _log(f"⚠️ Có {unknown_year_count} số không xác định được năm xuất bản.")
 
         for yr in range(request.start_year, request.end_year + 1):
             if _stop_requested: break
             target_year = str(yr)
             scrape_status["current_year"] = target_year
             _log(f"\n=== BẮT ĐẦU QUÉT NĂM {target_year} ===")
-            issue_links = []
-
-            # Follow the pagination advertised by the archive itself. A page
-            # that does not contain the selected year is normal; older years
-            # can appear many pages later, so it is never a stop condition.
-            pages_to_visit = deque([archive_url])
-            visited_archive_pages: set[str] = set()
-            while pages_to_visit:
-                if _stop_requested:
-                    break
-                pu = pages_to_visit.popleft()
-                if pu in visited_archive_pages:
-                    continue
-                visited_archive_pages.add(pu)
-                _log(f"  Đang fetch archive: {pu}")
-                try:
-                    r = session.get(pu, verify=False, timeout=60)
-                    if r.status_code != 200:
-                        _log(f"  ⚠️ Archive trả về HTTP {r.status_code}, bỏ qua trang này.")
-                        continue
-                    scrape_status["pages_processed"] += 1
-                    soup = BeautifulSoup(r.text, "html.parser")
-                    discovered = _archive_issue_links(soup, pu)
-                    found_on_page = 0
-                    for issue in discovered:
-                        if issue["year"] == target_year and not any(existing["url"] == issue["url"] for existing in issue_links):
-                            issue_links.append({"url": issue["url"], "name": issue["name"]})
-                            found_on_page += 1
-                    _log(f"  → Archive: tìm thấy {found_on_page} số mới của năm {target_year}")
-                    for next_url in _archive_next_links(soup, pu):
-                        if next_url not in visited_archive_pages:
-                            pages_to_visit.append(next_url)
-
-                except requests.exceptions.ConnectionError as ex:
-                    _log(f"  ❌ Lỗi kết nối khi fetch trang {pu}: {ex}")
-                    continue
-                except Exception as ex:
-                    _log(f"  ❌ Lỗi khi fetch page {pu}: {ex}")
-                    continue
+            issue_links = issues_by_year.get(target_year, [])
 
             if not issue_links:
                 _log(f"  (Không tìm thấy số tạp chí nào trong năm {target_year}, bỏ qua)")
