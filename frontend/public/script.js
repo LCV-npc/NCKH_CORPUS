@@ -67,7 +67,8 @@ async function loadAuthenticatedUser() {
 function renderAuthenticatedIdentity(user) {
   const identity = document.getElementById("userIdentity");
   document.getElementById("currentUserName").textContent = user.name;
-  document.getElementById("currentUserRole").textContent = user.role === "admin" ? "Admin" : "Expert";
+  document.getElementById("currentUserRole").textContent =
+    user.role === "admin" ? "Admin" : user.role === "reviewer" ? "Reviewer" : "Expert";
   identity.hidden = false;
 }
 
@@ -101,7 +102,11 @@ function bindAuthForms() {
       authToken = payload.token;
       if (!authToken) throw new Error("Máy chủ không trả về phiên đăng nhập hợp lệ.");
       sessionStorage.setItem("mednlp.sessionToken", authToken);
-      const target = payload.user.role === "expert" ? "/expert/dashboard" : "/";
+      const target = payload.user.role === "expert"
+        ? "/expert/dashboard"
+        : payload.user.role === "reviewer"
+          ? "/reviewer/dashboard"
+          : "/";
       location.assign(target);
     } catch (error) {
       showAuthError("loginError", error.message);
@@ -1874,7 +1879,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Experts never initialise the current administration tools. Their routes
   // use only the protected review APIs.
-  if (currentAuthUser.role === "expert") return;
+  if (currentAuthUser.role === "expert" || currentAuthUser.role === "reviewer") return;
 
   await checkServerStatus();
   const currentYear = new Date().getFullYear();
