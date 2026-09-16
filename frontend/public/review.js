@@ -58,6 +58,12 @@ function setReviewHeader(title, sub) {
 }
 
 function initializeReviewWorkspace(user) {
+  if (user.role === "expert" || user.role === "reviewer") {
+    // The connectivity probe belongs to the admin crawler workspace. Expert
+    // and reviewer routes do not run it, so remove its stale "Đang kết nối"
+    // footer instead of leaving a misleading status in their sidebar.
+    document.getElementById("serverStatus")?.closest(".sidebar-footer")?.remove();
+  }
   if (user.role === "expert") {
     initializeExpertWorkspace();
   } else if (user.role === "reviewer") {
@@ -688,8 +694,16 @@ async function openReviewerReviewDocument(documentId, push = true) {
   screen.innerHTML = '<div class="review-workspace review-loading">Đang tải văn bản...</div>';
   try {
     const document = await reviewRequest(`/reviewer/documents/${documentId}`);
+    for (const rowId of Object.keys(reviewerDecisionState)) delete reviewerDecisionState[rowId];
     reviewerDetailDocument = document;
     reviewerDetailComparison = buildReviewerComparison(document);
+    if (document.adjudication?.decisions) {
+      for (const saved of document.adjudication.decisions) {
+        if (saved.id && reviewerDecisionState[saved.id]) {
+          reviewerDecisionState[saved.id] = { ...reviewerDecisionState[saved.id], ...saved };
+        }
+      }
+    }
     screen.innerHTML = renderReviewerDetails(document);
   } catch (error) {
     screen.innerHTML = `<div class="review-workspace review-error">Không thể tải văn bản: ${reviewEscape(error.message)}</div>`;
@@ -733,7 +747,9 @@ function buildReviewerComparison(document) {
     const expertKey = review.expert_id || review.expert_email || review.expert_name || `review-${review.id}`;
     if (!latestByExpert.has(expertKey)) latestByExpert.set(expertKey, review);
   }
-  const experts = [...latestByExpert.values()].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  const experts = [...latestByExpert.values()]
+    .slice(0, 2)
+    .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   const a = experts[0] || {};
   const b = experts[1] || {};
   const expertA = { name: a.expert_name || "Expert A", review: a, entities: reviewerEntityList(a) };
@@ -821,9 +837,6 @@ function renderReviewerDetails(document) {
   const comparison = reviewerDetailComparison || buildReviewerComparison(document);
   const conflicts = comparison.rows.filter((row) => row.status !== "agree");
   const adjudication = document.adjudication;
-  if (adjudication?.decisions) {
-    for (const saved of adjudication.decisions) if (saved.id && reviewerDecisionState[saved.id]) reviewerDecisionState[saved.id] = saved;
-  }
   const comparisonContent = reviewerDetailMode === "table"
     ? `<section class="review-panel reviewer-table-panel">${renderReviewerTable(comparison)}</section>`
     : `<div class="reviewer-main-grid">
@@ -845,7 +858,7 @@ function renderReviewerDetails(document) {
     <section class="reviewer-case-header"><div><div class="reviewer-eyebrow">REVIEW DETAILS · CASE #${Number(document.id)}</div><h2>${reviewEscape(document.title || "Không có tiêu đề")}</h2><p>${reviewEscape(document.authors || "Không rõ tác giả")} · ${reviewEscape(document.publication_year || "")}</p></div><div class="reviewer-case-meta"><strong>${conflicts.length}</strong><span>mục cần quyết định</span></div></section>
     <div class="reviewer-legend"><span><i class="legend-agree"></i> Hai chuyên gia đồng ý</span><span><i class="legend-partial"></i> Khác biệt một phần</span><span><i class="legend-conflict"></i> Mâu thuẫn</span><span class="reviewer-tooltip-hint">Di chuột lên vùng màu để xem nhãn A/B</span></div>
     ${comparisonContent}
-    <section class="review-panel reviewer-decision-panel"><div class="reviewer-panel-heading"><div><h3>Quyết định reviewer</h3><p>Chọn phương án cho từng thực thể chưa thống nhất, sau đó xác nhận toàn bộ case.</p></div><span class="reviewer-progress">${selectedCount}/${conflicts.length} đã chọn</span></div><div class="reviewer-decision-list">${conflicts.map(reviewerDecisionHtml).join("") || '<div class="review-empty">Hai chuyên gia đã đồng thuận toàn bộ.</div>'}</div><label class="reviewer-note-label">Ghi chú tổng thể<textarea id="reviewerOverallNote" maxlength="8000" placeholder="Ghi lại lý do hoặc lưu ý cho quyết định cuối...">${reviewEscape(adjudication?.note || "")}</textarea></label><div class="reviewer-confirm-row"><span id="reviewerSaveMessage" class="muted"></span><button class="review-save" onclick="saveReviewerAdjudication(${Number(document.id)})">Xác nhận tổng thể</button></div></section>
+    <section class="review-panel reviewer-decision-panel"><div class="reviewer-panel-heading"><div><h3>Quyết định reviewer</h3><p>Chọn phương án cho từng thực thể chưa thống nhất, sau đó xác nhận toàn bộ case.</p></div><span class="reviewer-progress">${selectedCount}/${conflicts.length} đã chọn</span></div><div class="reviewer-decision-list">${conflicts.map(reviewerDecisionHtml).join("") || '<div class="review-empty">Hai chuyên gia đã đồng thuận toàn bộ.</div>'}</div><label class="reviewer-note-label">Ghi chú tổng thể<textarea id="reviewerOverallNote" maxlength="8000" placeholder="Ghi lại lý do hoặc lưu ý cho quyết định cuối...">${reviewEscape(adjudication?.note || "")}</textarea></label><div class="reviewer-confirm-row"><span id="reviewerSaveMessage" class="muted"></span><button id="reviewerSaveButton" class="review-save" onclick="saveReviewerAdjudication(${Number(document.id)})">Xác nhận tổng thể</button></div></section>
   </div>`;
 }
 
@@ -870,20 +883,45 @@ async function saveReviewerAdjudication(documentId) {
   const conflicts = comparison.rows.filter((row) => row.status !== "agree");
   const incomplete = conflicts.find((row) => !reviewerDecisionState[row.id]?.decision || (reviewerDecisionState[row.id].decision === "custom" && !reviewerDecisionState[row.id].custom?.trim()));
   const message = document.getElementById("reviewerSaveMessage");
+  const saveButton = document.getElementById("reviewerSaveButton");
+  const expertReviewAId = Number(comparison.expertA.review.id);
+  const expertReviewBId = Number(comparison.expertB.review.id);
+  if (!expertReviewAId || !expertReviewBId) {
+    message.textContent = "Cần đủ kết quả của hai chuyên gia trước khi lưu.";
+    message.className = "auth-error";
+    return;
+  }
   if (incomplete) {
     message.textContent = `Chưa chọn quyết định cho: ${incomplete.entity}`;
     message.className = "auth-error";
     return;
   }
+  saveButton.disabled = true;
+  saveButton.textContent = "Đang lưu...";
   try {
     const note = document.getElementById("reviewerOverallNote")?.value.trim() || "";
-    const decisions = conflicts.map((row) => ({ id: row.id, entity: row.entity, category: row.category, status: row.status, ...reviewerDecisionState[row.id] }));
-    await reviewRequest(`/reviewer/documents/${documentId}/adjudication`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decisions, note }) });
-    message.textContent = "Đã lưu quyết định reviewer.";
+    const decisions = comparison.rows.map((row) => ({
+      id: row.id,
+      entity: row.entity,
+      category: row.category,
+      status: row.status,
+      expertA: row.a,
+      expertB: row.b,
+      ...reviewerDecisionState[row.id],
+    }));
+    const result = await reviewRequest(`/reviewer/documents/${documentId}/adjudication`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expertReviewAId, expertReviewBId, decisions, note }),
+    });
+    message.textContent = result.message || "Đã lưu thành công.";
     message.className = "reviewer-save-success";
-    if (typeof showToast === "function") showToast("Đã xác nhận kết quả review.", "success");
+    if (typeof showToast === "function") showToast(result.message || "Đã lưu thành công.", "success");
   } catch (error) {
     message.textContent = error.message;
     message.className = "auth-error";
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "Xác nhận tổng thể";
   }
 }

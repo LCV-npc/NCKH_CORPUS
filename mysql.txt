@@ -330,18 +330,45 @@ CREATE TABLE IF NOT EXISTS reviewer_adjudications (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     document_id INT UNSIGNED NOT NULL,
     reviewer_id BIGINT UNSIGNED NOT NULL,
+    -- Hai lượt review cụ thể được reviewer đối chiếu.
+    expert_review_a_id BIGINT UNSIGNED NOT NULL,
+    expert_review_b_id BIGINT UNSIGNED NOT NULL,
+    -- JSON chứa nhãn của A/B và quyết định cuối cho từng thực thể.
     decision_payload LONGTEXT NOT NULL,
     note TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    UNIQUE KEY uq_adjudications_review_pair
+        (document_id, reviewer_id, expert_review_a_id, expert_review_b_id),
     KEY idx_adjudications_document (document_id, id),
     KEY idx_adjudications_reviewer (reviewer_id, id),
+    KEY idx_adjudications_review_a (expert_review_a_id),
+    KEY idx_adjudications_review_b (expert_review_b_id),
     CONSTRAINT fk_adjudications_article FOREIGN KEY (document_id)
         REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_adjudications_reviewer FOREIGN KEY (reviewer_id)
-        REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+        REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_adjudications_review_a FOREIGN KEY (expert_review_a_id)
+        REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_adjudications_review_b FOREIGN KEY (expert_review_b_id)
+        REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE CASCADE
 )
 ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+-- [MIGRATION] Nâng cấp bảng reviewer_adjudications cũ (chạy 1 lần nếu bảng đã tồn tại):
+-- Các bản ghi cũ được phép NULL vì trước đây chưa lưu ID của hai lượt review.
+-- ALTER TABLE reviewer_adjudications
+--     ADD COLUMN expert_review_a_id BIGINT UNSIGNED NULL AFTER reviewer_id,
+--     ADD COLUMN expert_review_b_id BIGINT UNSIGNED NULL AFTER expert_review_a_id,
+--     ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+--         ON UPDATE CURRENT_TIMESTAMP AFTER created_at,
+--     ADD UNIQUE KEY uq_adjudications_review_pair
+--         (document_id, reviewer_id, expert_review_a_id, expert_review_b_id),
+--     ADD CONSTRAINT fk_adjudications_review_a FOREIGN KEY (expert_review_a_id)
+--         REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE CASCADE,
+--     ADD CONSTRAINT fk_adjudications_review_b FOREIGN KEY (expert_review_b_id)
+--         REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 -- ============================================================

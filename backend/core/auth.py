@@ -117,6 +117,7 @@ def ensure_auth_review_schema(db_config: dict[str, Any]) -> None:
                 document_id INT UNSIGNED NOT NULL,
                 expert_id BIGINT UNSIGNED NOT NULL,
                 review_status VARCHAR(32) NOT NULL,
+                label_source VARCHAR(10) NOT NULL DEFAULT 'icd10',
                 original_labels_json LONGTEXT NOT NULL,
                 suggested_icd10_code VARCHAR(100) NULL,
                 suggested_icd10_label VARCHAR(500) NULL,
@@ -137,25 +138,97 @@ def ensure_auth_review_schema(db_config: dict[str, Any]) -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """
         )
+        # CREATE TABLE IF NOT EXISTS does not update an older table. Keep the
+        # runtime migration here so deployments created before label_source was
+        # introduced can still save expert reviews.
+        cursor.execute("SHOW COLUMNS FROM expert_reviews LIKE 'label_source'")
+        if cursor.fetchone() is None:
+            cursor.execute(
+                "ALTER TABLE expert_reviews "
+                "ADD COLUMN label_source VARCHAR(10) NOT NULL DEFAULT 'icd10' "
+                "COMMENT 'icd10 = NER dictionary, ai = AI label' "
+                "AFTER review_status"
+            )
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS reviewer_adjudications (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 document_id INT UNSIGNED NOT NULL,
                 reviewer_id BIGINT UNSIGNED NOT NULL,
+                expert_review_a_id BIGINT UNSIGNED NOT NULL,
+                expert_review_b_id BIGINT UNSIGNED NOT NULL,
                 decision_payload LONGTEXT NOT NULL,
                 note TEXT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
+                UNIQUE KEY uq_adjudications_review_pair
+                    (document_id, reviewer_id, expert_review_a_id, expert_review_b_id),
                 KEY idx_adjudications_document (document_id, id),
                 KEY idx_adjudications_reviewer (reviewer_id, id),
+                KEY idx_adjudications_review_a (expert_review_a_id),
+                KEY idx_adjudications_review_b (expert_review_b_id),
                 CONSTRAINT fk_adjudications_article FOREIGN KEY (document_id)
                     REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE,
                 CONSTRAINT fk_adjudications_reviewer FOREIGN KEY (reviewer_id)
-                    REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+                    REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+                CONSTRAINT fk_adjudications_review_a FOREIGN KEY (expert_review_a_id)
+                    REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE CASCADE,
+                CONSTRAINT fk_adjudications_review_b FOREIGN KEY (expert_review_b_id)
+                    REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """
         )
+
+        # Preserve legacy adjudications while adding explicit references to the
+        # two expert-review rows used by every new reviewer decision.
+        reviewer_columns = {
+            "expert_review_a_id": (
+                "ALTER TABLE reviewer_adjudications "
+                "ADD COLUMN expert_review_a_id BIGINT UNSIGNED NULL AFTER reviewer_id"
+            ),
+            "expert_review_b_id": (
+                "ALTER TABLE reviewer_adjudications "
+                "ADD COLUMN expert_review_b_id BIGINT UNSIGNED NULL AFTER expert_review_a_id"
+            ),
+            "updated_at": (
+                "ALTER TABLE reviewer_adjudications "
+                "ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP "
+                "ON UPDATE CURRENT_TIMESTAMP AFTER created_at"
+            ),
+        }
+        for column_name, statement in reviewer_columns.items():
+            cursor.execute(f"SHOW COLUMNS FROM reviewer_adjudications LIKE '{column_name}'")
+            if cursor.fetchone() is None:
+                cursor.execute(statement)
+
+        cursor.execute(
+            "SHOW INDEX FROM reviewer_adjudications "
+            "WHERE Key_name = 'uq_adjudications_review_pair'"
+        )
+        if not cursor.fetchall():
+            cursor.execute(
+                "ALTER TABLE reviewer_adjudications "
+                "ADD UNIQUE KEY uq_adjudications_review_pair "
+                "(document_id, reviewer_id, expert_review_a_id, expert_review_b_id)"
+            )
+
+        for constraint_name, column_name in (
+            ("fk_adjudications_review_a", "expert_review_a_id"),
+            ("fk_adjudications_review_b", "expert_review_b_id"),
+        ):
+            cursor.execute(
+                "SELECT CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS "
+                "WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'reviewer_adjudications' "
+                "AND CONSTRAINT_NAME = %s",
+                (constraint_name,),
+            )
+            if cursor.fetchone() is None:
+                cursor.execute(
+                    f"ALTER TABLE reviewer_adjudications ADD CONSTRAINT {constraint_name} "
+                    f"FOREIGN KEY ({column_name}) REFERENCES expert_reviews(id) "
+                    "ON UPDATE CASCADE ON DELETE CASCADE"
+                )
         connection.commit()
     finally:
         if cursor:

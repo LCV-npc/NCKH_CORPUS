@@ -86,6 +86,9 @@ class ReviewCreateRequest(BaseModel):
     comment: str
 
 class ReviewerAdjudicationRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    expert_review_a_id: int = Field(..., alias="expertReviewAId")
+    expert_review_b_id: int = Field(..., alias="expertReviewBId")
     decisions: list[dict[str, Any]]
     note: str = ""
 
@@ -1158,17 +1161,40 @@ def reviewer_document_detail(document_id: int, user: dict[str, Any] = Depends(_r
             raise HTTPException(status_code=404, detail=f"Không tìm thấy văn bản id={document_id}")
         article["currentLabels"] = _document_labels(cursor, document_id)
         article["aiLabel"] = _latest_ai_label(cursor, document_id)
-        article["reviewHistory"] = _review_history(cursor, document_id)
-        cursor.execute(
-            """
-            SELECT id, decision_payload, note, created_at
-            FROM reviewer_adjudications
-            WHERE document_id = %s AND reviewer_id = %s
-            ORDER BY id DESC LIMIT 1
-            """,
-            (document_id, user["id"]),
+        review_history = _review_history(cursor, document_id)
+        article["reviewHistory"] = review_history
+
+        # Match a saved adjudication only to the exact latest reviews from two
+        # distinct experts. This prevents an old decision from being displayed
+        # after either expert submits a newer review.
+        latest_by_expert: dict[int, dict[str, Any]] = {}
+        for review in review_history:
+            expert_id = int(review["expert_id"])
+            if expert_id not in latest_by_expert:
+                latest_by_expert[expert_id] = review
+        current_reviews = sorted(
+            list(latest_by_expert.values())[:2],
+            key=lambda item: (item.get("created_at"), int(item["id"])),
         )
-        adjudication = cursor.fetchone()
+        adjudication = None
+        if len(current_reviews) == 2:
+            cursor.execute(
+                """
+                SELECT id, expert_review_a_id, expert_review_b_id,
+                       decision_payload, note, created_at, updated_at
+                FROM reviewer_adjudications
+                WHERE document_id = %s AND reviewer_id = %s
+                  AND expert_review_a_id = %s AND expert_review_b_id = %s
+                ORDER BY id DESC LIMIT 1
+                """,
+                (
+                    document_id,
+                    user["id"],
+                    current_reviews[0]["id"],
+                    current_reviews[1]["id"],
+                ),
+            )
+            adjudication = cursor.fetchone()
         if adjudication:
             try:
                 adjudication["decisions"] = json.loads(adjudication.pop("decision_payload"))
@@ -1189,6 +1215,8 @@ def save_reviewer_adjudication(
 ):
     if len(req.note) > 8000:
         raise HTTPException(status_code=422, detail="Ghi chú không được vượt quá 8000 ký tự.")
+    if req.expert_review_a_id == req.expert_review_b_id:
+        raise HTTPException(status_code=422, detail="Cần hai kết quả review khác nhau.")
     connection = cursor = None
     try:
         connection = _get_conn()
@@ -1198,14 +1226,49 @@ def save_reviewer_adjudication(
             raise HTTPException(status_code=404, detail=f"Không tìm thấy văn bản id={document_id}")
         cursor.execute(
             """
-            INSERT INTO reviewer_adjudications
-                (document_id, reviewer_id, decision_payload, note)
-            VALUES (%s, %s, %s, %s)
+            SELECT id, expert_id
+            FROM expert_reviews
+            WHERE document_id = %s AND id IN (%s, %s)
             """,
-            (document_id, user["id"], json.dumps(req.decisions, ensure_ascii=False), req.note.strip()),
+            (document_id, req.expert_review_a_id, req.expert_review_b_id),
         )
+        expert_reviews = cursor.fetchall()
+        if len(expert_reviews) != 2:
+            raise HTTPException(
+                status_code=422,
+                detail="Không tìm thấy đủ hai kết quả chuyên gia của văn bản này.",
+            )
+        if len({int(item["expert_id"]) for item in expert_reviews}) != 2:
+            raise HTTPException(
+                status_code=422,
+                detail="Hai kết quả phải thuộc về hai chuyên gia khác nhau.",
+            )
+
+        decision_payload = json.dumps(req.decisions, ensure_ascii=False, separators=(",", ":"))
+        cursor.execute(
+            """
+            INSERT INTO reviewer_adjudications
+                (document_id, reviewer_id, expert_review_a_id, expert_review_b_id,
+                 decision_payload, note)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                decision_payload = VALUES(decision_payload),
+                note = VALUES(note),
+                updated_at = CURRENT_TIMESTAMP,
+                id = LAST_INSERT_ID(id)
+            """,
+            (
+                document_id,
+                user["id"],
+                req.expert_review_a_id,
+                req.expert_review_b_id,
+                decision_payload,
+                req.note.strip(),
+            ),
+        )
+        adjudication_id = int(cursor.lastrowid)
         connection.commit()
-        return {"message": "Đã lưu quyết định reviewer.", "id": cursor.lastrowid}
+        return {"message": "Đã lưu thành công.", "id": adjudication_id, "saved": True}
     finally:
         if cursor: cursor.close()
         if connection: connection.close()
