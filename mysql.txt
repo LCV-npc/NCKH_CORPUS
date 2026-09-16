@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS users (
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_email (email),
     KEY idx_users_role (role),
-    CONSTRAINT chk_users_role CHECK (role IN ('ADMIN', 'EXPERT'))
+    CONSTRAINT chk_users_role CHECK (role IN ('ADMIN', 'EXPERT', 'REVIEWER'))
 )
 ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
@@ -293,6 +293,10 @@ CREATE TABLE IF NOT EXISTS expert_reviews (
     document_id INT UNSIGNED NOT NULL,
     expert_id BIGINT UNSIGNED NOT NULL,
     review_status VARCHAR(32) NOT NULL,
+    -- 'icd10' = nhãn từ NER/từ điển (extracted_concepts)
+    -- 'ai'    = nhãn từ AI Gemini (ai_document_labels)
+    label_source VARCHAR(10) NOT NULL DEFAULT 'icd10'
+        COMMENT 'icd10 = NER dictionary, ai = AI label',
     original_labels_json LONGTEXT NOT NULL,
     suggested_icd10_code VARCHAR(100) NULL,
     suggested_icd10_label VARCHAR(500) NULL,
@@ -309,7 +313,33 @@ CREATE TABLE IF NOT EXISTS expert_reviews (
         REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT chk_reviews_status CHECK (
         review_status IN ('CORRECT', 'INCORRECT', 'NEEDS_REVISION')
+    ),
+    CONSTRAINT chk_reviews_label_source CHECK (
+        label_source IN ('icd10', 'ai')
     )
+)
+ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+-- [MIGRATION] Thêm cột label_source vào bảng đã tồn tại (chạy 1 lần):
+-- ALTER TABLE expert_reviews
+--     ADD COLUMN label_source VARCHAR(10) NOT NULL DEFAULT 'icd10'
+--     COMMENT 'icd10 = NER dictionary, ai = AI label'
+--     AFTER review_status;
+
+CREATE TABLE IF NOT EXISTS reviewer_adjudications (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    document_id INT UNSIGNED NOT NULL,
+    reviewer_id BIGINT UNSIGNED NOT NULL,
+    decision_payload LONGTEXT NOT NULL,
+    note TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_adjudications_document (document_id, id),
+    KEY idx_adjudications_reviewer (reviewer_id, id),
+    CONSTRAINT fk_adjudications_article FOREIGN KEY (document_id)
+        REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_adjudications_reviewer FOREIGN KEY (reviewer_id)
+        REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
 )
 ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 

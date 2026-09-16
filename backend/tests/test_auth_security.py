@@ -6,7 +6,15 @@ this suite remains safe to run without a local MySQL service.
 
 import unittest
 
-from core.auth import PASSWORD_MIN_LENGTH, ROLE_ADMIN, ROLE_EXPERT, hash_password, normalize_email, verify_password
+from core.auth import (
+    PASSWORD_MIN_LENGTH,
+    ROLE_ADMIN,
+    ROLE_EXPERT,
+    ROLE_REVIEWER,
+    hash_password,
+    normalize_email,
+    verify_password,
+)
 
 
 class AuthenticationSecurityTests(unittest.TestCase):
@@ -28,7 +36,7 @@ class AuthenticationSecurityTests(unittest.TestCase):
             normalize_email("not-an-email")
 
     def test_only_supported_roles_are_defined(self):
-        self.assertEqual({ROLE_ADMIN, ROLE_EXPERT}, {"ADMIN", "EXPERT"})
+        self.assertEqual({ROLE_ADMIN, ROLE_EXPERT, ROLE_REVIEWER}, {"ADMIN", "EXPERT", "REVIEWER"})
 
 
 if __name__ == "__main__":

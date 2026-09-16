@@ -23,9 +23,11 @@ from core.ai_label import extract_with_ai_label
 from core.auth import (
     ROLE_ADMIN,
     ROLE_EXPERT,
+    ROLE_REVIEWER,
     authenticate,
     get_session_user,
     register_expert,
+    register_reviewer,
     revoke_session,
 )
 from core.tamanh_crawler import TamanhCrawlRequest, TamanhCrawlerJobManager
@@ -79,8 +81,13 @@ class LoginRequest(BaseModel):
 class ReviewCreateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     review_status: str = Field(..., alias="reviewStatus")
+    label_source: str = Field("icd10", alias="labelSource")  # 'icd10' | 'ai'
     suggested_icd10_code: str | None = Field(None, alias="suggestedIcd10Code")
     comment: str
+
+class ReviewerAdjudicationRequest(BaseModel):
+    decisions: list[dict[str, Any]]
+    note: str = ""
 
 class SaveHighlightRequest(BaseModel):
     article_id:       int
@@ -177,6 +184,12 @@ def _require_admin(user: dict[str, Any] = Depends(_current_user)) -> dict[str, A
 def _require_expert(user: dict[str, Any] = Depends(_current_user)) -> dict[str, Any]:
     if user["role"].upper() != ROLE_EXPERT:
         raise HTTPException(status_code=403, detail="Chức năng này dành cho chuyên gia.")
+    return user
+
+
+def _require_reviewer(user: dict[str, Any] = Depends(_current_user)) -> dict[str, Any]:
+    if user["role"].upper() != ROLE_REVIEWER:
+        raise HTTPException(status_code=403, detail="Chức năng này dành cho Reviewer.")
     return user
 
 
@@ -620,14 +633,15 @@ def get_articles(q: str = "", full: bool = False, _: dict[str, Any] = Depends(_r
             )
         else:
             sql = (
-                "SELECT id, title, authors, publication_year, "
-                "(highlighted_html IS NOT NULL AND highlighted_html != '') AS is_labeled "
-                "FROM articles "
+                "SELECT a.id, a.title, a.authors, a.publication_year, "
+                "(a.highlighted_html IS NOT NULL AND a.highlighted_html != '') AS is_labeled, "
+                "EXISTS(SELECT 1 FROM ai_document_labels ai WHERE ai.article_id = a.id) AS is_ai_labeled "
+                "FROM articles a "
             )
         if q:
-            cursor.execute(sql + "WHERE title LIKE %s ORDER BY id DESC", (f"%{q}%",))
+            cursor.execute(sql + "WHERE a.title LIKE %s ORDER BY a.id DESC", (f"%{q}%",))
         else:
-            cursor.execute(sql + "ORDER BY id DESC")
+            cursor.execute(sql + "ORDER BY a.id DESC")
         return cursor.fetchall()
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -706,6 +720,11 @@ def _latest_ai_label(cursor, document_id: int) -> dict[str, Any] | None:
 
 
 def _document_labels(cursor, document_id: int) -> list[dict[str, str]]:
+    """Return only dictionary labels for the Current ICD-10 panel.
+
+    AI predictions are returned separately through ``aiLabel`` so the
+    dictionary and AI workflows cannot be mixed in the same result.
+    """
     cursor.execute(
         """
         SELECT concept_name, concept_type, concept_code
@@ -724,14 +743,6 @@ def _document_labels(cursor, document_id: int) -> list[dict[str, str]]:
         }
         for row in cursor.fetchall()
     ]
-    ai_label = _latest_ai_label(cursor, document_id)
-    if ai_label:
-        labels.append({
-            "source": "AI",
-            "code": ai_label.get("primary_icd10_code") or "",
-            "label": ai_label.get("primary_icd10_label") or "",
-            "type": "AI_LABEL",
-        })
     return labels
 
 
@@ -972,6 +983,9 @@ def save_expert_review(
     status = str(req.review_status or "").strip().upper()
     if status not in {"CORRECT", "INCORRECT", "NEEDS_REVISION"}:
         raise HTTPException(status_code=422, detail="Trạng thái review không hợp lệ.")
+    label_source = str(req.label_source or "icd10").strip().lower()
+    if label_source not in {"icd10", "ai"}:
+        label_source = "icd10"
     comment = str(req.comment or "").strip()
     if not 3 <= len(comment) <= 8000:
         raise HTTPException(status_code=422, detail="Nhận xét cần từ 3 đến 8000 ký tự.")
@@ -989,16 +1003,35 @@ def save_expert_review(
         connection = _get_conn()
         cursor = connection.cursor(dictionary=True)
         _assert_expert_document_access(cursor, document_id)
-        original_labels = _document_labels(cursor, document_id)
+
+        # Lấy nhãn gốc tương ứng với nguồn gốc của bài báo
+        if label_source == "ai":
+            ai_row = _latest_ai_label(cursor, document_id)
+            if ai_row and ai_row.get("labels"):
+                # Chuẩn hoá về cùng schema [{code, label, source, type}]
+                original_labels = [
+                    {
+                        "source": "AI Gemini",
+                        "code": ai_row.get("primary_icd10_code") or "",
+                        "label": ai_row.get("primary_icd10_label") or "",
+                        "type": "AI prediction",
+                    }
+                ]
+            else:
+                original_labels = []
+        else:
+            original_labels = _document_labels(cursor, document_id)
+
         cursor.execute(
             """
             INSERT INTO expert_reviews
-            (document_id, expert_id, review_status, original_labels_json,
+            (document_id, expert_id, review_status, label_source, original_labels_json,
              suggested_icd10_code, suggested_icd10_label, comment)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
-                document_id, user["id"], status, json.dumps(original_labels, ensure_ascii=False),
+                document_id, user["id"], status, label_source,
+                json.dumps(original_labels, ensure_ascii=False),
                 suggested_code or None, suggested_label, comment,
             ),
         )
@@ -1041,21 +1074,161 @@ def admin_reviews(q: str = "", page: int = 1, page_size: int = 30, _: dict[str, 
         if connection: connection.close()
 
 
-@router.get("/api/admin/users")
-def admin_users(page: int = 1, page_size: int = 30, _: dict[str, Any] = Depends(_require_admin)):
+@router.get("/api/reviewer/dashboard")
+def reviewer_dashboard(_: dict[str, Any] = Depends(_require_reviewer)):
+    connection = cursor = None
+    try:
+        connection = _get_conn()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT COUNT(*) AS value FROM expert_reviews")
+        total_reviews = cursor.fetchone()["value"]
+        cursor.execute("SELECT COUNT(DISTINCT expert_id) AS value FROM expert_reviews")
+        active_experts = cursor.fetchone()["value"]
+        cursor.execute("SELECT COUNT(DISTINCT document_id) AS value FROM expert_reviews")
+        reviewed_documents = cursor.fetchone()["value"]
+        cursor.execute(
+            "SELECT COUNT(*) AS value FROM expert_reviews WHERE review_status = 'CORRECT'"
+        )
+        correct_reviews = cursor.fetchone()["value"]
+        cursor.execute(
+            "SELECT COUNT(*) AS value FROM expert_reviews WHERE review_status = 'INCORRECT'"
+        )
+        incorrect_reviews = cursor.fetchone()["value"]
+        cursor.execute(
+            "SELECT COUNT(*) AS value FROM expert_reviews WHERE review_status = 'NEEDS_REVISION'"
+        )
+        needs_revision = cursor.fetchone()["value"]
+        return {
+            "totalReviews": total_reviews,
+            "activeExperts": active_experts,
+            "reviewedDocuments": reviewed_documents,
+            "correctReviews": correct_reviews,
+            "incorrectReviews": incorrect_reviews,
+            "needsRevision": needs_revision,
+        }
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@router.get("/api/reviewer/reviews")
+def reviewer_reviews(
+    q: str = "", review_status: str = "", page: int = 1, page_size: int = 50,
+    _: dict[str, Any] = Depends(_require_reviewer),
+):
     connection = cursor = None
     try:
         connection = _get_conn()
         cursor = connection.cursor(dictionary=True)
         cursor.execute(
             """
+            SELECT r.id, r.document_id, a.title AS document_title,
+                   u.full_name AS expert_name, u.email AS expert_email,
+                   r.review_status, r.suggested_icd10_code, r.suggested_icd10_label,
+                   r.comment, r.created_at, r.updated_at
+            FROM expert_reviews r
+            JOIN articles a ON a.id = r.document_id
+            JOIN users u ON u.id = r.expert_id
+            WHERE (%s = '' OR a.title LIKE %s OR u.full_name LIKE %s OR u.email LIKE %s)
+            ORDER BY r.id DESC
+            """,
+            (q, f"%{q}%", f"%{q}%", f"%{q}%"),
+        )
+        rows = cursor.fetchall()
+        if review_status:
+            rows = [row for row in rows if row["review_status"] == review_status.upper()]
+        return _paginate(rows, page, page_size)
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@router.get("/api/reviewer/documents/{document_id}")
+def reviewer_document_detail(document_id: int, user: dict[str, Any] = Depends(_require_reviewer)):
+    connection = cursor = None
+    try:
+        connection = _get_conn()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT id, title, authors, abstract, publication_year, source_url FROM articles WHERE id = %s",
+            (document_id,),
+        )
+        article = cursor.fetchone()
+        if not article:
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy văn bản id={document_id}")
+        article["currentLabels"] = _document_labels(cursor, document_id)
+        article["aiLabel"] = _latest_ai_label(cursor, document_id)
+        article["reviewHistory"] = _review_history(cursor, document_id)
+        cursor.execute(
+            """
+            SELECT id, decision_payload, note, created_at
+            FROM reviewer_adjudications
+            WHERE document_id = %s AND reviewer_id = %s
+            ORDER BY id DESC LIMIT 1
+            """,
+            (document_id, user["id"]),
+        )
+        adjudication = cursor.fetchone()
+        if adjudication:
+            try:
+                adjudication["decisions"] = json.loads(adjudication.pop("decision_payload"))
+            except (TypeError, json.JSONDecodeError):
+                adjudication["decisions"] = []
+        article["adjudication"] = adjudication
+        return article
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@router.post("/api/reviewer/documents/{document_id}/adjudication", status_code=201)
+def save_reviewer_adjudication(
+    document_id: int,
+    req: ReviewerAdjudicationRequest,
+    user: dict[str, Any] = Depends(_require_reviewer),
+):
+    if len(req.note) > 8000:
+        raise HTTPException(status_code=422, detail="Ghi chú không được vượt quá 8000 ký tự.")
+    connection = cursor = None
+    try:
+        connection = _get_conn()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT id FROM articles WHERE id = %s", (document_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy văn bản id={document_id}")
+        cursor.execute(
+            """
+            INSERT INTO reviewer_adjudications
+                (document_id, reviewer_id, decision_payload, note)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (document_id, user["id"], json.dumps(req.decisions, ensure_ascii=False), req.note.strip()),
+        )
+        connection.commit()
+        return {"message": "Đã lưu quyết định reviewer.", "id": cursor.lastrowid}
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@router.get("/api/admin/users")
+def admin_users(
+    page: int = 1, page_size: int = 30, role: str = "",
+    _: dict[str, Any] = Depends(_require_admin),
+):
+    connection = cursor = None
+    try:
+        connection = _get_conn()
+        cursor = connection.cursor(dictionary=True)
+        query = """
             SELECT u.id, u.full_name AS name, u.email, LOWER(u.role) AS role,
                    u.is_active, u.created_at, COUNT(r.id) AS review_count
             FROM users u LEFT JOIN expert_reviews r ON r.expert_id = u.id
+            WHERE (%s = '' OR u.role = %s)
             GROUP BY u.id, u.full_name, u.email, u.role, u.is_active, u.created_at
             ORDER BY u.created_at DESC
-            """
-        )
+        """
+        cursor.execute(query, (role.strip().upper(), role.strip().upper()))
         return _paginate(cursor.fetchall(), page, page_size)
     finally:
         if cursor: cursor.close()
@@ -1070,6 +1243,18 @@ def create_expert_account(req: RegisterRequest, _: dict[str, Any] = Depends(_req
     try:
         user = register_expert(_db_config, req.full_name, req.email, req.password)
         return {"message": "Đã tạo tài khoản chuyên gia thành công.", "user": user}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@router.post("/api/admin/reviewers", status_code=201)
+def create_reviewer_account(req: RegisterRequest, _: dict[str, Any] = Depends(_require_admin)):
+    """Create a read-only Reviewer account from the Admin workspace."""
+    if req.password != req.confirm_password:
+        raise HTTPException(status_code=422, detail="Xác nhận mật khẩu không khớp.")
+    try:
+        user = register_reviewer(_db_config, req.full_name, req.email, req.password)
+        return {"message": "Đã tạo tài khoản Reviewer thành công.", "user": user}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 

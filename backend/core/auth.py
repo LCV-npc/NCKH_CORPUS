@@ -26,6 +26,7 @@ load_backend_env()
 
 ROLE_ADMIN = "ADMIN"
 ROLE_EXPERT = "EXPERT"
+ROLE_REVIEWER = "REVIEWER"
 PASSWORD_MIN_LENGTH = 10
 PBKDF2_ITERATIONS = 600_000
 SESSION_HOURS = int(os.getenv("AUTH_SESSION_HOURS", "12"))
@@ -52,10 +53,22 @@ def ensure_auth_review_schema(db_config: dict[str, Any]) -> None:
                 PRIMARY KEY (id),
                 UNIQUE KEY uq_users_email (email),
                 KEY idx_users_role (role),
-                CONSTRAINT chk_users_role CHECK (role IN ('ADMIN', 'EXPERT'))
+                CONSTRAINT chk_users_role CHECK (role IN ('ADMIN', 'EXPERT', 'REVIEWER'))
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """
         )
+        # Migrate databases created before the Reviewer role was introduced.
+        try:
+            cursor.execute("ALTER TABLE users DROP CHECK chk_users_role")
+        except mysql.connector.Error:
+            pass
+        try:
+            cursor.execute(
+                "ALTER TABLE users ADD CONSTRAINT chk_users_role "
+                "CHECK (role IN ('ADMIN', 'EXPERT', 'REVIEWER'))"
+            )
+        except mysql.connector.Error:
+            pass
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS user_sessions (
@@ -124,6 +137,25 @@ def ensure_auth_review_schema(db_config: dict[str, Any]) -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reviewer_adjudications (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                document_id INT UNSIGNED NOT NULL,
+                reviewer_id BIGINT UNSIGNED NOT NULL,
+                decision_payload LONGTEXT NOT NULL,
+                note TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_adjudications_document (document_id, id),
+                KEY idx_adjudications_reviewer (reviewer_id, id),
+                CONSTRAINT fk_adjudications_article FOREIGN KEY (document_id)
+                    REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE,
+                CONSTRAINT fk_adjudications_reviewer FOREIGN KEY (reviewer_id)
+                    REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """
+        )
         connection.commit()
     finally:
         if cursor:
@@ -186,10 +218,19 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def register_expert(db_config: dict[str, Any], full_name: str, email: str, password: str) -> dict[str, Any]:
+def register_user(
+    db_config: dict[str, Any],
+    full_name: str,
+    email: str,
+    password: str,
+    role: str,
+) -> dict[str, Any]:
     name = str(full_name or "").strip()
     if not 2 <= len(name) <= 200:
         raise ValueError("Họ và tên phải có từ 2 đến 200 ký tự.")
+    normalized_role = str(role or "").strip().upper()
+    if normalized_role not in {ROLE_EXPERT, ROLE_REVIEWER}:
+        raise ValueError("Vai trò tài khoản không hợp lệ.")
     normalized_email = normalize_email(email)
     password_hash = hash_password(password)
     connection = cursor = None
@@ -198,11 +239,11 @@ def register_expert(db_config: dict[str, Any], full_name: str, email: str, passw
         cursor = connection.cursor(dictionary=True)
         cursor.execute(
             "INSERT INTO users (full_name, email, password_hash, role) VALUES (%s, %s, %s, %s)",
-            (name, normalized_email, password_hash, ROLE_EXPERT),
+            (name, normalized_email, password_hash, normalized_role),
         )
         user_id = cursor.lastrowid
         connection.commit()
-        return {"id": int(user_id), "name": name, "email": normalized_email, "role": "expert"}
+        return {"id": int(user_id), "name": name, "email": normalized_email, "role": normalized_role.lower()}
     except mysql.connector.IntegrityError as exc:
         if getattr(exc, "errno", None) == 1062:
             raise ValueError("Email đã được sử dụng.") from exc
@@ -212,6 +253,14 @@ def register_expert(db_config: dict[str, Any], full_name: str, email: str, passw
             cursor.close()
         if connection:
             connection.close()
+
+
+def register_expert(db_config: dict[str, Any], full_name: str, email: str, password: str) -> dict[str, Any]:
+    return register_user(db_config, full_name, email, password, ROLE_EXPERT)
+
+
+def register_reviewer(db_config: dict[str, Any], full_name: str, email: str, password: str) -> dict[str, Any]:
+    return register_user(db_config, full_name, email, password, ROLE_REVIEWER)
 
 
 def authenticate(db_config: dict[str, Any], email: str, password: str) -> tuple[dict[str, Any], str, datetime]:

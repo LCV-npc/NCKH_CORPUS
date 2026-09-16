@@ -67,7 +67,8 @@ async function loadAuthenticatedUser() {
 function renderAuthenticatedIdentity(user) {
   const identity = document.getElementById("userIdentity");
   document.getElementById("currentUserName").textContent = user.name;
-  document.getElementById("currentUserRole").textContent = user.role === "admin" ? "Admin" : "Expert";
+  document.getElementById("currentUserRole").textContent =
+    user.role === "admin" ? "Admin" : user.role === "reviewer" ? "Reviewer" : "Expert";
   identity.hidden = false;
 }
 
@@ -101,7 +102,11 @@ function bindAuthForms() {
       authToken = payload.token;
       if (!authToken) throw new Error("Máy chủ không trả về phiên đăng nhập hợp lệ.");
       sessionStorage.setItem("mednlp.sessionToken", authToken);
-      const target = payload.user.role === "expert" ? "/expert/dashboard" : "/";
+      const target = payload.user.role === "expert"
+        ? "/expert/dashboard"
+        : payload.user.role === "reviewer"
+          ? "/reviewer/dashboard"
+          : "/";
       location.assign(target);
     } catch (error) {
       showAuthError("loginError", error.message);
@@ -439,8 +444,9 @@ async function loadKPIs() {
       fetch(`${API_BASE}/top-concepts?limit=100`).then(r => r.json()),
     ]);
 
-    // API list trả về is_labeled (0/1), không trả về highlighted_html
-    const labeled = articles.filter(a => a.is_labeled || a.highlighted_html).length;
+    // API list trả về is_labeled (NER) và is_ai_labeled (AI)
+    const labeled    = articles.filter(a => a.is_labeled || a.highlighted_html).length;
+    const aiLabeled  = articles.filter(a => a.is_ai_labeled).length;
 
     animateCount("kpi-articles", articles.length);
     animateCount("kpi-labeled",  labeled);
@@ -448,7 +454,7 @@ async function loadKPIs() {
       ? concepts.reduce((s, c) => s + (c.frequency || 0), 0) : 0);
 
     document.getElementById("kpi-articles-sub").textContent =
-      `${labeled} đã gán nhãn / ${articles.length} tổng`;
+      `${labeled} NER · ${aiLabeled} AI / ${articles.length} tổng`;
 
     // Draw donut
     buildDonut(concepts);
@@ -847,10 +853,6 @@ function setArticleFilter(filter, btn) {
 }
 
 async function loadData() {
-  if (currentArticlesData && currentArticlesData.length > 0) {
-    renderArticleList();
-    return;
-  }
   const query = (document.getElementById("searchInput")?.value || "").trim();
   const scroll = document.getElementById("articleListScroll");
   if (scroll) scroll.innerHTML = `<div class="list-placeholder">Đang tải...</div>`;
@@ -858,7 +860,8 @@ async function loadData() {
     const url  = query
       ? `${API_BASE}/articles?q=${encodeURIComponent(query)}`
       : `${API_BASE}/articles`;
-    const data = await fetch(url).then(r => r.json());
+    const separator = url.includes("?") ? "&" : "?";
+    const data = await fetch(`${url}${separator}_refresh=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
     currentArticlesData = Array.isArray(data) ? data : [];
     renderArticleList();
   } catch {
@@ -1575,10 +1578,9 @@ async function verifyData() {
 // ============================================================
 
 async function loadAiLabelData() {
-  if (aiLabelArticlesData && aiLabelArticlesData.length > 0) return;
   const listEl = document.getElementById("aiArticleListScroll");
   try {
-    const res = await fetch(`${API_BASE}/articles`);
+    const res = await fetch(`${API_BASE}/articles?_refresh=${Date.now()}`, { cache: "no-store" });
     aiLabelArticlesData = await res.json();
     if (aiLabelArticlesData.length > 0) {
       currentAiArticleId = aiLabelArticlesData[0].id;
@@ -1600,18 +1602,20 @@ function filterAiArticles() {
   });
 
   const filtered = aiLabelArticlesData.filter(a => {
-    const text = (a.title + " " + a.authors + " " + a.abstract).toLowerCase();
+    const text = (a.title + " " + (a.authors || "")).toLowerCase();
     if (!text.includes(query)) return false;
 
-    if (currentAiFilter === "labeled") return (a.matched_concepts && a.matched_concepts.length > 0) || a.highlighted_html || a._aiSaved;
-    if (currentAiFilter === "unlabeled") return !(a.matched_concepts && a.matched_concepts.length > 0) && !a.highlighted_html && !a._aiSaved;
+    // is_ai_labeled: từ DB (bảng ai_document_labels), _aiSaved: vừa lưu trong phiên này
+    const aiLabeled = a.is_ai_labeled || a._aiSaved;
+    if (currentAiFilter === "labeled")   return aiLabeled;
+    if (currentAiFilter === "unlabeled") return !aiLabeled;
     return true;
   });
 
   const listEl = document.getElementById("aiArticleListScroll");
   listEl.innerHTML = filtered.map(a => {
     const isActive = a.id === currentAiArticleId ? "active" : "";
-    const isLabeled = (a.matched_concepts && a.matched_concepts.length > 0) || a.highlighted_html || a._aiSaved;
+    const isLabeled = a.is_ai_labeled || a._aiSaved;
     return `
       <div class="article-list-item ${isActive}" onclick="selectAiArticle(${a.id})">
         <div class="ali-title">${a.title || "Không có tiêu đề"}</div>
@@ -1619,7 +1623,7 @@ function filterAiArticles() {
           <span class="ali-dot ${isLabeled ? "labeled" : "unlabeled"}"></span>
           <span>${a.publication_year || "—"}</span>
           <span>·</span>
-          <span>${isLabeled ? "Đã gán nhãn" : "Chưa xử lý"}</span>
+          <span>${isLabeled ? "Đã gán nhãn AI" : "Chưa xử lý"}</span>
         </div>
       </div>
     `;
@@ -1838,6 +1842,7 @@ async function saveAiLabelResult() {
     if (!response.ok) throw new Error(payload.detail || `Lỗi lưu kết quả AI (HTTP ${response.status})`);
 
     article._aiSaved = true;
+    article.is_ai_labeled = 1; // phản ánh ngay vào filter không cần reload
     button.textContent = payload.duplicate ? "Đã lưu trước đó" : "Đã lưu kết quả AI";
     renderAiArticleList();
     showToast(payload.message || "Kết quả AI đã được lưu.", "success");
@@ -1874,7 +1879,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Experts never initialise the current administration tools. Their routes
   // use only the protected review APIs.
-  if (currentAuthUser.role === "expert") return;
+  if (currentAuthUser.role === "expert" || currentAuthUser.role === "reviewer") return;
 
   await checkServerStatus();
   const currentYear = new Date().getFullYear();
