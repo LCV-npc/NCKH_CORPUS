@@ -257,7 +257,18 @@ class LLMPDFExtractor:
         raw_sections.extend(self._local_semantic_boundaries(local_result, blocks))
         raw_sections.extend(self._local_exclusion_boundaries(local_result, blocks))
         resolved = self._resolve_section_boundaries(raw_sections, blocks, by_id, order)
-        sections = self._reconstruct_sections(resolved, blocks, order)
+        excluded_metadata_blocks = {
+            block_id
+            for candidate in candidates
+            for block_id in candidate.excluded_metadata_blocks
+            if block_id in by_id
+        }
+        sections = self._reconstruct_sections(
+            resolved,
+            blocks,
+            order,
+            excluded_block_ids=excluded_metadata_blocks,
+        )
         if not sections:
             raise LLMValidationError("Gemini không xác định được section có bằng chứng trong PDF")
 
@@ -429,7 +440,10 @@ class LLMPDFExtractor:
         boundaries: list[tuple[LLMSectionCandidate, str]],
         blocks: list[dict[str, Any]],
         order: dict[str, int],
+        *,
+        excluded_block_ids: set[str] | None = None,
     ) -> list[ArticleSection]:
+        excluded_block_ids = excluded_block_ids or set()
         accepted: list[ArticleSection] = []
         parent_keys: dict[str, str] = {}
         for index, (candidate, block_id) in enumerate(boundaries):
@@ -439,7 +453,11 @@ class LLMPDFExtractor:
             actual_heading = _continuous_text(heading_block.get("text"))
             if _excluded_section(actual_heading) or _metadata_section(actual_heading):
                 continue
-            content_blocks = [block for block in blocks[start:end] if _continuous_text(block.get("text"))]
+            content_blocks = [
+                block for block in blocks[start:end]
+                if _continuous_text(block.get("text"))
+                and str(block.get("id") or "") not in excluded_block_ids
+            ]
             content = _continuous_text(" ".join(
                 _continuous_text(block.get("text")) for block in content_blocks
             ))

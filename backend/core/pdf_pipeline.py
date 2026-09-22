@@ -1,15 +1,14 @@
 import hashlib
 import json
 import logging
-import re
 import shutil
-import unicodedata
 from pathlib import Path
 
 from config.constants import PDF_MAGIC_BYTES, MAX_FILE_SIZE_BYTES
 from config.env import backend_path_from_env
 from config.llm import PDFLLMSettings, PDF_TEXT_NORMALIZATION_VERSION
-from core.article_exporter import LLMArticleExporter
+from core.article_exporter import LLMArticleExporter, build_content_preview
+from core.file_names import compact_article_name, sanitize_file_component
 from core.language_validation import assess_metadata, decide_admission, select_pdf_text_for_language
 from core.section_ontology import canonical_label, classify_section
 from models.metadata import ExtractedMetadata, ProcessingStep
@@ -230,10 +229,47 @@ class ExtractorPipeline:
 
     @staticmethod
     def _safe_directory_name(value: str) -> str:
-        normalized = unicodedata.normalize("NFC", str(value or "")).strip()
-        cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", normalized)
-        cleaned = re.sub(r"\s+", " ", cleaned).strip(" ._")
-        return (cleaned or "pdf_article")[:120]
+        return sanitize_file_component(value, max_chars=120) or "pdf_article"
+
+    @classmethod
+    def _article_output_directory(
+        cls,
+        base_name: str,
+        file_hash: str,
+    ) -> tuple[str, Path]:
+        """Choose a five-word output directory without overwriting collisions."""
+        article_id = compact_article_name(base_name)
+        candidate = PDF_OUTPUT_ROOT / article_id
+        if not candidate.exists():
+            return article_id, candidate
+        if not file_hash:
+            return article_id, candidate
+
+        metadata_path = candidate / "metadata.json"
+        try:
+            existing_hash = str(
+                json.loads(metadata_path.read_text(encoding="utf-8")).get("sha256") or ""
+            )
+        except (OSError, ValueError, json.JSONDecodeError):
+            existing_hash = ""
+        if file_hash and existing_hash.casefold() == file_hash.casefold():
+            return article_id, candidate
+
+        index = 2
+        while True:
+            collision_id = f"{article_id} ({index})"
+            collision = PDF_OUTPUT_ROOT / collision_id
+            if not collision.exists():
+                return collision_id, collision
+            try:
+                collision_hash = str(json.loads(
+                    (collision / "metadata.json").read_text(encoding="utf-8")
+                ).get("sha256") or "")
+            except (OSError, ValueError, json.JSONDecodeError):
+                collision_hash = ""
+            if file_hash and collision_hash.casefold() == file_hash.casefold():
+                return collision_id, collision
+            index += 1
 
     def _save_extraction(self, result: dict, base_name: str, metadata: ExtractedMetadata) -> None:
         """Persist article metadata and section TXT files in one traceable folder."""
@@ -245,9 +281,10 @@ class ExtractorPipeline:
         metadata.page_count = int(result.get("page_count") or metadata.page_count or 0)
         metadata.validation_report = result.get("validation") or metadata.validation_report or {}
         metadata.extraction = result.get("extraction") or metadata.extraction or {}
-        hash_prefix = metadata.file_hash_sha256[:12] or "unhashed"
-        article_id = f"{self._safe_directory_name(base_name)}_{hash_prefix}"
-        article_dir = PDF_OUTPUT_ROOT / article_id
+        article_id, article_dir = self._article_output_directory(
+            base_name,
+            metadata.file_hash_sha256,
+        )
         article_dir.mkdir(parents=True, exist_ok=True)
         metadata.output_directory = str(article_dir)
 
@@ -305,7 +342,7 @@ class ExtractorPipeline:
             metadata.extracted_files.append({
                 "file_path": str(out_path), "section_name": section_name,
                 "heading": section_name, "label": label,
-                "content_preview": content.strip()[:300],
+                "content_preview": build_content_preview(content),
             })
 
         article = result.get("article")
@@ -464,9 +501,7 @@ class ExtractorPipeline:
             if label != "abstract":
                 text_path.write_text(content, encoding="utf-8")
 
-            preview = content[:300].strip()
-            if len(content) > 300:
-                preview += "..."
+            preview = build_content_preview(content)
 
             metadata.extracted_files.append({
                 "file_path":       str(text_path) if label != "abstract" else str(json_path),

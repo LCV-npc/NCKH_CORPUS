@@ -11,6 +11,14 @@ class ArticleExportError(RuntimeError):
     pass
 
 
+def build_content_preview(content: str, limit: int = 300) -> str:
+    """Return a UI preview that makes any truncation explicit."""
+    clean = str(content or "").strip()
+    if len(clean) <= limit:
+        return clean
+    return clean[:limit].rstrip() + "..."
+
+
 class LLMArticleExporter:
     """Export validated LLM metadata alongside the existing corpus files."""
 
@@ -53,5 +61,5 @@ class LLMArticleExporter:
             "section_name": section_name,
             "heading": section_name,
             "label": label,
-            "content_preview": content[:300],
+            "content_preview": build_content_preview(content),
         }

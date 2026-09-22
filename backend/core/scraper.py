@@ -28,6 +28,7 @@ from core.language_validation import (
     decide_admission,
     select_pdf_text_for_language,
 )
+from core.file_names import compact_article_name, sanitize_file_component
 from pdf_extractor import extract_from_pdf_path
 
 # Trạng thái scraping toàn cục — được đọc bởi /api/status
@@ -61,9 +62,7 @@ def _log(msg: str):
         print(msg.encode('utf-8', 'replace').decode('cp1252', 'ignore'))
 
 def clean_filename(fn: str) -> str:
-    fn = re.sub(r'[\t\n\r\f\v]+', ' ', fn)
-    fn = re.sub(r'[\\/*?"<>|]', "", fn)
-    return re.sub(r'\s+', ' ', fn)[:150].strip()
+    return sanitize_file_component(fn)
 
 def _make_absolute(href: str, base: str) -> str:
     """FIX #3: Chuyển mọi href (tương đối hoặc tuyệt đối) về URL đầy đủ."""
@@ -100,10 +99,16 @@ def _find_pdf_url(soup: BeautifulSoup, base_url: str) -> str | None:
 
 
 def _candidate_pdf_path(site_folder: str, target_year: str, title: str, source_url: str, settings: VietnameseCorpusSettings) -> Path:
-    digest = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:12]
     candidate_dir = settings.candidates_dir / site_folder / target_year
     candidate_dir.mkdir(parents=True, exist_ok=True)
-    return candidate_dir / f"{title}_{digest}.pdf"
+    short_title = compact_article_name(title)
+    candidate = candidate_dir / f"{short_title}.pdf"
+    if not candidate.exists():
+        return candidate
+    # Only expose a disambiguator when two different articles share the same
+    # first five title words. This prevents accidental overwrites.
+    digest = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:8]
+    return candidate_dir / f"{short_title} ({digest}).pdf"
 
 
 def _download_candidate(session: requests.Session, pdf_url: str, candidate_path: Path) -> str | None:
@@ -589,9 +594,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                 r"^(Tóm tắt|Abstract|TÓM TẮT)[\s:\.\-]*", "",
                                 abstract, flags=re.IGNORECASE
                             ).strip()
-                            safe_title = clean_filename(title)
-                            if len(safe_title) > 50:
-                                safe_title = safe_title[:47] + "..."
+                            safe_title = compact_article_name(title)
 
                             # Metadata is audit evidence only. A bilingual OJS page can
                             # expose an English abstract while its public PDF is Vietnamese,
@@ -613,7 +616,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                 continue
 
                             candidate_path = _candidate_pdf_path(
-                                site_folder, target_year, safe_title, au, settings
+                                site_folder, target_year, title, au, settings
                             )
                             download_error = _download_candidate(session, pdf_url, candidate_path)
                             if download_error:

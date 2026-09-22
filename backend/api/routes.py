@@ -18,6 +18,7 @@ from core.ner_dict import (
     reload_ner_dictionary,
 )
 from core.scraper import scrape_status, run_scraping, clean_filename, stop_scraping
+from core.file_names import compact_article_name
 from core.ai_ner import extract_entities_with_ai
 from core.ai_label import extract_with_ai_label
 from core.auth import (
@@ -349,13 +350,14 @@ def verify_data(_: dict[str, Any] = Depends(_require_admin)):
                 all_txts.extend([f.lower() for f in files if f.endswith('.txt')])
                 
         for art in articles:
-            safe_title = clean_filename(art['title'])
+            safe_title = compact_article_name(art['title'])
             
-            # Kiểm tra PDF: safe_title có thể đã bị cắt gọn
+            # PDF crawler dùng tối đa 5 từ đầu và thêm dấu ba chấm khi rút gọn.
             pdf_found = False
-            short_title = safe_title[:45].lower()
+            short_title = safe_title.lower()
+            title_prefix = short_title.removesuffix("...")
             for pdf_file in all_pdfs:
-                if short_title in pdf_file:
+                if short_title in pdf_file or title_prefix in pdf_file:
                     pdf_found = True
                     break
             if not pdf_found:

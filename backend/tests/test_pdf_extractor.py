@@ -212,7 +212,7 @@ class PdfExtractorTests(unittest.TestCase):
             output_root = Path(temp_dir) / "Kho_Ngu_Lieu_Txt" / "pdf_extracted"
             try:
                 os.chdir(temp_dir)
-                output = output_root / "article_unhashed"
+                output = output_root / "article"
                 output.mkdir(parents=True)
                 stale = output / "old.txt"
                 stale.write_text("stale", encoding="utf-8")
