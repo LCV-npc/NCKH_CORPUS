@@ -7,8 +7,8 @@
     "legacy_sha256": ""
   },
   "counts": {
-    "all": 292,
-    "active": 292,
+    "all": 293,
+    "active": 293,
     "ambiguous": 0
   },
   "entries": [
@@ -2931,6 +2931,16 @@
       "ambiguous": false,
       "case_sensitive": false,
       "source": "custom_alias"
+    },
+    {
+      "term": "sởi",
+      "canonical_term": "Sởi",
+      "type": "Bệnh Lý",
+      "code": "B05",
+      "active_for_ner": true,
+      "ambiguous": false,
+      "case_sensitive": false,
+      "source": "user_alias"
     }
   ]
 }

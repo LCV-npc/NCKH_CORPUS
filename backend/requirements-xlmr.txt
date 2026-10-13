@@ -1,0 +1,6 @@
+# Optional local inference dependencies for the fine-tuned XLM-R checkpoint.
+# Install these in the backend environment when XLM-R is enabled.
+torch>=2.2
+transformers>=4.45,<6
+sentencepiece>=0.2
+safetensors>=0.4

@@ -3,6 +3,8 @@ import json
 import os
 import io
 import hashlib
+import smtplib
+from email.message import EmailMessage
 from pathlib import Path
 from datetime import datetime
 from typing import Any
@@ -22,6 +24,7 @@ from core.ner_dict import (
 from core.scraper import scrape_status, run_scraping, clean_filename, stop_scraping
 from core.ai_ner import extract_entities_with_ai
 from core.ai_label import extract_with_ai_label
+from core.xlmr_ner import XLMRInferenceError, xlmr_ner
 from core.auth import (
     ROLE_ADMIN,
     ROLE_EXPERT,
@@ -72,6 +75,10 @@ class NerRequest(BaseModel):
     enable_noun_phrase:  bool = False
 
 class AiLabelRequest(BaseModel):
+    text: str
+
+
+class XLMRNERRequest(BaseModel):
     text: str
 
 class SaveAiLabelRequest(BaseModel):
@@ -134,8 +141,47 @@ class GoldAnnotationRequest(BaseModel):
     entities: list[dict[str, Any]] = Field(default_factory=list)
     note: str = ""
 
+class LabelingSessionRequest(BaseModel):
+    name: str
+    description: str = ""
+    article_ids: list[int] = Field(default_factory=list, alias="articleIds")
+    expert_ids: list[int] = Field(default_factory=list, alias="expertIds")
+    reviewer_id: int = Field(..., alias="reviewerId")
+    send_email: bool = Field(True, alias="sendEmail")
+
+    model_config = ConfigDict(populate_by_name=True)
+
 def _get_conn():
     return mysql.connector.connect(**_db_config)
+
+def _send_assignment_email(recipients: list[dict[str, Any]], session_name: str, article_count: int) -> list[str]:
+    host = os.getenv("SMTP_HOST")
+    if not host:
+        return [str(item["email"]) for item in recipients]
+    sent = []
+    port = int(os.getenv("SMTP_PORT", "587"))
+    username = os.getenv("SMTP_USERNAME", "")
+    password = os.getenv("SMTP_PASSWORD", "")
+    sender = os.getenv("SMTP_FROM", username)
+    message_template = (
+        f"Hello {{name}},\n\nYou have been assigned to labeling session '{session_name}'.\n"
+        f"Documents assigned: {article_count}. Please sign in to MedNLP Studio to begin.\n\n"
+        "Best regards,\nMedNLP Studio"
+    )
+    with smtplib.SMTP(host, port, timeout=20) as server:
+        if os.getenv("SMTP_TLS", "1") != "0":
+            server.starttls()
+        if username:
+            server.login(username, password)
+        for recipient in recipients:
+            msg = EmailMessage()
+            msg["Subject"] = f"MedNLP labeling assignment: {session_name}"
+            msg["From"] = sender
+            msg["To"] = recipient["email"]
+            msg.set_content(message_template.format(name=recipient["name"]))
+            server.send_message(msg)
+            sent.append(recipient["email"])
+    return sent
 
 
 def _first_ai_icd_label(label_data: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -164,6 +210,8 @@ def _persist_ai_label(article_id: int, label_data: dict[str, Any], user_id: int)
         cursor.execute("SELECT id FROM articles WHERE id = %s", (article_id,))
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail=f"Không tìm thấy bài báo id={article_id}")
+        metadata = label_data.get("_metadata") if isinstance(label_data.get("_metadata"), dict) else {}
+        model_name = str(metadata.get("model_name") or os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest"))
         cursor.execute(
             "SELECT id FROM ai_document_labels WHERE article_id = %s AND label_payload = %s ORDER BY id DESC LIMIT 1",
             (article_id, serialized_labels),
@@ -180,7 +228,7 @@ def _persist_ai_label(article_id: int, label_data: dict[str, Any], user_id: int)
             """,
             (
                 article_id,
-                os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest"),
+                model_name,
                 serialized_labels,
                 code,
                 label,
@@ -303,6 +351,68 @@ def ai_ner_endpoint(req: NerRequest, _: dict[str, Any] = Depends(_require_admin)
         raise HTTPException(400, str(ve))
     except Exception as e:
         raise HTTPException(500, f"Lỗi AI: {str(e)}")
+
+
+@router.post("/api/xlmr-ner")
+def xlmr_ner_endpoint(req: XLMRNERRequest, _: dict[str, Any] = Depends(_require_admin)):
+    """Run the locally fine-tuned XLM-R token-classification checkpoint."""
+    try:
+        return xlmr_ner.predict(req.text)
+    except XLMRInferenceError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Lỗi XLM-R NER: {exc}") from exc
+
+@router.get("/api/admin/labeling-options")
+def labeling_options(_: dict[str, Any] = Depends(_require_admin)):
+    connection = cursor = None
+    try:
+        connection = _get_conn(); cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT a.id, a.title, a.authors, a.publication_year, COUNT(DISTINCT lsa.session_id) AS assigned_sessions FROM articles a LEFT JOIN labeling_session_assignments lsa ON lsa.article_id = a.id GROUP BY a.id, a.title, a.authors, a.publication_year ORDER BY a.id DESC LIMIT 1000")
+        articles = cursor.fetchall()
+        cursor.execute("SELECT id, full_name AS name, email FROM users WHERE role = 'EXPERT' AND is_active = 1 ORDER BY full_name")
+        experts = cursor.fetchall()
+        cursor.execute("SELECT id, full_name AS name, email FROM users WHERE role = 'REVIEWER' AND is_active = 1 ORDER BY full_name")
+        reviewers = cursor.fetchall()
+        return {"articles": articles, "experts": experts, "reviewers": reviewers}
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+@router.post("/api/admin/labeling-sessions", status_code=201)
+def create_labeling_session(req: LabelingSessionRequest, user: dict[str, Any] = Depends(_require_admin)):
+    if not req.name.strip() or not req.article_ids or len(req.expert_ids) != 2:
+        raise HTTPException(422, "A session name, at least one document, and exactly two experts are required.")
+    if req.expert_ids[0] == req.expert_ids[1]:
+        raise HTTPException(422, "Select two different experts.")
+    connection = cursor = None
+    try:
+        connection = _get_conn(); cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT id, full_name AS name, email FROM users WHERE id IN (%s,%s) AND role='EXPERT' AND is_active=1", tuple(req.expert_ids))
+        experts = cursor.fetchall()
+        if len(experts) != 2: raise HTTPException(422, "One or more selected experts are invalid.")
+        cursor.execute("SELECT id FROM users WHERE id=%s AND role='REVIEWER' AND is_active=1", (req.reviewer_id,))
+        if not cursor.fetchone(): raise HTTPException(422, "Selected reviewer is invalid.")
+        cursor.execute("INSERT INTO labeling_sessions (name, description, reviewer_id, created_by) VALUES (%s,%s,%s,%s)", (req.name.strip(), req.description.strip(), req.reviewer_id, user["id"]))
+        session_id = cursor.lastrowid
+        rows = [(session_id, article_id, expert_id) for article_id in sorted(set(req.article_ids)) for expert_id in req.expert_ids]
+        cursor.executemany("INSERT INTO labeling_session_assignments (session_id, article_id, expert_id) VALUES (%s,%s,%s)", rows)
+        connection.commit()
+        if req.send_email:
+            try:
+                emailed = _send_assignment_email(experts, req.name.strip(), len(set(req.article_ids)))
+                email_status = "sent" if emailed else "not_configured"
+            except Exception as email_error:
+                email_status = f"failed: {email_error}"
+        else:
+            email_status = "disabled"
+        return {"sessionId": int(session_id), "emailStatus": email_status, "assignedExperts": len(experts)}
+    except HTTPException:
+        if connection: connection.rollback()
+        raise
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
 
 
 @router.post("/api/ai-label")
@@ -1237,10 +1347,12 @@ def expert_icd_documents(
             )
             WHERE (%s = '' OR a.title LIKE %s OR a.authors LIKE %s)
               AND (%s = '' OR ec.concept_code LIKE %s)
+              AND (NOT EXISTS (SELECT 1 FROM labeling_session_assignments own_assign WHERE own_assign.expert_id = %s)
+                   OR EXISTS (SELECT 1 FROM labeling_session_assignments assigned WHERE assigned.article_id = a.id AND assigned.expert_id = %s))
             GROUP BY a.id, a.title, a.authors, a.publication_year, latest.review_status, latest.id
             ORDER BY a.id DESC
         """
-        params = (user["id"], q, f"%{q}%", f"%{q}%", icd, f"%{icd}%")
+        params = (user["id"], q, f"%{q}%", f"%{q}%", icd, f"%{icd}%", user["id"], user["id"])
         cursor.execute(query, params)
         rows = cursor.fetchall()
         status = review_status.casefold()
@@ -1279,9 +1391,11 @@ def expert_ai_documents(
                 WHERE r.document_id = a.id AND r.expert_id = %s
             )
             WHERE (%s = '' OR a.title LIKE %s OR a.authors LIKE %s)
+              AND (NOT EXISTS (SELECT 1 FROM labeling_session_assignments own_assign WHERE own_assign.expert_id = %s)
+                   OR EXISTS (SELECT 1 FROM labeling_session_assignments assigned WHERE assigned.article_id = a.id AND assigned.expert_id = %s))
             ORDER BY a.id DESC
             """,
-            (user["id"], q, f"%{q}%", f"%{q}%"),
+            (user["id"], q, f"%{q}%", f"%{q}%", user["id"], user["id"]),
         )
         rows = cursor.fetchall()
         status = review_status.casefold()

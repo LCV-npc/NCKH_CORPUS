@@ -102,7 +102,7 @@ function bindAuthForms() {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.detail || "Unable to login.");
       authToken = payload.token;
-      if (!authToken) throw new Error("Máy chủ không trả về phiên đăng nhập hợp lệ.");
+      if (!authToken) throw new Error("The server did not return a valid login session.");
       sessionStorage.setItem("mednlp.sessionToken", authToken);
       const target = payload.user.role === "expert"
         ? "/expert/dashboard"
@@ -140,12 +140,12 @@ let currentAiLabelResultArticleId = null;
 
 // Color mapping for entity types
 const ENTITY_COLORS = {
-  DISEASE:   { cls: "disease",   label: "Bệnh lý",    icon: "🟢" },
-  SYMPTOM:   { cls: "symptom",   label: "Triệu chứng",icon: "🔵" },
-  TREATMENT: { cls: "treatment", label: "Điều trị",   icon: "🟣" },
-  LAB_TEST:  { cls: "labtest",   label: "Xét nghiệm", icon: "🟡" },
-  IMAGING:   { cls: "imaging",   label: "Hình ảnh",   icon: "🩵" },
-  TRAD_MED:  { cls: "tradmed",   label: "Đông y",     icon: "🟠" },
+  DISEASE:   { cls: "disease",   label: "Disease",    icon: "🟢" },
+  SYMPTOM:   { cls: "symptom",   label: "Symptom",    icon: "🔵" },
+  CAUSE:     { cls: "cause",     label: "Cause",      icon: "🟠" },
+  DIAGNOSTIC_PROCEDURE: { cls: "diagnostic", label: "Diagnostic", icon: "🟡" },
+  DIAGNOSTIC: { cls: "diagnostic", label: "Diagnostic", icon: "🟡" },
+  TREATMENT: { cls: "treatment", label: "Treatment",  icon: "🟣" },
 };
 
 function escapeHtml(value) {
@@ -160,7 +160,7 @@ function escapeHtml(value) {
 function buildEntityTooltip(item, fallbackCategory) {
   const category = item.dictionary_type || fallbackCategory;
   let tooltip = category;
-  if (item.code) tooltip += ` | Mã: ${item.code}`;
+  if (item.code) tooltip += ` | Code: ${item.code}`;
   if (item.label_vn && item.label_vn.toLowerCase() !== item.term.toLowerCase()) {
     tooltip += ` | ${item.label_vn}`;
   }
@@ -168,24 +168,37 @@ function buildEntityTooltip(item, fallbackCategory) {
 }
 
 function entityClass(type) {
-  return (ENTITY_COLORS[type] || { cls: "other" }).cls;
+  return (ENTITY_COLORS[normalizeEntityType(type)] || { cls: "other" }).cls;
 }
 function entityLabel(type) {
-  return (ENTITY_COLORS[type] || { label: type }).label;
+  return (ENTITY_COLORS[normalizeEntityType(type)] || { label: type }).label;
+}
+function normalizeEntityType(type) {
+  const value = String(type || "").trim().toUpperCase();
+  const aliases = {
+    "BỆNH LÝ": "DISEASE",
+    "TRIỆU CHỨNG": "SYMPTOM",
+    "NGUYÊN NHÂN": "CAUSE",
+    "ĐIỀU TRỊ": "TREATMENT",
+    "XÉT NGHIỆM/CẬN LÂM SÀNG": "DIAGNOSTIC_PROCEDURE",
+    "CHẨN ĐOÁN HÌNH ẢNH": "DIAGNOSTIC_PROCEDURE",
+    "ĐÔNG Y / YHCT": "TREATMENT",
+  };
+  return aliases[value] || value;
 }
 
 // ============================================================
 // NAVIGATION
 // ============================================================
 const SCREENS = {
-  dashboard:    { title: "Dashboard",           sub: "Tổng quan hệ thống" },
-  crawl:        { title: "Thu thập dữ liệu",    sub: "Crawler & nhật ký" },
-  "tamanh-crawler": { title: "Crawler hỏi đáp y khoa", sub: "Tâm Anh Hospital — Q&A công khai" },
-  labeling:     { title: "Gán nhãn văn bản",    sub: "Xử lý & gán nhãn NER" },
-  "ai-label":   { title: "AI Gán nhãn",         sub: "Gán nhãn thực thể y khoa bằng AI" },
-  "ai-evaluation": { title: "Đánh giá AI", sub: "Chạy, so sánh và lưu checkpoint NER" },
-  logs:         { title: "Nhật ký thu thập",    sub: "Lịch sử thu thập" },
-  "split-pdf":  { title: "Tách nội dung PDF",    sub: "Tách bài báo y học thành file văn bản" },
+  dashboard:    { title: "Dashboard",           sub: "System overview" },
+  crawl:        { title: "Data Crawling",       sub: "Crawler & activity log" },
+  "tamanh-crawler": { title: "Medical Q&A Crawler", sub: "Tam Anh Hospital — Public Q&A" },
+  labeling:     { title: "Text Annotation",    sub: "NER processing and annotation" },
+  "ai-label":   { title: "AI Annotation",         sub: "Annotate medical entities with AI" },
+  "ai-evaluation": { title: "AI Evaluation", sub: "Run, compare, and save NER checkpoints" },
+  logs:         { title: "Crawl History",    sub: "Crawl history" },
+  "split-pdf":  { title: "PDF Content Extraction",    sub: "Convert medical articles into text files" },
 };
 
 function switchScreen(name) {
@@ -219,7 +232,7 @@ let activeNerExperimentId = null;
 let nerExperimentPoll = null;
 
 function nerStatusLabel(status) {
-  return ({ queued: "Đang chờ", running: "Đang chạy", stopping: "Đang dừng", stopped: "Đã dừng", completed: "Hoàn tất", completed_with_errors: "Hoàn tất có lỗi", failed: "Thất bại" })[status] || status;
+  return ({ queued: "Queued", running: "Running", stopping: "Stopping", stopped: "Stopped", completed: "Completed", completed_with_errors: "Completed with errors", failed: "Failed" })[status] || status;
 }
 
 function renderNerProgress(run) {
@@ -230,7 +243,7 @@ function renderNerProgress(run) {
     const percent = info.total ? Math.round(100 * info.completed / info.total) : 0;
     card.querySelector(".status-badge").textContent = nerStatusLabel(info.status);
     card.querySelector(".progress-track span").style.width = `${percent}%`;
-    card.querySelector(".evaluation-stats").textContent = `${info.completed} / ${info.total} · lỗi API ${info.apiErrors} · TB ${Math.round(info.averageLatencyMs || 0)} ms`;
+    card.querySelector(".evaluation-stats").textContent = `${info.completed} / ${info.total} · API errors ${info.apiErrors} · Avg. ${Math.round(info.averageLatencyMs || 0)} ms`;
   });
   const isAdmin = currentAuthUser?.role === "admin";
   const running = ["queued", "running", "stopping"].includes(run?.status);
@@ -244,7 +257,7 @@ function renderNerMetrics(metrics) {
   const target = document.getElementById("evaluationMetrics");
   if (!metrics || !Object.keys(metrics).length) {
     target.className = "evaluation-metrics-empty";
-    target.textContent = "Chưa có đủ gold 5 nhãn để tính Precision, Recall và F1.";
+    target.textContent = "Not enough five-label gold data to calculate Precision, Recall, and F1.";
     return;
   }
   const rows = [];
@@ -255,7 +268,7 @@ function renderNerMetrics(metrics) {
     });
   });
   target.className = "";
-  target.innerHTML = `<table class="evaluation-metric-table"><thead><tr><th>Hệ thống</th><th>Macro-P</th><th>Macro-R</th><th>Macro-F1</th><th>Micro-F1</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
+  target.innerHTML = `<table class="evaluation-metric-table"><thead><tr><th>System</th><th>Macro-P</th><th>Macro-R</th><th>Macro-F1</th><th>Micro-F1</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
 }
 
 async function selectNerExperiment(runId) {
@@ -266,11 +279,11 @@ async function selectNerExperiment(runId) {
   ]);
   const detail = await detailResponse.json();
   const errors = await errorsResponse.json();
-  if (!detailResponse.ok) throw new Error(detail.detail || "Không tải được run.");
+  if (!detailResponse.ok) throw new Error(detail.detail || "Unable to load the run.");
   renderNerProgress(detail);
   renderNerMetrics(detail.metrics);
   const rows = (errors.errors || []).slice(0, 200).map(item => `<tr><td>${escapeHtml(item.system)}</td><td>#${escapeHtml(item.article_id || "-")}</td><td>${escapeHtml(item.type || item.error || "-")}</td><td><code>${escapeHtml(JSON.stringify(item.entity || item.detail || item.kept || {}))}</code></td></tr>`).join("");
-  document.getElementById("evaluationErrorsBody").innerHTML = rows || `<tr><td colspan="4" class="table-empty">Không có lỗi chuyển đổi được ghi nhận.</td></tr>`;
+  document.getElementById("evaluationErrorsBody").innerHTML = rows || `<tr><td colspan="4" class="table-empty">No conversion errors recorded.</td></tr>`;
   if (["queued", "running", "stopping"].includes(detail.status)) {
     clearTimeout(nerExperimentPoll);
     nerExperimentPoll = setTimeout(() => loadNerExperiments(true), 2500);
@@ -281,19 +294,19 @@ async function loadNerExperiments(keepSelection = false) {
   try {
     const response = await fetch(`${API_BASE}/ner-experiments`, { cache: "no-store" });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.detail || "Không tải được lịch sử thí nghiệm.");
+    if (!response.ok) throw new Error(payload.detail || "Unable to load experiment history.");
     const runs = payload.runs || [];
     const isAdmin = currentAuthUser?.role === "admin";
     document.getElementById("evaluationAdminActions").hidden = !isAdmin;
-    document.getElementById("evaluationRunSummary").textContent = `${runs.length} checkpoint · dữ liệu lịch sử không bị ghi đè`;
+    document.getElementById("evaluationRunSummary").textContent = `${runs.length} checkpoints · historical data is preserved`;
     document.getElementById("evaluationRunsBody").innerHTML = runs.map(run => {
       const systems = Object.values(run.systems || {});
       const completed = systems.reduce((sum, item) => sum + Number(item.completed || 0), 0);
       const total = systems.reduce((sum, item) => sum + Number(item.total || 0), 0);
       const errors = systems.reduce((sum, item) => sum + Number(item.apiErrors || 0), 0);
-      const promote = isAdmin && ["completed", "completed_with_errors"].includes(run.status) ? `<button class="btn-outline-sm" onclick="event.stopPropagation(); promoteNerExperiment('${escapeHtml(run.runId)}')">Chọn bản này</button>` : "";
+      const promote = isAdmin && ["completed", "completed_with_errors"].includes(run.status) ? `<button class="btn-outline-sm" onclick="event.stopPropagation(); promoteNerExperiment('${escapeHtml(run.runId)}')">Select this version</button>` : "";
       return `<tr onclick="selectNerExperiment('${escapeHtml(run.runId)}')"><td><code>${escapeHtml(run.runId)}</code></td><td>${escapeHtml(nerStatusLabel(run.status))}</td><td>${completed}/${total}</td><td>${errors}</td><td>${escapeHtml(run.note || "-")}</td><td>${promote}</td></tr>`;
-    }).join("") || `<tr><td colspan="6" class="table-empty">Chưa có checkpoint.</td></tr>`;
+    }).join("") || `<tr><td colspan="6" class="table-empty">No checkpoints yet.</td></tr>`;
     const target = keepSelection && runs.some(run => run.runId === activeNerExperimentId) ? activeNerExperimentId : runs[0]?.runId;
     if (target) await selectNerExperiment(target); else renderNerProgress(null);
   } catch (error) {
@@ -305,9 +318,9 @@ async function startNerExperiment() {
   const note = document.getElementById("evaluationNote").value.trim();
   const response = await fetch(`${API_BASE}/ner-experiments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 100, note, parentRunId: activeNerExperimentId }) });
   const payload = await response.json();
-  if (!response.ok) return showToast(payload.detail || "Không thể tạo run.", "error");
+  if (!response.ok) return showToast(payload.detail || "Unable to create the run.", "error");
   activeNerExperimentId = payload.runId;
-  showToast("Đã tạo checkpoint và bắt đầu chạy nền.", "success");
+  showToast("Checkpoint created and background run started.", "success");
   loadNerExperiments(true);
 }
 
@@ -321,14 +334,14 @@ async function resumeNerExperiment() {
   if (!activeNerExperimentId) return;
   const response = await fetch(`${API_BASE}/ner-experiments/${encodeURIComponent(activeNerExperimentId)}/resume`, { method: "POST" });
   const payload = await response.json();
-  if (!response.ok) return showToast(payload.detail || "Không thể tiếp tục run.", "error");
+  if (!response.ok) return showToast(payload.detail || "Unable to resume the run.", "error");
   loadNerExperiments(true);
 }
 
 async function promoteNerExperiment(runId) {
   const response = await fetch(`${API_BASE}/ner-experiments/${encodeURIComponent(runId)}/promote`, { method: "POST" });
   const payload = await response.json();
-  showToast(response.ok ? "Đã chọn bản hiện hành." : (payload.detail || "Không thể promote."), response.ok ? "success" : "error");
+  showToast(response.ok ? "Current version selected." : (payload.detail || "Unable to promote the run."), response.ok ? "success" : "error");
 }
 
 // ============================================================
@@ -359,14 +372,14 @@ function updateTamanhStatus(status) {
   document.getElementById("tamanhDuplicates").textContent = status.duplicates_skipped || 0;
   document.getElementById("tamanhErrors").textContent = status.errors || 0;
   const badge = document.getElementById("tamanhStateBadge");
-  badge.textContent = status.status || "Chờ";
+  badge.textContent = status.status || "Waiting";
   badge.className = "crawl-state-badge";
   if (["RUNNING", "QUEUED"].includes(status.status)) badge.classList.add("running");
   if (["COMPLETED", "STOPPED"].includes(status.status)) badge.classList.add("done");
   if (status.status === "ERROR") badge.classList.add("error");
   document.getElementById("tamanhProgressMsg").textContent = status.current_category
-    ? `Đang xử lý: ${status.current_category}${status.current_url ? ` — ${status.current_url}` : ""}`
-    : (status.message || "Đang chuẩn bị crawler...");
+    ? `Processing: ${status.current_category}${status.current_url ? ` — ${status.current_url}` : ""}`
+    : (status.message || "Preparing crawler...");
 }
 
 async function startTamanhCrawler() {
@@ -374,13 +387,13 @@ async function startTamanhCrawler() {
   const startYear = Number(document.getElementById("tamanhStartYear").value);
   const endYear = Number(document.getElementById("tamanhEndYear").value);
   if (!sourceUrl || !Number.isInteger(startYear) || !Number.isInteger(endYear) || startYear > endYear) {
-    showToast("Vui lòng nhập URL và khoảng năm hợp lệ.", "error");
+    showToast("Please enter a valid URL and year range.", "error");
     return;
   }
   const startButton = document.getElementById("btnStartTamanh");
   startButton.disabled = true;
-  updateTamanhStatus({ status: "QUEUED", message: "Đang gửi yêu cầu khởi động crawler..." });
-  appendTamanhLog("Đang gửi yêu cầu khởi động tới backend...");
+  updateTamanhStatus({ status: "QUEUED", message: "Sending crawler start request..." });
+  appendTamanhLog("Sending start request to the backend...");
   try {
     const response = await fetch(`${API_BASE}/crawler/tamanh/start`, {
       method: "POST",
@@ -390,16 +403,16 @@ async function startTamanhCrawler() {
     const contentType = response.headers.get("content-type") || "";
     const payload = contentType.includes("application/json")
       ? await response.json()
-      : { detail: `Backend trả về HTTP ${response.status} thay vì JSON.` };
-    if (!response.ok) throw new Error(payload.detail || "Không thể khởi động crawler.");
+      : { detail: `Backend returned HTTP ${response.status} instead of JSON.` };
+    if (!response.ok) throw new Error(payload.detail || "Unable to start the crawler.");
     tamanhJobId = payload.jobId;
     tamanhLogCount = 0;
     document.getElementById("tamanhLogTerminal").innerHTML = "";
     document.getElementById("btnStopTamanh").style.display = "";
-    appendTamanhLog("Đã khởi động crawler Tâm Anh.");
+    appendTamanhLog("Tam Anh crawler started.");
     pollTamanhStatus();
   } catch (error) {
-    const message = `Không thể khởi động crawler: ${error.message}. Hãy kiểm tra/restart backend ở cổng 8000.`;
+    const message = `Unable to start the crawler: ${error.message}. Check or restart the backend on port 8000.`;
     updateTamanhStatus({ status: "ERROR", message, errors: 1 });
     appendTamanhLog(`ERROR: ${message}`);
     showToast(message, "error", 7000);
@@ -416,8 +429,8 @@ function pollTamanhStatus() {
       const contentType = response.headers.get("content-type") || "";
       const status = contentType.includes("application/json")
         ? await response.json()
-        : { detail: `Backend trả về HTTP ${response.status} thay vì JSON.` };
-      if (!response.ok) throw new Error(status.detail || "Không đọc được trạng thái crawler.");
+        : { detail: `Backend returned HTTP ${response.status} instead of JSON.` };
+      if (!response.ok) throw new Error(status.detail || "Unable to read crawler status.");
       updateTamanhStatus(status);
       (status.log_messages || []).slice(tamanhLogCount).forEach(appendTamanhLog);
       tamanhLogCount = (status.log_messages || []).length;
@@ -428,7 +441,7 @@ function pollTamanhStatus() {
         showToast(status.message || status.status, status.status === "ERROR" ? "error" : "success");
       }
     } catch (error) {
-      const message = `Lỗi đọc trạng thái: ${error.message}`;
+      const message = `Error reading status: ${error.message}`;
       updateTamanhStatus({ status: "ERROR", message, errors: 1 });
       appendTamanhLog(message);
       clearInterval(tamanhPollingInterval); tamanhPollingInterval = null;
@@ -444,9 +457,9 @@ async function stopTamanhCrawler() {
   if (!tamanhJobId) return;
   try {
     await fetch(`${API_BASE}/crawler/tamanh/stop/${tamanhJobId}`, { method: "POST" });
-    appendTamanhLog("Đã gửi yêu cầu dừng crawler.");
+    appendTamanhLog("Crawler stop request sent.");
   } catch {
-    const message = "Không thể gửi yêu cầu dừng crawler.";
+    const message = "Unable to send the crawler stop request.";
     appendTamanhLog(`ERROR: ${message}`);
     showToast(message, "error");
   }
@@ -465,7 +478,7 @@ async function checkServerStatus() {
   const text = document.getElementById("statusText");
   if (serverHealthFailures === 0) {
     dot.className = "status-dot checking";
-    text.textContent = "Đang kết nối...";
+    text.textContent = "Connecting...";
   }
   try {
     // Do not use crawler progress as the connectivity probe: a scraper's
@@ -499,9 +512,9 @@ async function checkServerStatus() {
 
     serverHealthFailures = 0;
     dot.className = "status-dot online";
-    text.textContent = "Máy chủ hoạt động";
+    text.textContent = "Server online";
     if (status?.running && !pollingInterval) {
-      appendLog("🔄 Phát hiện crawler đang chạy — tự động kết nối lại...", "info");
+      appendLog("🔄 Active crawler detected — reconnecting automatically...", "info");
       document.getElementById("btnScrape").disabled = true;
       document.getElementById("btnStopScrape").style.display = "";
       _startPolling();
@@ -510,10 +523,10 @@ async function checkServerStatus() {
     serverHealthFailures += 1;
     if (serverHealthFailures >= SERVER_HEALTH_FAILURE_LIMIT) {
       dot.className = "status-dot offline";
-      text.textContent = "Mất kết nối";
+    text.textContent = "Disconnected";
     } else {
       dot.className = "status-dot checking";
-      text.textContent = "Đang kết nối lại...";
+    text.textContent = "Reconnecting...";
     }
   }
 }
@@ -562,7 +575,7 @@ async function loadKPIs() {
       ? concepts.reduce((s, c) => s + (c.frequency || 0), 0) : 0);
 
     document.getElementById("kpi-articles-sub").textContent =
-      `${labeled} NER · ${aiLabeled} AI / ${articles.length} tổng`;
+      `${labeled} NER · ${aiLabeled} AI / ${articles.length} total`;
 
     // Draw donut
     buildDonut(concepts);
@@ -602,7 +615,7 @@ async function loadTopConcepts(label) {
     allConceptsCache = data;
     renderBarChart(data);
   } catch {
-    container.innerHTML = `<div class="chart-empty">Không thể tải dữ liệu</div>`;
+      container.innerHTML = `<div class="chart-empty">Unable to load data</div>`;
   }
 }
 
@@ -616,7 +629,7 @@ function filterConcepts(label) {
 function renderBarChart(data) {
   const container = document.getElementById("barChartContainer");
   if (!data || data.length === 0) {
-    container.innerHTML = `<div class="chart-empty">Không có dữ liệu</div>`;
+    container.innerHTML = `<div class="chart-empty">No data available</div>`;
     return;
   }
   const max = Math.max(...data.map(d => d.frequency || 0));
@@ -638,10 +651,10 @@ function barColor(type) {
   const colors = {
     DISEASE:   "linear-gradient(90deg,#4ade80,#86efac)",
     SYMPTOM:   "linear-gradient(90deg,#818cf8,#a5b4fc)",
+    CAUSE:     "linear-gradient(90deg,#fb923c,#fdba74)",
+    DIAGNOSTIC_PROCEDURE: "linear-gradient(90deg,#fbbf24,#fde68a)",
+    DIAGNOSTIC: "linear-gradient(90deg,#fbbf24,#fde68a)",
     TREATMENT: "linear-gradient(90deg,#c084fc,#d8b4fe)",
-    LAB_TEST:  "linear-gradient(90deg,#fbbf24,#fde68a)",
-    IMAGING:   "linear-gradient(90deg,#2dd4bf,#99f6e4)",
-    TRAD_MED:  "linear-gradient(90deg,#fb923c,#fdba74)",
   };
   return colors[type] || "linear-gradient(90deg, var(--primary), var(--accent))";
 }
@@ -661,10 +674,10 @@ function buildDonut(concepts) {
   const palette = {
     DISEASE:   "#4ade80",
     SYMPTOM:   "#818cf8",
+    CAUSE:     "#fb923c",
+    DIAGNOSTIC_PROCEDURE: "#fbbf24",
+    DIAGNOSTIC: "#fbbf24",
     TREATMENT: "#c084fc",
-    LAB_TEST:  "#fbbf24",
-    IMAGING:   "#2dd4bf",
-    TRAD_MED:  "#fb923c",
   };
 
   const entries = Object.entries(counts);
@@ -715,7 +728,7 @@ async function loadRecentArticles() {
     const data = await fetch(`${API_BASE}/articles`).then(r => r.json());
     const recent = data.slice(0, 8);
     if (recent.length === 0) {
-      el.innerHTML = `<div class="list-placeholder">Chưa có bài báo nào</div>`;
+      el.innerHTML = `<div class="list-placeholder">No articles yet</div>`;
       return;
     }
     el.innerHTML = recent.map((a, i) => {
@@ -724,16 +737,16 @@ async function loadRecentArticles() {
         <div class="recent-item" onclick="switchScreen('labeling'); setTimeout(()=>selectArticle(${a.id}),300)">
           <div class="recent-num">${i + 1}</div>
           <div class="recent-info">
-            <div class="recent-title">${a.title || "Không có tiêu đề"}</div>
+            <div class="recent-title">${a.title || "Untitled"}</div>
             <div class="recent-meta">${a.publication_year || "—"} · ${(a.authors || "").split(",")[0]}</div>
           </div>
           <span class="recent-badge ${isLabeled ? "badge-labeled" : "badge-unlabeled"}">
-            ${isLabeled ? "Đã gán nhãn" : "Chưa xử lý"}
+            ${isLabeled ? "Annotated" : "Not processed"}
           </span>
         </div>`;
     }).join("");
   } catch {
-    el.innerHTML = `<div class="list-placeholder">Không thể tải dữ liệu</div>`;
+    el.innerHTML = `<div class="list-placeholder">Unable to load data</div>`;
   }
 }
 
@@ -749,21 +762,35 @@ const displayedCrawlLogMessages = new Set();
 function clearLog() {
   displayedCrawlLogMessages.clear();
   document.getElementById("logTerminal").innerHTML =
-    `<div class="log-placeholder"><span class="log-cursor">█</span> Log đã được xóa.</div>`;
+    `<div class="log-placeholder"><span class="log-cursor">█</span> Log cleared.</div>`;
 }
 
 function toggleAutoScroll() {
   autoScroll = !autoScroll;
-  document.getElementById("autoScrollBtn").textContent = autoScroll ? "↓ Tự cuộn" : "↑ Tắt cuộn";
+  document.getElementById("autoScrollBtn").textContent = autoScroll ? "↓ Auto-scroll" : "↑ Auto-scroll off";
 }
 
 function appendLog(msg, type = "") {
   const term = document.getElementById("logTerminal");
+  // Translate legacy backend messages so persisted or in-flight logs remain English.
+  const legacyLogTranslations = [
+    ["Đã tải file PDF thành công", "PDF downloaded successfully"],
+    ["Đã lưu thành công", "Saved successfully"],
+    ["Tiến độ: Đã thu thập", "Progress: Collected"],
+    ["Tổng kết:", "Summary:"],
+    ["[TRÙNG]", "[DUPLICATE]"],
+    ["[ĐÃ KIỂM DUYỆT -", "[ALREADY REVIEWED -"],
+    ["[LOẠI - PDF KHÔNG HỢP LỆ]", "[REJECTED - INVALID PDF]"],
+    ["[LOẠI - KHÔNG CÓ PDF]", "[REJECTED - NO PDF]"],
+    ["Đang cào:", "Crawling:"],
+    ["bài báo", "articles"],
+    ["Lưu:", "Saved:"],
+    ["Lỗi/Bỏ qua:", "Errors/Skipped:"],
+    ["Đã thu thập", "Collected"],
+    ["Thu thập hoàn thành! Đang làm mới dữ liệu...", "Crawl completed! Refreshing data..."],
+  ];
+  legacyLogTranslations.forEach(([from, to]) => { msg = String(msg).replaceAll(from, to); });
   const logKey = String(msg || "").trim();
-  // Status polling can return the same message more than once. Keep one
-  // visible record of an identical message in the current terminal session.
-  if (displayedCrawlLogMessages.has(logKey)) return;
-  displayedCrawlLogMessages.add(logKey);
   const placeholder = term.querySelector(".log-placeholder");
   if (placeholder) placeholder.remove();
 
@@ -802,24 +829,24 @@ function updateProgressUI(s) {
 
 
   if (s.current_url) {
-    document.getElementById("progressMsg").textContent = `Đang xử lý: ${s.current_url}`;
+    document.getElementById("progressMsg").textContent = `Processing: ${s.current_url}`;
   }
 
   const badge = document.getElementById("crawlStateBadge");
   if (s.running) {
-    badge.textContent = "⚙️ Đang chạy";
+    badge.textContent = "⚙️ Running";
     badge.className   = "crawl-state-badge running";
     document.getElementById("crawl-badge").style.display = "";
   } else if (s.error) {
-    badge.textContent = "❌ Lỗi";
+    badge.textContent = "❌ Error";
     badge.className   = "crawl-state-badge error";
     document.getElementById("crawl-badge").style.display = "none";
   } else if (s.done) {
-    badge.textContent = "✅ Hoàn thành";
+    badge.textContent = "✅ Completed";
     badge.className   = "crawl-state-badge done";
     document.getElementById("crawl-badge").style.display = "none";
   } else {
-    badge.textContent = "Chờ";
+    badge.textContent = "Waiting";
     badge.className   = "crawl-state-badge";
     document.getElementById("crawl-badge").style.display = "none";
   }
@@ -843,17 +870,17 @@ async function startScraping() {
   const sYear = parseInt(document.getElementById("startYear").value);
   const eYear = parseInt(document.getElementById("endYear").value);
 
-  if (!url)          { showToast("Vui lòng nhập URL tên miền đích!", "error"); return; }
-  if (isNaN(sYear) || isNaN(eYear)) { showToast("Vui lòng nhập năm hợp lệ!", "error"); return; }
-  if (sYear > eYear) { showToast("Năm bắt đầu phải ≤ năm kết thúc!", "error"); return; }
+  if (!url)          { showToast("Please enter a target domain URL.", "error"); return; }
+  if (isNaN(sYear) || isNaN(eYear)) { showToast("Please enter valid years.", "error"); return; }
+  if (sYear > eYear) { showToast("The start year must be less than or equal to the end year.", "error"); return; }
 
   isScraping = true;
   btn.disabled = true;
-  btn.innerHTML = `<span class="btn-icon">⚙️</span> Đang khởi động...`;
+  btn.innerHTML = `<span class="btn-icon">⚙️</span> Starting...`;
   stop.style.display = "";
   document.getElementById("summaryBox").style.display = "none";
 
-  appendLog(`🚀 Bắt đầu thu thập: ${url} (${sYear}–${eYear})`, "info");
+  appendLog(`🚀 Starting crawl: ${url} (${sYear}–${eYear})`, "info");
   updateProgressUI({ running: true });
 
   try {
@@ -873,14 +900,14 @@ async function startScraping() {
       return;
     }
 
-    if (!res.ok) throw new Error("Lỗi máy chủ");
+    if (!res.ok) throw new Error("Server error");
 
-    appendLog("✅ Lệnh đã được gửi, crawler đang chạy nền...", "success");
+    appendLog("✅ Request sent. Crawler is running in the background...", "success");
     _startPolling();
 
   } catch (err) {
-    appendLog(`❌ Lỗi kết nối: ${err.message}`, "error");
-    showToast("Không thể kết nối đến máy chủ", "error");
+    appendLog(`❌ Connection error: ${err.message}`, "error");
+    showToast("Unable to connect to the server", "error");
     resetScrapeBtn();
   }
 }
@@ -897,9 +924,10 @@ function _startPolling() {
       updateProgressUI(s);
 
       // Append các log mới
+      // The backend keeps the complete log stream for this crawl. Consume only
+      // entries not rendered yet, including repeated messages from new events.
       if (s.log_messages && s.log_messages.length > lastLogCount) {
-        const newLogs = s.log_messages.slice(lastLogCount);
-        newLogs.forEach(msg => appendLog(msg));
+        s.log_messages.slice(lastLogCount).forEach(msg => appendLog(msg));
         lastLogCount = s.log_messages.length;
       }
 
@@ -907,18 +935,18 @@ function _startPolling() {
       if (s.done) {
         clearInterval(pollingInterval); pollingInterval = null;
         if (s.error) {
-          appendLog(`❌ Lỗi: ${s.error}`, "error");
-          showToast("Crawler gặp lỗi!", "error");
+          appendLog(`❌ Error: ${s.error}`, "error");
+          showToast("The crawler encountered an error.", "error");
         } else {
-          appendLog("✅ Thu thập hoàn thành! Đang làm mới dữ liệu...", "success");
-          showToast("Thu thập dữ liệu hoàn thành!", "success");
+          appendLog("✅ Crawl completed! Refreshing data...", "success");
+          showToast("Crawling completed!", "success");
           _showSummaryBox(s.summary || {});
           updateProgressUI(s);
           setTimeout(() => {
             loadData();
             loadDashboard();
             loadCrawlLogs();
-            appendLog(`📊 Tổng kết: ✅ ${s.summary?.success||0} lưu · 🔁 ${s.summary?.duplicates||0} trùng · ⏭ ${s.summary?.skipped||0} bỏ qua`, "info");
+          appendLog(`📊 Summary: ✅ ${s.summary?.success||0} saved · 🔁 ${s.summary?.duplicates||0} duplicates · ⏭ ${s.summary?.skipped||0} skipped`, "info");
           }, 1500);
         }
         resetScrapeBtn();
@@ -935,7 +963,7 @@ function stopScraping() {
   fetch(`${API_BASE}/scrape/stop`, { method: 'POST' }).catch(() => {});
   clearInterval(pollingInterval); pollingInterval = null;
   isScraping = false;
-  appendLog("⏹ Đã gửi lệnh dừng crawler", "warning");
+  appendLog("⏹ Stop request sent to the crawler", "warning");
   resetScrapeBtn();
 }
 
@@ -944,7 +972,7 @@ function resetScrapeBtn() {
   const btn  = document.getElementById("btnScrape");
   const stop = document.getElementById("btnStopScrape");
   btn.disabled = false;
-  btn.innerHTML = `<span class="btn-icon">🚀</span> Bắt đầu thu thập`;
+  btn.innerHTML = `<span class="btn-icon">🚀</span> Start crawling`;
   stop.style.display = "none";
 }
 
@@ -963,7 +991,7 @@ function setArticleFilter(filter, btn) {
 async function loadData() {
   const query = (document.getElementById("searchInput")?.value || "").trim();
   const scroll = document.getElementById("articleListScroll");
-  if (scroll) scroll.innerHTML = `<div class="list-placeholder">Đang tải...</div>`;
+  if (scroll) scroll.innerHTML = `<div class="list-placeholder">Loading...</div>`;
   try {
     const url  = query
       ? `${API_BASE}/articles?q=${encodeURIComponent(query)}`
@@ -973,7 +1001,7 @@ async function loadData() {
     currentArticlesData = Array.isArray(data) ? data : [];
     renderArticleList();
   } catch {
-    if (scroll) scroll.innerHTML = `<div class="list-placeholder">Lỗi kết nối máy chủ</div>`;
+    if (scroll) scroll.innerHTML = `<div class="list-placeholder">Server connection error</div>`;
   }
 }
 
@@ -986,25 +1014,25 @@ function renderArticleList() {
   if (articleFilter === "labeled")   data = data.filter(a =>  a.is_labeled || a.highlighted_html);
   if (articleFilter === "unlabeled") data = data.filter(a => !a.is_labeled && !a.highlighted_html);
 
-  if (info) info.textContent = `${data.length} bài báo`;
+  if (info) info.textContent = `${data.length} articles`;
 
   if (data.length === 0) {
-    scroll.innerHTML = `<div class="list-placeholder">Không tìm thấy bài báo</div>`;
+    scroll.innerHTML = `<div class="list-placeholder">No articles found</div>`;
     return;
   }
 
   scroll.innerHTML = data.map(a => {
     const isLabeled = a.is_labeled || !!a.highlighted_html;
-    const isActive  = a.id === currentArticleId;
+  const isActive  = String(a.id) === String(currentArticleId);
     return `
       <div class="article-list-item ${isActive ? "active" : ""}" onclick="selectArticle(${a.id})">
-        <div class="ali-title">${a.title || "Không có tiêu đề"}</div>
-        <div class="ali-authors">${a.authors || "Không rõ tác giả"}</div>
+        <div class="ali-title">${a.title || "Untitled"}</div>
+        <div class="ali-authors">${a.authors || "Unknown author"}</div>
         <div class="ali-meta">
           <span class="ali-dot ${isLabeled ? "labeled" : "unlabeled"}"></span>
           <span>${a.publication_year || "—"}</span>
           <span>·</span>
-          <span>${isLabeled ? "Đã gán nhãn" : "Chưa xử lý"}</span>
+          <span>${isLabeled ? "Annotated" : "Not processed"}</span>
         </div>
       </div>`;
   }).join("");
@@ -1015,7 +1043,7 @@ async function selectArticle(id) {
   isNerActive      = false;
   renderArticleList(); // update active state
 
-  let article = currentArticlesData.find(a => a.id === id);
+  let article = currentArticlesData.find(a => String(a.id) === String(id));
   if (!article) return;
 
   // Show viewer
@@ -1027,7 +1055,7 @@ async function selectArticle(id) {
 
   // Fetch full details if not yet loaded (list API only returns metadata, no abstract)
   if (!article._loaded) {
-    textBody.innerHTML = `<em style='color:var(--text-3)'>⏳ Đang tải nội dung...</em>`;
+    textBody.innerHTML = `<em style='color:var(--text-3)'>⏳ Loading content...</em>`;
     try {
       const detail = await fetch(`${API_BASE}/articles/${id}`).then(r => r.json());
       if (detail) {
@@ -1038,15 +1066,15 @@ async function selectArticle(id) {
       }
     } catch(e) {
       console.error("Error fetching detail:", e);
-      textBody.innerHTML = `<em style='color:var(--danger)'>Lỗi tải nội dung bài báo</em>`;
+      textBody.innerHTML = `<em style='color:var(--danger)'>Unable to load article content</em>`;
       return;
     }
   }
 
   // Meta
-  document.getElementById("articleTitle").textContent   = article.title   || "Không có tiêu đề";
+  document.getElementById("articleTitle").textContent   = article.title   || "Untitled";
   document.getElementById("articleYear").textContent    = article.publication_year || "—";
-  document.getElementById("articleAuthors").textContent = article.authors  || "Không rõ tác giả";
+  document.getElementById("articleAuthors").textContent = article.authors  || "Unknown author";
 
   // NER state UI reset
   const btnNer   = document.getElementById("btnNer");
@@ -1056,7 +1084,7 @@ async function selectArticle(id) {
   const legend    = document.getElementById("entityLegend");
 
   btnNer.className   = "btn-ner";
-  btnNer.textContent = "Bật gán nhãn";
+  btnNer.textContent = "Enable annotation";
   btnSave.style.display = "none";
   nerStatus.textContent = "";
   entPanel.style.display = "none";
@@ -1066,9 +1094,9 @@ async function selectArticle(id) {
   if (article.highlighted_html) {
     isNerActive = true;
     btnNer.className = "btn-ner active";
-    btnNer.textContent = "Ẩn gán nhãn";
+    btnNer.textContent = "Hide annotation";
     textBody.innerHTML = article.highlighted_html;
-    nerStatus.textContent = "✅ Đã gán nhãn";
+    nerStatus.textContent = "✅ Annotated";
     legend.style.display  = "flex";
     btnSave.style.display = "";
     if (article.matched_concepts?.length) {
@@ -1077,12 +1105,12 @@ async function selectArticle(id) {
     }
   } else {
     // Show raw text
-    textBody.innerHTML = article.abstract ? article.abstract.replace(/\n/g, "<br>") : "<em>Không có nội dung tóm tắt.</em>";
+    textBody.innerHTML = article.abstract ? article.abstract.replace(/\n/g, "<br>") : "<em>No abstract content.</em>";
   }
 }
 
 async function toggleNer() {
-  const article = currentArticlesData.find(a => a.id === currentArticleId);
+  const article = currentArticlesData.find(a => String(a.id) === String(currentArticleId));
   if (!article) return;
 
   const btnNer    = document.getElementById("btnNer");
@@ -1092,11 +1120,11 @@ async function toggleNer() {
     // Turn off — show raw text
     isNerActive = false;
     btnNer.className = "btn-ner";
-    btnNer.textContent = "Bật gán nhãn";
+    btnNer.textContent = "Enable annotation";
     document.getElementById("textBody").innerHTML =
       article.abstract ? article.abstract.replace(/\n/g, "<br>") : "";
     document.getElementById("btnNer").classList.remove("active");
-  document.getElementById("btnNer").textContent = "Bật gán nhãn";
+  document.getElementById("btnNer").textContent = "Enable annotation";
   document.getElementById("btnSaveNer").style.display = "none";
   document.getElementById("btnAiNer").style.display = "inline-flex"; // Hiển thị nút AI
   document.getElementById("aiPanel").style.display = "none"; // Ẩn panel AI cũ
@@ -1107,8 +1135,8 @@ async function toggleNer() {
   // Call NER
   btnNer.disabled  = true;
   btnNer.className = "btn-ner loading";
-  btnNer.textContent = "Đang phân tích...";
-  nerStatus.textContent = "Đang gán nhãn...";
+  btnNer.textContent = "Analyzing...";
+  nerStatus.textContent = "Annotating...";
 
   try {
     const res = await fetch(`${API_BASE}/highlight-text`, {
@@ -1132,13 +1160,13 @@ async function toggleNer() {
       document.getElementById("textBody").innerHTML = result.highlighted_html;
       document.getElementById("entityLegend").style.display = "flex";
       btnNer.className = "btn-ner active";
-      btnNer.textContent = "Ẩn gán nhãn";
+      btnNer.textContent = "Hide annotation";
       document.getElementById("btnSaveNer").style.display = "";
 
       const count = (result.matched_concepts || []).length;
       nerStatus.textContent = count > 0
-        ? `✅ Tìm thấy ${count} thực thể`
-        : "ℹ️ Không tìm thấy thực thể y tế";
+        ? `✅ Found ${count} entities`
+        : "ℹ️ No medical entities found";
 
       // Preprocessing log
       const preprocLog = result.preprocessing_log;
@@ -1151,11 +1179,11 @@ async function toggleNer() {
         document.getElementById("entitiesPanel").style.display = "none";
       }
     } else {
-      showToast("Lỗi phân tích NER: " + (result.detail || "Không xác định"), "error");
+      showToast("NER analysis error: " + (result.detail || "Unknown error"), "error");
       nerStatus.textContent = "";
     }
   } catch (err) {
-    showToast("Lỗi kết nối máy chủ NER", "error");
+    showToast("NER server connection error", "error");
     nerStatus.textContent = "";
     console.error(err);
   } finally {
@@ -1167,11 +1195,13 @@ async function toggleNer() {
 function renderEntities(concepts) {
   const grid = document.getElementById("entitiesGrid");
   if (!concepts || concepts.length === 0) {
-    grid.innerHTML = `<span style="color:var(--text-3);font-size:12px">Không có thực thể</span>`;
+    grid.innerHTML = `<span style="color:var(--text-3);font-size:12px">No entities</span>`;
     return;
   }
   const seen = new Set();
+  const allowedTypes = new Set(["DISEASE", "SYMPTOM", "CAUSE", "DIAGNOSTIC", "DIAGNOSTIC_PROCEDURE", "TREATMENT"]);
   grid.innerHTML = concepts
+    .filter(c => allowedTypes.has(normalizeEntityType(c.type || "DISEASE")))
     .filter(c => { const k = (c.name||"").toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
     .map(c => {
       const cls = entityClass(c.type || "DISEASE");
@@ -1189,14 +1219,14 @@ function renderEntities(concepts) {
 
 
 async function saveCurrentHighlight() {
-  const article = currentArticlesData.find(a => a.id === currentArticleId);
+  const article = currentArticlesData.find(a => String(a.id) === String(currentArticleId));
   if (!article || !article.highlighted_html) {
-    showToast("Chưa có dữ liệu để lưu!", "error");
+    showToast("There is no data to save.", "error");
     return;
   }
   const btn = document.getElementById("btnSaveNer");
   btn.disabled = true;
-  btn.innerHTML = "<span>⏳</span> Đang lưu...";
+  btn.innerHTML = "<span>⏳</span> Saving...";
 
   try {
     const res = await fetch(`${API_BASE}/save-highlight`, {
@@ -1210,23 +1240,23 @@ async function saveCurrentHighlight() {
     });
     const result = await res.json();
     if (res.ok) {
-      showToast(`Đã lưu ${result.concepts_saved} thực thể!`, "success");
+      showToast(`Saved ${result.concepts_saved} entities!`, "success");
       renderArticleList(); // refresh labels
     } else {
-      showToast("Lỗi: " + (result.detail || "Không xác định"), "error");
+      showToast("Error: " + (result.detail || "Unknown error"), "error");
     }
   } catch {
-    showToast("Lỗi kết nối khi lưu", "error");
+    showToast("Connection error while saving", "error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Lưu kết quả";
+    btn.textContent = "Save results";
   }
 }
 
 async function saveToDict() {
-  const article = currentArticlesData.find(a => a.id === currentArticleId);
+  const article = currentArticlesData.find(a => String(a.id) === String(currentArticleId));
   if (!article?.matched_concepts?.length) {
-    showToast("Không có thực thể để lưu vào từ điển!", "error");
+    showToast("There are no entities to save to the dictionary.", "error");
     return;
   }
   try {
@@ -1238,11 +1268,11 @@ async function saveToDict() {
     const result = await res.json();
     if (res.ok) {
       document.getElementById("saveDictStatus").textContent =
-        `✅ Đã thêm ${result.added?.length || 0} thuật ngữ`;
-      showToast(`Đã thêm ${result.added?.length || 0} thuật ngữ vào từ điển!`, "success");
+        `✅ Added ${result.added?.length || 0} terms`;
+      showToast(`Added ${result.added?.length || 0} terms to the dictionary!`, "success");
     }
   } catch {
-    showToast("Lỗi khi lưu vào từ điển", "error");
+    showToast("Error saving to the dictionary", "error");
   }
 }
 
@@ -1255,7 +1285,7 @@ async function loadCrawlLogs() {
     const res = await fetch(`${API_BASE}/crawl-logs`);
     const logs = await res.json();
     if (!logs || logs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Chưa có dữ liệu nhật ký thu thập.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">No crawl history available.</td></tr>`;
       return;
     }
 
@@ -1276,7 +1306,7 @@ async function loadCrawlLogs() {
       `;
     }).join("");
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Lỗi khi tải nhật ký: ${e.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Error loading history: ${e.message}</td></tr>`;
   }
 }
 
@@ -1592,17 +1622,19 @@ function _renderEntitiesGrid(concepts, gridId) {
   const TYPE_MAP = {
     'Bệnh Lý':                'disease',
     'Triệu Chứng':            'symptom',
+    'Nguyên Nhân':            'cause',
     'Điều Trị':               'treatment',
-    'Xét Nghiệm/Cận Lâm Sàng': 'labtest',
-    'Chẩn Đoán Hình Ảnh':    'imaging',
-    'Đông Y / YHCT':          'tradmed',
-    'Tiến Trình Bệnh Lý':    'symptom',
+    'Chẩn Đoán':              'diagnostic',
     'DISEASE':                'disease',
     'SYMPTOM':                'symptom',
+    'CAUSE':                  'cause',
+    'DIAGNOSTIC':             'diagnostic',
+    'DIAGNOSTIC_PROCEDURE':   'diagnostic',
     'TREATMENT':              'treatment',
   };
 
-  grid.innerHTML = concepts.map(c => {
+  const allowedTypes = new Set(['DISEASE', 'SYMPTOM', 'CAUSE', 'DIAGNOSTIC', 'DIAGNOSTIC_PROCEDURE', 'TREATMENT', 'Bệnh Lý', 'Triệu Chứng', 'Nguyên Nhân', 'Chẩn Đoán', 'Điều Trị']);
+  grid.innerHTML = concepts.filter(c => allowedTypes.has(c.type)).map(c => {
     const cls = TYPE_MAP[c.type] || 'other';
     const matchedBy = c.matched_by || 'exact';
     const badgeCls  = matchedBy === 'noun_phrase' ? 'matched-noun-phrase' : 'matched-exact';
@@ -1726,12 +1758,12 @@ function filterAiArticles() {
     const isLabeled = a.is_ai_labeled || a._aiSaved;
     return `
       <div class="article-list-item ${isActive}" onclick="selectAiArticle(${a.id})">
-        <div class="ali-title">${a.title || "Không có tiêu đề"}</div>
+        <div class="ali-title">${a.title || "Untitled"}</div>
         <div class="ali-meta">
           <span class="ali-dot ${isLabeled ? "labeled" : "unlabeled"}"></span>
           <span>${a.publication_year || "—"}</span>
           <span>·</span>
-          <span>${isLabeled ? "Đã gán nhãn AI" : "Chưa xử lý"}</span>
+          <span>${isLabeled ? "AI annotated" : "Not processed"}</span>
         </div>
       </div>
     `;
@@ -1760,19 +1792,19 @@ async function selectAiArticle(id) {
   const article = aiLabelArticlesData.find(a => a.id === id);
   if (!article) return;
 
-  document.getElementById("aiMetaTitle").textContent = article.title || "Chưa có tiêu đề";
+  document.getElementById("aiMetaTitle").textContent = article.title || "Untitled";
   document.getElementById("aiMetaYear").textContent  = article.publication_year || "N/A";
-  document.getElementById("aiMetaAuthors").textContent = article.authors || "Không rõ tác giả";
+  document.getElementById("aiMetaAuthors").textContent = article.authors || "Unknown author";
 
   document.getElementById("btnRunAiNer").disabled = false;
-  document.getElementById("btnRunAiNer").textContent = "Gán nhãn bằng AI";
+  document.getElementById("btnRunAiNer").textContent = "Annotate with AI";
   const saveButton = document.getElementById("btnSaveAiLabel");
   saveButton.disabled = true;
-  saveButton.textContent = "Lưu kết quả AI";
+  saveButton.textContent = "Save AI results";
   
   const aiTextBodyArea = document.getElementById("aiTextBodyArea");
   if (!article._loaded) {
-    aiTextBodyArea.innerHTML = `<em style='color:var(--text-3)'>⏳ Đang tải nội dung...</em>`;
+    aiTextBodyArea.innerHTML = `<em style='color:var(--text-3)'>⏳ Loading content...</em>`;
     try {
       const detail = await fetch(`${API_BASE}/articles/${id}`).then(r => r.json());
       if (detail) {
@@ -1782,23 +1814,23 @@ async function selectAiArticle(id) {
       }
     } catch (e) {
       console.error("Error fetching detail for AI:", e);
-      aiTextBodyArea.innerHTML = `<em style='color:var(--danger)'>Lỗi tải nội dung bài báo</em>`;
+      aiTextBodyArea.innerHTML = `<em style='color:var(--danger)'>Unable to load article content</em>`;
       return;
     }
   }
 
   aiTextBodyArea.innerHTML = article.abstract
     ? escapeHtml(article.abstract).replace(/\n/g, "<br>")
-    : "<em style='color:var(--text-3)'>Bài báo này không có nội dung tóm tắt trong cơ sở dữ liệu.</em>";
+    : "<em style='color:var(--text-3)'>This article has no abstract content in the database.</em>";
   
-  document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">Chưa phân tích (Bấm Gán nhãn bằng AI)</div>`;
+  document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">Not analyzed (click Annotate with AI)</div>`;
   document.getElementById("aiTotalEntitiesCount").textContent = "0";
 }
 
 async function runAiLabel() {
   const article = aiLabelArticlesData.find(a => a.id === currentAiArticleId);
   if (!article || !article.abstract) {
-    showToast("Không có văn bản để phân tích", "error");
+    showToast("There is no text to analyze.", "error");
     return;
   }
 
@@ -1807,40 +1839,49 @@ async function runAiLabel() {
   currentAiLabelResult = null;
   currentAiLabelResultArticleId = null;
   saveButton.disabled = true;
-  saveButton.textContent = "Lưu kết quả AI";
+  saveButton.textContent = "Save AI results";
   btn.disabled = true;
-  btn.textContent = "Đang phân tích...";
-  document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">Đang gọi Gemini AI...</div>`;
+  btn.textContent = "Analyzing...";
+  const mode = document.getElementById("aiModelMode")?.value || "gemini";
+  const modeLabel = mode === "xlmr" ? "XLM-R" : mode === "compare" ? "Gemini and XLM-R" : "Gemini";
+  document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">Calling ${modeLabel}...</div>`;
 
   try {
-    const res = await fetch(`${API_BASE}/ai-label`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: article.abstract })
-    });
-
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(payload.detail || `Lỗi gọi API AI (HTTP ${res.status})`);
+    const requests = {
+      gemini: () => fetchGeminiAiLabels(article.abstract),
+      xlmr: () => fetchXlmrLabels(article.abstract),
+    };
+    let data;
+    let metadata;
+    if (mode === "compare") {
+      const [gemini, xlmr] = await Promise.all([requests.gemini(), requests.xlmr()]);
+      data = mergeAiLabelGroups(gemini.groups, xlmr.groups);
+      metadata = {
+        source: "compare",
+        model_name: `${gemini.model} + ${xlmr.model}`,
+        model_version: `${gemini.model_version || "default"} + ${xlmr.model_version || "best_model"}`,
+      };
+    } else {
+      const result = await requests[mode]();
+      data = result.groups;
+      metadata = { source: result.source, model_name: result.model, model_version: result.model_version || "" };
     }
-
-    const data = payload;
+    data._metadata = metadata;
     currentAiLabelResult = data;
     currentAiLabelResultArticleId = article.id;
     
     let totalCount = 0;
 
     const catMapping = {
-      "Bệnh lý": { color: "#4ade80", key: "DISEASE" },
-      "Triệu chứng": { color: "#818cf8", key: "SYMPTOM" },
-      "Điều trị": { color: "#c084fc", key: "TREATMENT" },
-      "Xét nghiệm": { color: "#fbbf24", key: "LAB_TEST" },
-      "Hình ảnh": { color: "#2dd4bf", key: "IMAGING" },
-      "Sinh lý": { color: "#fb923c", key: "PHYSIOLOGY" }
+      "Disease": { color: "#4ade80", key: "DISEASE" },
+      "Symptom": { color: "#818cf8", key: "SYMPTOM" },
+      "Cause": { color: "#fb923c", key: "CAUSE" },
+      "Diagnostic": { color: "#fbbf24", key: "DIAGNOSTIC_PROCEDURE" },
+      "Treatment": { color: "#c084fc", key: "TREATMENT" }
     };
 
     if(!ENTITY_COLORS["PHYSIOLOGY"]) {
-      ENTITY_COLORS["PHYSIOLOGY"] = { cls: "physiology", label: "Sinh lý", icon: "" };
+      ENTITY_COLORS["DIAGNOSTIC_PROCEDURE"] = { cls: "diagnostic", label: "Diagnostic", icon: "" };
     }
     if (!document.getElementById("physiology-style")) {
       const style = document.createElement('style');
@@ -1869,10 +1910,18 @@ async function runAiLabel() {
         const codeHtml = item.code
           ? `<span class="entity-code">${escapeHtml(item.code)}</span>`
           : "";
-        const sourceLabel = item.source === "ai+dictionary" ? "AI + Từ điển" : "AI";
+        const confidenceHtml = Number.isFinite(Number(item.score))
+          ? `<span class="entity-code">${Math.round(Number(item.score) * 100)}%</span>`
+          : "";
+        const sourceLabel = item.source === "xlmr"
+          ? "XLM-R"
+          : item.source === "gemini"
+            ? "Gemini"
+            : item.source === "ai+dictionary" ? "AI + Từ điển" : "AI";
         entitiesHtml += `<div class="entity-tag ${mapping.key.toLowerCase()}" title="${escapeHtml(tooltip)}">
           <span>${escapeHtml(item.term)}</span>
           ${codeHtml}
+          ${confidenceHtml}
           <span class="matched-badge matched-exact">${sourceLabel}</span>
         </div>`;
 
@@ -1918,28 +1967,104 @@ async function runAiLabel() {
         document.getElementById("btnSaveAiLabel").disabled = false;
     } else {
         document.getElementById("aiTotalEntitiesCount").textContent = "0";
-        document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">AI không tìm thấy thực thể nào</div>`;
+        document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state">AI found no entities</div>`;
     }
     
   } catch (e) {
-    document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state" style="color:var(--danger)">Lỗi: ${e.message}</div>`;
-    showToast("Lỗi phân tích AI", "error");
+    document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state" style="color:var(--danger)">Error: ${e.message}</div>`;
+    showToast("AI analysis error", "error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Gán nhãn bằng AI";
+    btn.textContent = "Annotate with AI";
   }
+}
+
+function aiCategory(type) {
+  return {
+    DISEASE: "Disease",
+    SYMPTOM: "Symptom",
+    CAUSE: "Cause",
+    DIAGNOSTIC: "Diagnostic",
+    DIAGNOSTIC_PROCEDURE: "Diagnostic",
+    TREATMENT: "Treatment"
+  }[type] || "";
+}
+
+async function fetchGeminiAiLabels(text) {
+  const res = await fetch(`${API_BASE}/ai-ner`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(payload.detail || `Gemini API error (HTTP ${res.status})`);
+  const groups = {};
+  for (const entity of Array.isArray(payload.entities) ? payload.entities : []) {
+    const category = aiCategory(entity.type);
+    const term = entity.name || entity.text;
+    if (!category || !term) continue;
+    const spans = Number.isInteger(entity.start) && Number.isInteger(entity.end)
+      ? [{ start: entity.start, end: entity.end }]
+      : findTextSpans(text, term);
+    (groups[category] ||= []).push({
+      term, code: entity.code || "", spans, source: "gemini", score: entity.score
+    });
+  }
+  return { groups, model: payload.model || "Gemini", model_version: payload.model_version || "", source: "gemini" };
+}
+
+async function fetchXlmrLabels(text) {
+  const res = await fetch(`${API_BASE}/xlmr-ner`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(payload.detail || `XLM-R API error (HTTP ${res.status})`);
+  const groups = {};
+  for (const entity of Array.isArray(payload.entities) ? payload.entities : []) {
+    const category = aiCategory(entity.label || entity.type);
+    const term = entity.text || entity.name;
+    if (!category || !term) continue;
+    (groups[category] ||= []).push({
+      term, code: "", spans: [{ start: entity.start, end: entity.end }],
+      source: "xlmr", score: entity.score
+    });
+  }
+  return { groups, model: payload.model || "XLM-R", model_version: payload.model_version || "best_model", source: "xlmr" };
+}
+
+function findTextSpans(text, term) {
+  const spans = [];
+  const needle = term.toLocaleLowerCase("vi");
+  const haystack = text.toLocaleLowerCase("vi");
+  let from = 0;
+  while (from < haystack.length) {
+    const start = haystack.indexOf(needle, from);
+    if (start < 0) break;
+    spans.push({ start, end: start + term.length });
+    from = start + Math.max(needle.length, 1);
+  }
+  return spans;
+}
+
+function mergeAiLabelGroups(left, right) {
+  const merged = {};
+  for (const [category, items] of Object.entries(left || {})) merged[category] = [...(items || [])];
+  for (const [category, items] of Object.entries(right || {})) merged[category] = [...(merged[category] || []), ...(items || [])];
+  return merged;
 }
 
 async function saveAiLabelResult() {
   const article = aiLabelArticlesData.find(a => a.id === currentAiArticleId);
   if (!article || currentAiLabelResultArticleId !== article.id || !currentAiLabelResult) {
-    showToast("Hãy chạy gán nhãn AI cho bài báo này trước khi lưu.", "error");
+    showToast("Run AI annotation for this article before saving.", "error");
     return;
   }
 
   const button = document.getElementById("btnSaveAiLabel");
   button.disabled = true;
-  button.textContent = "Đang lưu...";
+  button.textContent = "Saving...";
   try {
     const response = await fetch(`${API_BASE}/ai-label/save`, {
       method: "POST",
@@ -1947,16 +2072,16 @@ async function saveAiLabelResult() {
       body: JSON.stringify({ articleId: article.id, labels: currentAiLabelResult }),
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.detail || `Lỗi lưu kết quả AI (HTTP ${response.status})`);
+    if (!response.ok) throw new Error(payload.detail || `Error saving AI results (HTTP ${response.status})`);
 
     article._aiSaved = true;
     article.is_ai_labeled = 1; // phản ánh ngay vào filter không cần reload
-    button.textContent = payload.duplicate ? "Đã lưu trước đó" : "Đã lưu kết quả AI";
+    button.textContent = payload.duplicate ? "Already saved" : "AI results saved";
     renderAiArticleList();
-    showToast(payload.message || "Kết quả AI đã được lưu.", "success");
+    showToast(payload.message || "AI results saved.", "success");
   } catch (error) {
     button.disabled = false;
-    button.textContent = "Lưu kết quả AI";
+    button.textContent = "Save AI results";
     showToast(error.message, "error");
   }
 }

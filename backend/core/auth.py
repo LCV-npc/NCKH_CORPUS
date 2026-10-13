@@ -187,6 +187,40 @@ def ensure_auth_review_schema(db_config: dict[str, Any]) -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS labeling_sessions (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL,
+                description TEXT NULL,
+                reviewer_id BIGINT UNSIGNED NOT NULL,
+                status VARCHAR(24) NOT NULL DEFAULT 'OPEN',
+                created_by BIGINT UNSIGNED NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_labeling_sessions_reviewer (reviewer_id),
+                CONSTRAINT fk_labeling_sessions_reviewer FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE RESTRICT,
+                CONSTRAINT fk_labeling_sessions_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS labeling_session_assignments (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                session_id BIGINT UNSIGNED NOT NULL,
+                article_id INT UNSIGNED NOT NULL,
+                expert_id BIGINT UNSIGNED NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_session_article_expert (session_id, article_id, expert_id),
+                KEY idx_assignment_expert (expert_id),
+                CONSTRAINT fk_assignment_session FOREIGN KEY (session_id) REFERENCES labeling_sessions(id) ON DELETE CASCADE,
+                CONSTRAINT fk_assignment_article FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE,
+                CONSTRAINT fk_assignment_expert FOREIGN KEY (expert_id) REFERENCES users(id) ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """
+        )
         for column, definition in (
             ("final_labels_json", "LONGTEXT NULL"),
             ("resolution_status", "VARCHAR(24) NOT NULL DEFAULT 'CONFLICT'"),

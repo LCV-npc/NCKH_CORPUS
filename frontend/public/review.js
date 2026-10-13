@@ -65,6 +65,7 @@ function initializeReviewWorkspace(user) {
     initializeReviewerWorkspace();
   } else {
     initializeAdminReviewLinks();
+    if (location.hash === "#labeling-sessions") showAdminReviewView("sessions");
   }
 }
 
@@ -74,7 +75,7 @@ function initializeReviewerWorkspace() {
     <div class="nav-section-label">Reviewer</div>
     <a class="nav-item" data-review-view="reviewer-dashboard" onclick="showReviewerView('dashboard')"><span class="nav-label">Dashboard</span></a>
     <a class="nav-item" data-review-view="reviewer-reviews" onclick="showReviewerView('reviews')"><span class="nav-label">Review Dashboard</span></a>
-    <a class="nav-item" data-screen="ai-evaluation" onclick="switchScreen('ai-evaluation')"><span class="nav-label">Đánh giá AI</span></a>
+    <a class="nav-item" data-screen="ai-evaluation" onclick="switchScreen('ai-evaluation')"><span class="nav-label">AI Evaluation</span></a>
   `;
   window.addEventListener("popstate", () => {
     const documentId = reviewerReviewIdFromPath(location.pathname);
@@ -112,31 +113,31 @@ function showReviewerView(view, push = true) {
 }
 
 async function renderReviewerDashboard(screen) {
-  setReviewHeader("Reviewer Dashboard", "Tổng quan kết quả review của chuyên gia");
-  screen.innerHTML = '<div class="review-workspace review-loading">Đang tải dashboard...</div>';
+  setReviewHeader("Reviewer Dashboard", "Overview of expert review results");
+  screen.innerHTML = '<div class="review-workspace review-loading">Loading dashboard...</div>';
   try {
     const stats = await reviewRequest("/reviewer/dashboard");
     screen.innerHTML = `<div class="review-workspace">
       <div class="review-kpis">
-        ${reviewKpi("Tổng lượt review", stats.totalReviews)}
-        ${reviewKpi("Chuyên gia đã review", stats.activeExperts)}
-        ${reviewKpi("Văn bản đã review", stats.reviewedDocuments)}
+        ${reviewKpi("Total Reviews", stats.totalReviews)}
+        ${reviewKpi("Active Experts", stats.activeExperts)}
+        ${reviewKpi("Reviewed Documents", stats.reviewedDocuments)}
         ${reviewKpi("Correct", stats.correctReviews)}
         ${reviewKpi("Incorrect", stats.incorrectReviews)}
-        ${reviewKpi("Cần chỉnh sửa", stats.needsRevision)}
+        ${reviewKpi("Needs Revision", stats.needsRevision)}
       </div>
-      <div class="review-panel"><h3>Review Dashboard</h3><p>Reviewer có thể theo dõi tổng quan và xem toàn bộ kết quả đánh giá do các chuyên gia trong hệ thống thực hiện.</p></div>
+      <div class="review-panel"><h3>Review Dashboard</h3><p>Reviewers can monitor expert assessments and review outcomes across the system.</p></div>
     </div>`;
   } catch (error) {
-    screen.innerHTML = `<div class="review-workspace review-error">Không thể tải dashboard: ${reviewEscape(error.message)}</div>`;
+    screen.innerHTML = `<div class="review-workspace review-error">Unable to load dashboard: ${reviewEscape(error.message)}</div>`;
   }
 }
 
 async function renderReviewerReviews(screen) {
-  setReviewHeader("Review Dashboard", "Kết quả review từ các chuyên gia");
+  setReviewHeader("Review Dashboard", "Review results submitted by experts");
   screen.innerHTML = `<div class="review-workspace"><div class="review-panel">
-    <div class="review-filter"><input id="reviewerQuery" placeholder="Tìm bài báo hoặc chuyên gia"><select id="reviewerStatus"><option value="">Tất cả trạng thái</option><option value="CORRECT">Correct</option><option value="INCORRECT">Incorrect</option><option value="NEEDS_REVISION">Needs Revision</option></select><button class="review-action" onclick="loadReviewerReviews()">Tìm</button></div>
-    <div id="reviewerReviewsArea" class="review-loading">Đang tải kết quả...</div>
+    <div class="review-filter"><input id="reviewerQuery" placeholder="Search articles or experts"><select id="reviewerStatus"><option value="">All statuses</option><option value="CORRECT">Correct</option><option value="INCORRECT">Incorrect</option><option value="NEEDS_REVISION">Needs Revision</option></select><button class="review-action" onclick="loadReviewerReviews()">Search</button></div>
+    <div id="reviewerReviewsArea" class="review-loading">Loading results...</div>
   </div></div>`;
   await loadReviewerReviews();
 }
@@ -144,7 +145,7 @@ async function renderReviewerReviews(screen) {
 async function loadReviewerReviews() {
   const area = document.getElementById("reviewerReviewsArea");
   if (!area) return;
-  area.innerHTML = '<div class="review-loading">Đang tải kết quả...</div>';
+  area.innerHTML = '<div class="review-loading">Loading results...</div>';
   try {
     const params = new URLSearchParams({ page_size: "100" });
     const q = document.getElementById("reviewerQuery")?.value.trim() || "";
@@ -160,10 +161,10 @@ async function loadReviewerReviews() {
       <td><button class="review-action" onclick="openReviewerReviewDocument(${Number(item.document_id)})">Xem</button></td>
     </tr>`).join("");
     area.innerHTML = rows
-      ? `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>ID</th><th>Văn bản</th><th>Chuyên gia</th><th>Kết quả</th><th>Mã đề xuất</th><th>Nhận xét</th><th>Ngày</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
-      : '<div class="review-empty">Chưa có kết quả review.</div>';
+      ? `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>ID</th><th>Document</th><th>Expert</th><th>Result</th><th>Suggested Code</th><th>Comment</th><th>Date</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+      : '<div class="review-empty">No review results.</div>';
   } catch (error) {
-    area.innerHTML = `<div class="review-error">Không thể tải review: ${reviewEscape(error.message)}</div>`;
+    area.innerHTML = `<div class="review-error">Unable to load reviews: ${reviewEscape(error.message)}</div>`;
   }
 }
 
@@ -355,6 +356,35 @@ const AI_LABEL_CATEGORY_STYLE = {
   "Xét nghiệm": "labtest",
   "Hình ảnh": "imaging",
   "Sinh lý": "physiology",
+  Disease: "disease",
+  Symptom: "symptom",
+  Cause: "cause",
+  Diagnostic: "diagnostic",
+  Treatment: "treatment",
+  DISEASE: "disease",
+  SYMPTOM: "symptom",
+  CAUSE: "cause",
+  DIAGNOSTIC_PROCEDURE: "diagnostic",
+  TREATMENT: "treatment",
+};
+
+const AI_LABEL_CATEGORY_NAME = {
+  "Bệnh lý": "Disease",
+  "Triệu chứng": "Symptom",
+  "Điều trị": "Treatment",
+  "Xét nghiệm": "Diagnostic",
+  "Hình ảnh": "Diagnostic",
+  "Sinh lý": "Cause",
+  Disease: "Disease",
+  Symptom: "Symptom",
+  Cause: "Cause",
+  Diagnostic: "Diagnostic",
+  Treatment: "Treatment",
+  DISEASE: "Disease",
+  SYMPTOM: "Symptom",
+  CAUSE: "Cause",
+  DIAGNOSTIC_PROCEDURE: "Diagnostic",
+  TREATMENT: "Treatment",
 };
 
 function aiResultEntries(payload) {
@@ -365,7 +395,7 @@ function aiResultEntries(payload) {
     for (const raw of values) {
       const item = typeof raw === "string" ? { term: raw, spans: [] } : raw;
       if (!item || typeof item !== "object" || !String(item.term || "").trim()) continue;
-      entries.push({ category, item, style: AI_LABEL_CATEGORY_STYLE[category] || "other" });
+      entries.push({ category: AI_LABEL_CATEGORY_NAME[category] || category, item, style: AI_LABEL_CATEGORY_STYLE[category] || "other" });
     }
   }
   return entries;
@@ -525,6 +555,18 @@ function aiLabelsForDocument(documentData) {
     : (documentData.aiLabel ? [documentData.aiLabel] : []);
 }
 
+function aiAnnotationSeed(documentData) {
+  const label = aiLabelsForDocument(documentData)[0];
+  if (!label) return [];
+  return aiResultEntries(label.labels || {}).map(({ item, category }) => ({
+    text: item.term || item.text || item.label_vn || item.label || "",
+    label: item.term || item.text || item.label_vn || item.label || "",
+    code: item.code || item.icd10_code || item.icd10Code || "",
+    type: { Disease: "DISEASE", Symptom: "SYMPTOM", Cause: "CAUSE", Diagnostic: "DIAGNOSTIC_PROCEDURE", Treatment: "TREATMENT" }[category] || category || "DISEASE",
+    action: "KEEP"
+  })).filter(item => item.text);
+}
+
 function aiLabelDisplayName(label, index) {
   const model = String(label?.model_name || `Model ${index + 1}`).trim();
   const created = label?.created_at ? ` · ${reviewDate(label.created_at)}` : "";
@@ -593,6 +635,12 @@ function renderAiExtractionColumn(documentData, side, label, differences, select
   return `<section class="review-panel ai-extraction-column" data-ai-side="${side}"><div class="ai-column-head"><h3>AI Extraction</h3><select id="${selectId}" class="ai-model-select">${renderAiModelOptions(labels, selectedId, fallbackIndex)}</select></div><div class="ai-model-meta"><strong>${reviewEscape(primary)}</strong><span>${reviewEscape(confidence)}</span></div>${body}</section>`;
 }
 
+function renderAiPredictionPanel(documentData) {
+  const label = aiLabelsForDocument(documentData)[0];
+  if (!label) return '<div class="review-empty">No saved AI prediction.</div>';
+  return `<h3>AI Prediction</h3>${renderFullAiResult(label.labels || {})}`;
+}
+
 function renderAiAnalysisPanel(differences) {
   if (!differences.length) return '<section class="review-panel ai-analysis-panel"><h3>Analyze Differences</h3><div class="review-empty">Không có khác biệt sau khi Analyze.</div></section>';
   return `<section class="review-panel ai-analysis-panel"><div class="ai-analysis-head"><h3>Analyze Differences</h3><span>${differences.length} khác biệt</span></div><div class="ai-diff-list">${differences.map((row, index) => {
@@ -658,13 +706,15 @@ function analyzeAiModels(documentId) {
 function renderReviewPage(document, editable) {
   const labels = (document.currentLabels || []).map(item => `<div class="label-card"><strong>${reviewEscape(item.code || "No ICD-10 code")}</strong><span>${reviewEscape(item.label || "—")}</span><div class="muted">${reviewEscape(item.source || "")}</div></div>`).join("") || '<div class="review-empty">Không có nhãn hiện tại.</div>';
   const ai = document.aiLabel;
-  const filteredAiLabels = ai ? filterAiPayloadByCurrentLabels(ai.labels, document.currentLabels) : {};
+  // AI Labeled documents must show every AI entity, even when it has no
+  // matching ICD-10 dictionary label yet.
+  const filteredAiLabels = ai ? (ai.labels || {}) : {};
   const primaryPrediction = ai && !aiPrimaryMatchesCurrentLabel(ai, document.currentLabels)
     ? [ai.primary_icd10_code, ai.primary_icd10_label].filter(Boolean).join(" - ")
     : "";
-  const aiContent = ai ? `${primaryPrediction ? `<div class="label-card"><strong>${reviewEscape(primaryPrediction)}</strong></div>` : ""}<h4 class="ai-full-result-title">Toàn bộ thực thể AI</h4>${renderFullAiResult(filteredAiLabels)}` : '<div class="review-empty">Không có AI prediction đã lưu.</div>';
-  const history = (document.reviewHistory || []).map(item => `<article class="history-card"><strong>${reviewEscape(item.expert_name || "Bạn")}</strong>${statusBadge(item.review_status)}<div class="muted">${reviewDate(item.created_at)}</div><p><b>Đề xuất:</b> ${reviewEscape([item.suggested_icd10_code, item.suggested_icd10_label].filter(Boolean).join(" - ") || "—")}</p><p>${reviewEscape(item.comment)}</p></article>`).join("") || '<div class="review-empty">Chưa có review trước đó.</div>';
-  const form = editable ? `<form class="review-form" onsubmit="return saveExpertReview(event, ${Number(document.id)})"><fieldset><legend>Expert Review</legend><label><input type="radio" name="reviewStatus" value="CORRECT" checked> Correct</label><label><input type="radio" name="reviewStatus" value="INCORRECT"> Incorrect</label><label><input type="radio" name="reviewStatus" value="NEEDS_REVISION"> Needs Revision</label></fieldset><input type="hidden" name="labelSource" value="${reviewEscape(expertCurrentLabelSource)}"><section class="expert-annotation-editor"><div class="expert-editor-heading"><div><strong>Nhãn theo từng thực thể</strong><p class="expert-editor-help">Nhập đúng đoạn thực thể trong văn bản. Hệ thống sẽ tự xác định vị trí, không cần nhập offset.</p></div><button type="button" class="review-action" onclick="addExpertAnnotation(${Number(document.id)})">+ Thêm nhãn</button></div><div id="expertAnnotationRows">${renderExpertAnnotationRows(document)}</div></section><label>Expert Comment<textarea id="expertComment" required minlength="3" maxlength="8000" placeholder="Enter your review/comment here..."></textarea></label><p class="auth-error" id="reviewSaveError"></p><button class="review-save" type="submit">Save Review</button></form>` : '';
+  const aiContent = ai ? `${primaryPrediction ? `<div class="label-card"><strong>${reviewEscape(primaryPrediction)}</strong></div>` : ""}<h4 class="ai-full-result-title">All AI Entities</h4>${renderFullAiResult(filteredAiLabels)}` : '<div class="review-empty">No saved AI prediction.</div>';
+  const history = (document.reviewHistory || []).map(item => `<article class="history-card"><strong>${reviewEscape(item.expert_name || "You")}</strong>${statusBadge(item.review_status)}<div class="muted">${reviewDate(item.created_at)}</div><p><b>Suggested:</b> ${reviewEscape([item.suggested_icd10_code, item.suggested_icd10_label].filter(Boolean).join(" - ") || "—")}</p><p>${reviewEscape(item.comment)}</p></article>`).join("") || '<div class="review-empty">No previous reviews.</div>';
+  const form = editable ? `<form class="review-form" onsubmit="return saveExpertReview(event, ${Number(document.id)})"><fieldset><legend>Expert Review</legend><label><input type="radio" name="reviewStatus" value="CORRECT" checked> Correct</label><label><input type="radio" name="reviewStatus" value="INCORRECT"> Incorrect</label><label><input type="radio" name="reviewStatus" value="NEEDS_REVISION"> Needs Revision</label></fieldset><input type="hidden" name="labelSource" value="${reviewEscape(expertCurrentLabelSource)}"><section class="expert-annotation-editor"><div class="expert-editor-heading"><div><strong>Entity annotations</strong><p class="expert-editor-help">Enter the exact entity text. The system will detect its position automatically.</p></div><button type="button" class="review-action" onclick="addExpertAnnotation(${Number(document.id)})">+ Add label</button></div><div id="expertAnnotationRows">${renderExpertAnnotationRows(document)}</div></section><label>Expert Comment<textarea id="expertComment" required minlength="3" maxlength="8000" placeholder="Enter your review/comment here..."></textarea></label><p class="auth-error" id="reviewSaveError"></p><button class="review-save" type="submit">Save Review</button></form>` : '';
   const _backView = ["icd10", "ai-labeled", "reviewed"].includes(reviewActiveView) ? reviewActiveView : "dashboard";
   const backAction = editable
     ? `showExpertView('${_backView}')`
@@ -680,8 +730,14 @@ function renderReviewPage(document, editable) {
   const leftAi = aiLabels.find(label => Number(label.id) === Number(state.leftId)) || aiLabels[0] || null;
   const rightAi = aiLabels.find(label => Number(label.id) === Number(state.rightId)) || aiLabels[1] || aiLabels[0] || null;
   const differences = showAiPanel && state.analyzed ? aiDifferenceRows(leftAi, rightAi) : [];
-  const comparableText = showAiPanel ? renderAiComparableText(document.abstract, differences) : textHtml;
-  const aiWorkspace = showAiPanel ? `<div class="ai-review-actions"><button class="review-action" type="button" onclick="analyzeAiModels(${Number(document.id)})">Analyze</button><span>Chọn hai model rồi bấm Analyze để highlight số liệu khác nhau.</span></div><div class="ai-extraction-grid">${renderAiExtractionColumn(document, "left", leftAi, differences, state.leftId)}${renderAiExtractionColumn(document, "right", rightAi, differences, state.rightId)}</div>${renderAiAnalysisPanel(differences)}` : "";
+  const comparableText = showAiPanel
+    ? (state.analyzed && differences.length
+      ? renderAiComparableText(document.abstract, differences)
+      : renderAiText(document.abstract, leftAi?.labels || {}))
+    : textHtml;
+  const aiWorkspace = showAiPanel
+    ? `<div class="review-panel ai-prediction-panel">${renderAiPredictionPanel(document)}</div>`
+    : "";
   return `<div class="review-workspace"><button class="review-action" onclick="${backAction}">← Quay lại</button><div class="review-layout ${showAiPanel ? "review-layout-ai" : ""}" style="margin-top:14px"><div class="review-panel document-review-main"><h3>${reviewEscape(document.title || "Không có tiêu đề")}</h3><p class="muted">${reviewEscape(document.authors || "Không rõ tác giả")} · ${reviewEscape(document.publication_year || "")}</p><h3 style="margin-top:18px">Original Medical Text</h3><div class="document-text" id="documentTextSource">${comparableText}</div>${form}</div>${showAiPanel ? `<aside class="label-list ai-label-list">${aiWorkspace}</aside>` : `<aside class="label-list"><div class="review-panel"><h3>Current ICD-10 Label</h3>${labels}</div><div class="review-panel"><h3>Review History</h3><div class="history-list">${history}</div></div></aside>`}</div></div>`;
 }
 
@@ -691,28 +747,29 @@ function removeReviewHistoryPanel(container) {
 }
 
 function annotationCategories(selected) {
-  const values = ["DISEASE", "SYMPTOM", "TREATMENT", "LAB_TEST", "IMAGING", "TRAD_MED", "Khác"];
+  const values = ["DISEASE", "SYMPTOM", "CAUSE", "DIAGNOSTIC_PROCEDURE", "TREATMENT"];
   return values.map(value => `<option value="${value}" ${value === selected ? "selected" : ""}>${value}</option>`).join("");
 }
 
 function renderExpertAnnotationRows(document) {
   const id = Number(document.id);
   if (!expertAnnotationState[id]) {
-    expertAnnotationState[id] = (document.annotationSeed || []).map(item => ({ ...item, action: item.action || "KEEP" }));
+    const seed = document.annotationSeed?.length ? document.annotationSeed : aiAnnotationSeed(document);
+    expertAnnotationState[id] = seed.map(item => ({ ...item, action: item.action || "KEEP" }));
   }
   return expertAnnotationState[id].map((item, index) => `
     <div class="expert-annotation-row" data-index="${index}">
-      <button type="button" class="annotation-delete" onclick="removeExpertAnnotation(${id}, ${index})" aria-label="Xóa thực thể">Xóa</button>
+      <button type="button" class="annotation-delete" onclick="removeExpertAnnotation(${id}, ${index})" aria-label="Delete entity">Delete</button>
       <div class="expert-annotation-main">
-        <label class="annotation-field annotation-field-text"><span>Đoạn thực thể</span><input data-field="text" value="${reviewEscape(item.text)}" placeholder="Ví dụ: sụp mi"></label>
-        <label class="annotation-field annotation-field-action"><span>Thao tác</span><select data-field="action">${["KEEP", "EDIT", "DELETE", "ADD"].map(action => `<option value="${action}" ${item.action === action ? "selected" : ""}>${action}</option>`).join("")}</select></label>
+        <label class="annotation-field annotation-field-text"><span>Entity Text</span><input data-field="text" value="${reviewEscape(item.text)}" placeholder="Example: ptosis"></label>
+        <label class="annotation-field annotation-field-action"><span>Action</span><select data-field="action">${["KEEP", "EDIT", "DELETE", "ADD"].map(action => `<option value="${action}" ${item.action === action ? "selected" : ""}>${action}</option>`).join("")}</select></label>
       </div>
       <div class="expert-annotation-fields">
         <label class="annotation-field"><span>Entity Name</span><input data-field="label" value="${reviewEscape(item.label || item.text)}" placeholder="Tên thực thể"></label>
         <label class="annotation-field"><span>ICD-10 Code</span><input data-field="code" value="${reviewEscape(item.code)}" placeholder="Ví dụ: H02.4"></label>
         <label class="annotation-field"><span>Entity Type</span><select data-field="type">${annotationCategories(item.type || item.category)}</select></label>
       </div>
-    </div>`).join("") || '<div class="review-empty">Chưa có nhãn. Bấm “Thêm nhãn” để đánh dấu vùng bị thiếu.</div>';
+    </div>`).join("") || '<div class="review-empty">No labels yet. Click “Add label” to mark a missing entity.</div>';
 }
 
 function collectExpertAnnotations(form, documentId) {
@@ -778,14 +835,18 @@ function initializeAdminReviewLinks() {
   if (document.getElementById("adminReviewNav")) return;
   const extra = document.createElement("div");
   extra.id = "adminReviewNav";
-  extra.innerHTML = `<div class="nav-section-label" style="margin-top:12px">Quản trị review</div><a class="nav-item" onclick="showAdminReviewView('reviews')"><span class="nav-label">Expert Reviews</span></a><a class="nav-item" onclick="showAdminReviewView('users')"><span class="nav-label">Tài khoản chuyên gia</span></a><a class="nav-item" onclick="showAdminReviewView('reviewers')"><span class="nav-label">Tài khoản Reviewer</span></a>`;
+  extra.innerHTML = `<div class="nav-section-label" style="margin-top:12px">Review Administration</div><a class="nav-item" onclick="showAdminReviewView('sessions')"><span class="nav-label">Labeling Sessions</span></a><a class="nav-item" onclick="showAdminReviewView('reviews')"><span class="nav-label">Expert Reviews</span></a><a class="nav-item" onclick="showAdminReviewView('users')"><span class="nav-label">Expert Accounts</span></a><a class="nav-item" onclick="showAdminReviewView('reviewers')"><span class="nav-label">Reviewer Accounts</span></a>`;
   nav.appendChild(extra);
 }
 
 async function showAdminReviewView(view) {
+  if (view === "sessions") history.replaceState({}, "", "#labeling-sessions");
   document.querySelectorAll(".screen").forEach(item => item.classList.remove("active"));
+  document.querySelectorAll(".sidebar-nav .nav-item").forEach(item => item.classList.remove("active"));
+  document.querySelector(`[onclick="showAdminReviewView('${view}')"]`)?.classList.add("active");
   const screen = ensureReviewScreen("screen-admin-review-workspace");
   screen.classList.add("active");
+  if (view === "sessions") return renderLabelingSessionPage(screen);
   setReviewHeader(
     view === "reviews" ? "Expert Reviews" : view === "reviewers" ? "Tài khoản Reviewer" : "Tài khoản chuyên gia",
     view === "reviews" ? "Quản trị dữ liệu review" : view === "reviewers" ? "Cấp tài khoản xem kết quả review" : "Cấp và quản lý tài khoản dành cho chuyên gia",
@@ -807,6 +868,86 @@ async function showAdminReviewView(view) {
       ? renderAdminUsersPage(table, Number(data.total) || 0, view)
       : `<div class="review-panel"><h3>Expert Reviews</h3>${table}</div>`;
   } catch (error) { document.getElementById("adminReviewArea").innerHTML = `<div class="review-error">Unable to load: ${reviewEscape(error.message)}</div>`; }
+}
+
+async function renderLabelingSessionPage(screen) {
+  setReviewHeader("Labeling Sessions", "Assign documents to two experts and one reviewer");
+  screen.innerHTML = '<div class="review-workspace review-loading">Loading assignment options...</div>';
+  try {
+    const data = await reviewRequest("/admin/labeling-options");
+    window.labelingSessionData = data;
+    const articleRows = renderSessionArticles(data.articles || []);
+    const expertRows = renderSessionExperts(data.experts || []);
+    const reviewerOptions = (data.reviewers || []).map(user => `<option value="${Number(user.id)}">${reviewEscape(user.name)} · ${reviewEscape(user.email)}</option>`).join("");
+    screen.innerHTML = `<div class="review-workspace"><section class="review-panel session-card"><div class="session-card-heading"><h2>Create Labeling Session</h2><p class="muted">Assign documents to two experts and one reviewer.</p></div><form id="labelingSessionForm" class="review-form session-form"><div class="session-form-grid"><div class="session-left"><label class="session-field">Session name <span class="required">*</span><input id="sessionName" maxlength="255" placeholder="Medical NER batch 01" aria-required="true"><small class="field-error" id="sessionNameError"></small></label><label class="session-field">Description<textarea id="sessionDescription" maxlength="4000" placeholder="Optional instructions"></textarea></label><div class="session-field"><div class="field-heading"><span>Documents <span class="required">*</span></span><span id="documentCount" class="selection-count">0 selected</span></div><div class="session-toolbar"><input id="documentSearch" type="search" placeholder="Search by title or ID" aria-label="Search documents"><button type="button" class="review-action" onclick="toggleAllSessionDocuments(true)">Select all</button><button type="button" class="review-action" onclick="toggleAllSessionDocuments(false)">Clear</button></div><div id="sessionDocuments" class="checkbox-list" role="group" aria-label="Documents">${articleRows}</div><small class="field-error" id="documentsError"></small></div></div><div class="session-right"><div class="session-field"><div class="field-heading"><span>Experts <span class="required">*</span></span><span class="muted selection-help">Select exactly two</span><span id="expertCount" class="selection-count">0/2 selected</span></div><div id="sessionExperts" class="checkbox-list experts-list" role="group" aria-label="Experts">${expertRows}</div><small class="field-error" id="expertsError"></small></div><label class="session-field">Reviewer <span class="required">*</span><select id="sessionReviewer" aria-required="true"><option value="">Select reviewer</option>${reviewerOptions}</select><small class="field-error" id="reviewerError"></small></label><div class="session-summary" id="sessionSummary">0 documents · 0 experts · 0 reviewers</div></div></div><div class="session-actions"><label class="email-toggle"><input id="sendAssignmentEmail" type="checkbox" checked> Send email notifications to experts</label><span id="sessionMessage" class="session-message"></span><button class="review-save" type="submit">Create session</button></div></form></section></div>`;
+    document.getElementById("labelingSessionForm").onsubmit = submitLabelingSession;
+    document.getElementById("documentSearch").oninput = event => filterSessionDocuments(event.target.value);
+    document.getElementById("sessionDocuments").onchange = updateSessionControls;
+    document.getElementById("sessionExperts").onchange = updateSessionControls;
+    document.getElementById("sessionReviewer").onchange = updateSessionControls;
+    updateSessionControls();
+  } catch (error) {
+    screen.innerHTML = `<div class="review-workspace review-error">Unable to load assignment options: ${reviewEscape(error.message)}</div>`;
+  }
+}
+
+function renderSessionArticles(articles) {
+  return articles.map(article => { const assigned = Number(article.assigned_sessions || 0) > 0; return `<label class="checkbox-row document-row" data-search="${reviewEscape(`#${article.id} ${article.title || ""}`.toLowerCase())}"><input type="checkbox" name="sessionArticle" value="${Number(article.id)}"><span class="checkbox-copy" title="${reviewEscape(article.title || "Untitled")}"><strong>#${Number(article.id)}</strong> ${reviewEscape(article.title || "Untitled")}</span><span class="assignment-status ${assigned ? "assigned" : "available"}">${assigned ? "Assigned" : "Available"}</span></label>`; }).join("") || '<div class="session-empty">No documents available.</div>';
+}
+
+function renderSessionExperts(experts) {
+  return experts.map(user => `<label class="checkbox-row"><input type="checkbox" name="sessionExpert" value="${Number(user.id)}"><span class="checkbox-copy"><strong>${reviewEscape(user.name)}</strong><small>${reviewEscape(user.email)}</small></span></label>`).join("") || '<div class="session-empty">No experts available.</div>';
+}
+
+function filterSessionDocuments(query) {
+  const value = String(query || "").toLowerCase().trim();
+  document.querySelectorAll("#sessionDocuments .document-row").forEach(row => { row.hidden = value && !row.dataset.search.includes(value); });
+}
+
+function toggleAllSessionDocuments(checked) {
+  document.querySelectorAll("#sessionDocuments input[name=sessionArticle]").forEach(input => { if (!input.closest(".document-row").hidden) input.checked = checked; });
+  updateSessionControls();
+}
+
+function updateSessionControls() {
+  const articles = [...document.querySelectorAll("#sessionDocuments input:checked")];
+  const experts = [...document.querySelectorAll("#sessionExperts input:checked")];
+  document.getElementById("documentCount").textContent = `${articles.length} selected`;
+  document.getElementById("expertCount").textContent = `${experts.length}/2 selected`;
+  document.querySelectorAll("#sessionExperts input:not(:checked)").forEach(input => { input.disabled = experts.length >= 2; });
+  const reviewer = document.getElementById("sessionReviewer");
+  [...reviewer.options].forEach(option => { option.disabled = experts.some(expert => expert.value === option.value); });
+  if (reviewer.selectedOptions[0]?.disabled) reviewer.value = "";
+  document.getElementById("sessionSummary").textContent = `${articles.length} documents · ${experts.length} experts · ${reviewer.value ? 1 : 0} reviewer`;
+}
+
+async function submitLabelingSession(event) {
+  event.preventDefault();
+  const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+  const message = document.getElementById("sessionMessage");
+  message.textContent = "";
+  const articleIds = [...document.querySelectorAll("#sessionDocuments input:checked")].map(input => Number(input.value));
+  const expertIds = [...document.querySelectorAll("#sessionExperts input:checked")].map(input => Number(input.value));
+  const reviewerId = Number(document.getElementById("sessionReviewer").value);
+  document.querySelectorAll(".field-error").forEach(node => node.textContent = "");
+  let valid = true;
+  const sessionName = document.getElementById("sessionName");
+  const reviewer = document.getElementById("sessionReviewer");
+  sessionName.removeAttribute("aria-invalid"); reviewer.removeAttribute("aria-invalid");
+  if (!sessionName.value.trim()) { document.getElementById("sessionNameError").textContent = "Session name is required."; sessionName.setAttribute("aria-invalid", "true"); valid = false; }
+  if (!articleIds.length) { document.getElementById("documentsError").textContent = "Select at least one document."; valid = false; }
+  if (expertIds.length !== 2) { document.getElementById("expertsError").textContent = "Select exactly two experts."; valid = false; }
+  if (!reviewerId) { document.getElementById("reviewerError").textContent = "Select a reviewer."; reviewer.setAttribute("aria-invalid", "true"); valid = false; }
+  if (!valid) return false;
+  submitButton.disabled = true;
+  submitButton.textContent = "Creating...";
+  try {
+    const result = await reviewRequest("/admin/labeling-sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: document.getElementById("sessionName").value.trim(), description: document.getElementById("sessionDescription").value.trim(), articleIds, expertIds, reviewerId, sendEmail: document.getElementById("sendAssignmentEmail").checked }) });
+    message.className = "reviewer-save-success";
+    message.textContent = result.emailStatus === "sent" ? "Session created. Email notifications sent to both experts." : "Session created. SMTP is not configured, so no email was sent.";
+  } catch (error) { message.textContent = error.message; }
+  finally { submitButton.disabled = false; submitButton.textContent = "Create session"; }
+  return false;
 }
 
 function userRoleBadge(role) {
@@ -1076,6 +1217,16 @@ function mergeSystemDefaultEntities(entities, defaults, sourceText) {
   return merged;
 }
 
+function dedupeReviewerEntities(entities) {
+  const seen = new Set();
+  return entities.filter(entity => {
+    const key = `${String(entity.text || "").normalize("NFKC").toLocaleLowerCase("vi-VN").replace(/\s+/g, " ").trim()}|${entity.categoryKey || ""}|${String(entity.code || "").toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function buildReviewerComparison(document) {
   const history = [...(document.reviewHistory || [])].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   const latestByExpert = new Map();
@@ -1088,14 +1239,14 @@ function buildReviewerComparison(document) {
   const b = experts[1] || {};
   const sourceText = String(document.abstract || "");
   const systemDefaults = Array.isArray(document.annotationSeed) ? document.annotationSeed : [];
-  const expertAEntities = mergeSystemDefaultEntities(reviewerEntityList(a, sourceText), systemDefaults, sourceText);
-  const expertBEntities = mergeSystemDefaultEntities(reviewerEntityList(b, sourceText), systemDefaults, sourceText);
+  const expertAEntities = dedupeReviewerEntities(mergeSystemDefaultEntities(reviewerEntityList(a, sourceText), systemDefaults, sourceText));
+  const expertBEntities = dedupeReviewerEntities(mergeSystemDefaultEntities(reviewerEntityList(b, sourceText), systemDefaults, sourceText));
   const expertA = { name: a.expert_name || "Expert A", review: a, entities: expertAEntities };
   const expertB = { name: b.expert_name || "Expert B", review: b, entities: expertBEntities };
   const grouped = new Map();
   for (const side of [expertA, expertB]) {
     for (const entity of side.entities) {
-      const base = reviewerPositionKey(entity);
+      const base = `${String(entity.text || "").normalize("NFKC").toLocaleLowerCase("vi-VN").replace(/\s+/g, " ").trim()}|${entity.categoryKey || ""}|${String(entity.code || "").toLowerCase()}`;
       if (!grouped.has(base)) grouped.set(base, { id: `entity-${grouped.size}`, entity: entity.text, category: entity.category, a: null, b: null });
       grouped.get(base)[side === expertA ? "a" : "b"] = entity;
     }
@@ -1115,12 +1266,12 @@ function buildReviewerComparison(document) {
 }
 
 function reviewerStatusLabel(status) {
-  return status === "agree" ? "Đồng thuận" : status === "partial" ? "Khác biệt một phần" : "Mâu thuẫn";
+  return status === "agree" ? "Agreement" : status === "partial" ? "Partial Difference" : "Conflict";
 }
 
 function reviewerEntityValue(entity) {
-  if (!entity) return "Không có nhãn";
-  const deleted = entity.action === "DELETE" ? " · ĐÃ XÓA" : "";
+  if (!entity) return "No label";
+  const deleted = entity.action === "DELETE" ? " · DELETED" : "";
   return `${entity.text}${entity.code ? ` · ${entity.code}` : ""}${deleted}`;
 }
 
@@ -1130,12 +1281,19 @@ function reviewerTextMarkup(document, comparison) {
   for (const row of comparison.rows) {
     const entities = [row.a, row.b].filter(Boolean);
     const spans = entities.flatMap((entity) => entity.spans || []).filter((span) => Number.isInteger(Number(span.start)) && Number.isInteger(Number(span.end)));
-    if (spans.length) {
-      for (const span of spans) candidates.push({ start: Number(span.start), end: Number(span.end), row });
-    } else {
-      const index = Number.isInteger(row.a?.start) ? row.a.start : Number.isInteger(row.b?.start) ? row.b.start : source.toLocaleLowerCase().indexOf(row.entity.toLocaleLowerCase());
-      const end = Number.isInteger(row.a?.end) ? row.a.end : Number.isInteger(row.b?.end) ? row.b.end : index + row.entity.length;
-      if (index >= 0) candidates.push({ start: index, end, row });
+    for (const span of spans) candidates.push({ start: Number(span.start), end: Number(span.end), row });
+
+    // One comparison row represents one unique entity, but the entity may
+    // occur several times in the source text. Highlight every occurrence.
+    const term = String(row.entity || "").trim();
+    if (term) {
+      const lowerSource = source.toLocaleLowerCase("vi-VN");
+      const lowerTerm = term.toLocaleLowerCase("vi-VN");
+      let index = 0;
+      while ((index = lowerSource.indexOf(lowerTerm, index)) !== -1) {
+        candidates.push({ start: index, end: index + term.length, row });
+        index += Math.max(lowerTerm.length, 1);
+      }
     }
   }
   candidates.sort((a, b) => (a.end - a.start) - (b.end - b.start) || a.start - b.start);
@@ -1165,13 +1323,13 @@ function reviewerGroupedRows(rows, side) {
     if (!groups.has(row.category)) groups.set(row.category, []);
     groups.get(row.category).push({ row, entity });
   }
-  return [...groups.entries()].map(([category, values]) => `<section class="reviewer-category"><h4>${reviewEscape(category)} <span>${values.length}</span></h4>${values.map(({ row, entity }) => `<div class="reviewer-entity-row reviewer-entity-row-${side}"><span class="reviewer-entity-icon">${row.status === "agree" ? "✓" : row.status === "partial" ? "↔" : "!"}</span><div><strong>${reviewEscape(reviewerEntityValue(entity))}</strong><small>${reviewEscape(reviewerStatusLabel(row.status))}</small></div></div>`).join("")}</section>`).join("") || '<div class="review-empty">Chưa có dữ liệu.</div>';
+  return [...groups.entries()].map(([category, values]) => `<section class="reviewer-category"><h4>${reviewEscape(category)} <span>${values.length}</span></h4>${values.map(({ row, entity }) => `<div class="reviewer-entity-row reviewer-entity-row-${side}"><span class="reviewer-entity-icon">${row.status === "agree" ? "✓" : row.status === "partial" ? "↔" : "!"}</span><div><strong>${reviewEscape(reviewerEntityValue(entity))}</strong><small>${reviewEscape(reviewerStatusLabel(row.status))}</small></div></div>`).join("")}</section>`).join("") || '<div class="review-empty">No data available.</div>';
 }
 
 function reviewerDecisionHtml(row) {
   if (row.status === "agree") return "";
   const state = reviewerDecisionState[row.id] || {};
-  return `<article class="reviewer-decision-card"><div class="reviewer-decision-title"><div><strong>${reviewEscape(row.entity)}</strong><span>${reviewEscape(row.category)} · ${row.a?.start ?? row.b?.start}:${row.a?.end ?? row.b?.end}</span></div>${statusBadge(row.status === "partial" ? "Khác biệt" : "Mâu thuẫn")}</div><div class="reviewer-choice-row"><button class="${state.decision === "expert_a" ? "selected" : ""}" onclick="setReviewerDecision('${row.id}', 'expert_a')">Theo A</button><button class="${state.decision === "expert_b" ? "selected" : ""}" onclick="setReviewerDecision('${row.id}', 'expert_b')">Theo B</button><button class="${state.decision === "custom" ? "selected" : ""}" onclick="setReviewerDecision('${row.id}', 'custom')">Tự sửa nhãn</button></div><div class="reviewer-side-values"><span>A: ${reviewEscape(reviewerEntityValue(row.a))}</span><span>B: ${reviewEscape(reviewerEntityValue(row.b))}</span></div>${state.decision === "custom" ? `<div class="reviewer-custom-fields"><input class="reviewer-custom-input" value="${reviewEscape(state.customText || row.entity)}" oninput="setReviewerCustomField('${row.id}', 'text', this.value)" placeholder="Đoạn text"><input class="reviewer-custom-input" value="${reviewEscape(state.customLabel || row.entity)}" oninput="setReviewerCustomField('${row.id}', 'label', this.value)" placeholder="Nhãn"><input class="reviewer-custom-input" value="${reviewEscape(state.customType || row.category)}" oninput="setReviewerCustomField('${row.id}', 'type', this.value)" placeholder="Loại nhãn"><input class="reviewer-custom-input" value="${reviewEscape(state.customCode || '')}" oninput="setReviewerCustomField('${row.id}', 'code', this.value)" placeholder="Mã ICD-10"></div>` : ""}</article>`;
+  return `<article class="reviewer-decision-card"><div class="reviewer-decision-title"><div><strong>${reviewEscape(row.entity)}</strong><span>${reviewEscape(row.category)} · ${row.a?.start ?? row.b?.start}:${row.a?.end ?? row.b?.end}</span></div>${statusBadge(row.status === "partial" ? "Partial Difference" : "Conflict")}</div><div class="reviewer-choice-row"><button class="${state.decision === "expert_a" ? "selected" : ""}" onclick="setReviewerDecision('${row.id}', 'expert_a')">Choose A</button><button class="${state.decision === "expert_b" ? "selected" : ""}" onclick="setReviewerDecision('${row.id}', 'expert_b')">Choose B</button><button class="${state.decision === "custom" ? "selected" : ""}" onclick="setReviewerDecision('${row.id}', 'custom')">Edit Label</button></div><div class="reviewer-side-values"><span>A: ${reviewEscape(reviewerEntityValue(row.a))}</span><span>B: ${reviewEscape(reviewerEntityValue(row.b))}</span></div>${state.decision === "custom" ? `<div class="reviewer-custom-fields"><input class="reviewer-custom-input" value="${reviewEscape(state.customText || row.entity)}" oninput="setReviewerCustomField('${row.id}', 'text', this.value)" placeholder="Entity text"><input class="reviewer-custom-input" value="${reviewEscape(state.customLabel || row.entity)}" oninput="setReviewerCustomField('${row.id}', 'label', this.value)" placeholder="Label"><input class="reviewer-custom-input" value="${reviewEscape(state.customType || row.category)}" oninput="setReviewerCustomField('${row.id}', 'type', this.value)" placeholder="Entity type"><input class="reviewer-custom-input" value="${reviewEscape(state.customCode || '')}" oninput="setReviewerCustomField('${row.id}', 'code', this.value)" placeholder="ICD-10 code"></div>` : ""}</article>`;
 }
 
 function renderReviewerTable(comparison) {
@@ -1188,31 +1346,31 @@ function renderReviewerDetails(document) {
   const resolutionStatus = String(document.resolutionStatus || (adjudication?.resolution_status || (conflicts.length ? "CONFLICT" : "PENDING"))).toUpperCase();
   const finalLabels = adjudication?.final_labels || [];
   const finalLabelsHtml = finalLabels.length
-    ? `<section class="review-panel reviewer-final-panel"><div class="reviewer-panel-heading"><div><h3>Nhãn cuối cùng</h3><p>Bộ nhãn đã được reviewer xác nhận.</p></div><span class="reviewer-status reviewer-status-agree">${reviewEscape(resolutionStatus)}</span></div><div class="reviewer-final-labels">${finalLabels.map(item => `<span>${reviewEscape(item.label || item.text)}${item.code ? ` · ${reviewEscape(item.code)}` : ""}</span>`).join("")}</div></section>`
+    ? `<section class="review-panel reviewer-final-panel"><div class="reviewer-panel-heading"><div><h3>Final Labels</h3><p>Labels confirmed by the reviewer.</p></div><span class="reviewer-status reviewer-status-agree">${reviewEscape(resolutionStatus)}</span></div><div class="reviewer-final-labels">${finalLabels.map(item => `<span>${reviewEscape(item.label || item.text)}${item.code ? ` · ${reviewEscape(item.code)}` : ""}</span>`).join("")}</div></section>`
     : "";
   const comparisonContent = reviewerDetailMode === "table"
     ? `<section class="review-panel reviewer-table-panel">${renderReviewerTable(comparison)}</section>`
     : `<div class="reviewer-main-grid">
         <section class="review-panel reviewer-source-panel">
-          <div class="reviewer-panel-heading"><div><h3>Văn bản gốc</h3><p>Highlight thể hiện mức độ đồng thuận giữa hai chuyên gia.</p></div></div>
+          <div class="reviewer-panel-heading"><div><h3>Original Text</h3><p>Highlights show the level of agreement between the two experts.</p></div></div>
           <div class="reviewer-source-text">${reviewerTextMarkup(document, comparison)}</div>
         </section>
         <section class="review-panel reviewer-compare-panel">
-          <div class="reviewer-panel-heading"><div><h3>So sánh chuyên gia</h3><p>Đối chiếu theo từng nhóm thực thể.</p></div></div>
+          <div class="reviewer-panel-heading"><div><h3>Expert Comparison</h3><p>Compare entities by category.</p></div></div>
           <div class="reviewer-expert-columns">
-            <div><div class="reviewer-expert-heading"><span class="expert-avatar expert-avatar-a">A</span><div><strong>${reviewEscape(comparison.expertA.name)}</strong><small>${reviewEscape(REVIEW_STATUS_TEXT[comparison.expertA.review.review_status] || "Chưa đánh giá")}</small></div></div>${reviewerGroupedRows(comparison.rows.filter((row) => row.a), "a")}</div>
-            <div><div class="reviewer-expert-heading"><span class="expert-avatar expert-avatar-b">B</span><div><strong>${reviewEscape(comparison.expertB.name)}</strong><small>${reviewEscape(REVIEW_STATUS_TEXT[comparison.expertB.review.review_status] || "Chưa đánh giá")}</small></div></div>${reviewerGroupedRows(comparison.rows.filter((row) => row.b), "b")}</div>
+            <div><div class="reviewer-expert-heading"><span class="expert-avatar expert-avatar-a">A</span><div><strong>${reviewEscape(comparison.expertA.name)}</strong><small>${reviewEscape(REVIEW_STATUS_TEXT[comparison.expertA.review.review_status] || "Not reviewed")}</small></div></div>${reviewerGroupedRows(comparison.rows.filter((row) => row.a), "a")}</div>
+            <div><div class="reviewer-expert-heading"><span class="expert-avatar expert-avatar-b">B</span><div><strong>${reviewEscape(comparison.expertB.name)}</strong><small>${reviewEscape(REVIEW_STATUS_TEXT[comparison.expertB.review.review_status] || "Not reviewed")}</small></div></div>${reviewerGroupedRows(comparison.rows.filter((row) => row.b), "b")}</div>
           </div>
         </section>
       </div>`;
   const selectedCount = conflicts.filter((row) => reviewerDecisionState[row.id]?.decision).length;
   return `<div class="reviewer-detail-page">
-    <div class="reviewer-detail-toolbar"><button class="review-action" onclick="showReviewerView('reviews')">← Quay lại</button><div class="reviewer-view-toggle"><button class="${reviewerDetailMode === "text" ? "active" : ""}" onclick="setReviewerDetailMode('text')">Text view</button><button class="${reviewerDetailMode === "table" ? "active" : ""}" onclick="setReviewerDetailMode('table')">Table view</button></div></div>
-    <section class="reviewer-case-header"><div><div class="reviewer-eyebrow">REVIEW DETAILS · CASE #${Number(document.id)}</div><h2>${reviewEscape(document.title || "Không có tiêu đề")}</h2><p>${reviewEscape(document.authors || "Không rõ tác giả")} · ${reviewEscape(document.publication_year || "")}</p><span class="reviewer-case-status reviewer-case-status-${resolutionStatus.toLowerCase()}">${reviewEscape(resolutionStatus)}</span></div><div class="reviewer-case-meta"><strong>${conflicts.length}</strong><span>mục cần quyết định</span></div></section>
-    <div class="reviewer-legend"><span><i class="legend-agree"></i> Hai chuyên gia đồng ý</span><span><i class="legend-partial"></i> Khác biệt một phần</span><span><i class="legend-conflict"></i> Mâu thuẫn</span><span class="reviewer-tooltip-hint">Di chuột lên vùng màu để xem nhãn A/B</span></div>
+    <div class="reviewer-detail-toolbar"><button class="review-action" onclick="showReviewerView('reviews')">← Back</button><div class="reviewer-view-toggle"><button class="${reviewerDetailMode === "text" ? "active" : ""}" onclick="setReviewerDetailMode('text')">Text view</button><button class="${reviewerDetailMode === "table" ? "active" : ""}" onclick="setReviewerDetailMode('table')">Table view</button></div></div>
+    <section class="reviewer-case-header"><div><div class="reviewer-eyebrow">REVIEW DETAILS · CASE #${Number(document.id)}</div><h2>${reviewEscape(document.title || "Untitled")}</h2><p>${reviewEscape(document.authors || "Unknown author")} · ${reviewEscape(document.publication_year || "")}</p><span class="reviewer-case-status reviewer-case-status-${resolutionStatus.toLowerCase()}">${reviewEscape(resolutionStatus)}</span></div></section>
+    <div class="reviewer-legend"><span><i class="legend-agree"></i> Both experts agree</span><span><i class="legend-partial"></i> Partial difference</span><span><i class="legend-conflict"></i> Conflict</span></div>
     ${comparisonContent}
     ${finalLabelsHtml}
-    <section class="review-panel reviewer-decision-panel"><div class="reviewer-panel-heading"><div><h3>Quyết định reviewer</h3><p>Chọn phương án cho từng thực thể chưa thống nhất, sau đó xác nhận toàn bộ case.</p></div><span class="reviewer-progress">${selectedCount}/${conflicts.length} đã chọn</span></div><div class="reviewer-decision-list">${conflicts.map(reviewerDecisionHtml).join("") || '<div class="review-empty">Hai chuyên gia đã đồng thuận toàn bộ.</div>'}</div><label class="reviewer-note-label">Ghi chú tổng thể<textarea id="reviewerOverallNote" maxlength="8000" placeholder="Ghi lại lý do hoặc lưu ý cho quyết định cuối...">${reviewEscape(adjudication?.note || "")}</textarea></label><div class="reviewer-confirm-row"><span id="reviewerSaveMessage" class="muted"></span><button class="review-save" onclick="saveReviewerAdjudication(${Number(document.id)})">Xác nhận tổng thể</button></div></section>
+    <section class="review-panel reviewer-decision-panel"><div class="reviewer-panel-heading"><div><h3>Reviewer Decision</h3><p>Select an option for each unresolved entity, then confirm the case.</p></div><span class="reviewer-progress">${selectedCount}/${conflicts.length} selected</span></div><div class="reviewer-decision-list">${conflicts.map(reviewerDecisionHtml).join("") || '<div class="review-empty">Both experts agree on all entities.</div>'}</div><label class="reviewer-note-label">Overall Note<textarea id="reviewerOverallNote" maxlength="8000" placeholder="Record the rationale or notes for the final decision...">${reviewEscape(adjudication?.note || "")}</textarea></label><div class="reviewer-confirm-row"><span id="reviewerSaveMessage" class="muted"></span><button class="review-save" onclick="saveReviewerAdjudication(${Number(document.id)})">Confirm Decision</button></div></section>
   </div>`;
 }
 
@@ -1245,7 +1403,7 @@ async function saveReviewerAdjudication(documentId) {
   });
   const message = document.getElementById("reviewerSaveMessage");
   if (incomplete) {
-    message.textContent = `Chưa chọn quyết định cho: ${incomplete.entity}`;
+    message.textContent = `Decision not selected for: ${incomplete.entity}`;
     message.className = "auth-error";
     return;
   }
@@ -1270,9 +1428,9 @@ async function saveReviewerAdjudication(documentId) {
       return [];
     });
     await reviewRequest(`/reviewer/documents/${documentId}/adjudication`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decisions, finalLabels, resolutionStatus: "RESOLVED", note }) });
-    message.textContent = "Đã lưu quyết định reviewer.";
+    message.textContent = "Reviewer decision saved.";
     message.className = "reviewer-save-success";
-    if (typeof showToast === "function") showToast("Đã xác nhận kết quả review.", "success");
+    if (typeof showToast === "function") showToast("Review result confirmed.", "success");
     if (reviewerDetailDocument) {
       reviewerDetailDocument.adjudication = { ...(reviewerDetailDocument.adjudication || {}), decisions, final_labels: finalLabels, resolution_status: "RESOLVED", note };
       reviewerDetailDocument.resolutionStatus = "RESOLVED";

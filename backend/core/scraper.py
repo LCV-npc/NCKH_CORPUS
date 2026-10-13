@@ -39,7 +39,6 @@ scrape_status: dict = {
     "done": False, "summary": None, "log_messages": [],
 }
 
-_MAX_LOGS = 300
 _stop_requested = False
 _log_id = None
 
@@ -48,13 +47,11 @@ def stop_scraping():
     _stop_requested = True
 
 def _log(msg: str):
-    """Ghi log realtime, không thêm lại cùng một thông điệp liên tiếp."""
+    """Append every crawler event to the in-memory log stream."""
     messages = scrape_status["log_messages"]
     if messages and messages[-1] == msg:
         return
     messages.append(msg)
-    if len(messages) > _MAX_LOGS:
-        del messages[:-_MAX_LOGS]
     try:
         print(msg)
     except UnicodeEncodeError:
@@ -308,11 +305,11 @@ def _discover_archive_issues(session: requests.Session, archive_url: str) -> lis
         if requested_page in visited_pages:
             continue
         visited_pages.add(requested_page)
-        _log(f"  Đang fetch archive: {requested_page}")
+        _log(f"  Fetching archive: {requested_page}")
         try:
             response = session.get(requested_page, verify=False, timeout=60)
             if response.status_code != 200:
-                _log(f"  ⚠️ Archive trả về HTTP {response.status_code}, bỏ qua trang này.")
+                _log(f"  ⚠️ Archive returned HTTP {response.status_code}; skipping this page.")
                 continue
             scrape_status["pages_processed"] += 1
             page_url = _url_without_fragment(response.url or requested_page)
@@ -323,15 +320,15 @@ def _discover_archive_issues(session: requests.Session, archive_url: str) -> lis
                 if issue["url"] not in issues_by_url:
                     issues_by_url[issue["url"]] = issue
                     new_count += 1
-            _log(f"  → Archive: phát hiện {new_count} số mới ({len(discovered)} liên kết trên trang)")
+            _log(f"  → Archive: found {new_count} new issues ({len(discovered)} links on page)")
             for page_link in _archive_next_links(soup, page_url):
                 normalized_link = _url_without_fragment(page_link).rstrip("/")
                 if normalized_link not in visited_pages and normalized_link not in pages_to_visit:
                     pages_to_visit.append(normalized_link)
         except requests.exceptions.ConnectionError as ex:
-            _log(f"  ❌ Lỗi kết nối khi fetch trang {requested_page}: {ex}")
+            _log(f"  ❌ Connection error while fetching {requested_page}: {ex}")
         except Exception as ex:
-            _log(f"  ❌ Lỗi khi fetch trang {requested_page}: {ex}")
+            _log(f"  ❌ Error while fetching {requested_page}: {ex}")
 
     return list(issues_by_url.values())
 
@@ -359,28 +356,28 @@ def run_scraping(request, db_config: dict, output_folder: str):
     _stop_requested = False
     _log_id = None
 
-    _log(f"Bắt đầu cào: {request.target_url} | Năm {request.start_year} – {request.end_year}")
+    _log(f"Starting crawl: {request.target_url} | Years {request.start_year} – {request.end_year}")
     conn = cursor = None
     try:
         # ── FIX #1: Kiểm tra URL hợp lệ trước khi làm bất cứ điều gì ──────
         parsed_check = urlparse(request.target_url)
         if not parsed_check.scheme or not parsed_check.netloc:
-            raise ValueError(f"URL không hợp lệ: '{request.target_url}'. Vui lòng nhập đầy đủ https://...")
+            raise ValueError(f"Invalid URL: '{request.target_url}'. Please enter a complete https://... URL.")
         settings = VietnameseCorpusSettings()
         if not is_allowed_journal_url(request.target_url, settings):
             allowed = ", ".join(settings.allowed_domains)
-            raise ValueError(f"Tên miền không nằm trong danh sách nguồn được phép: {allowed}")
+            raise ValueError(f"The domain is not in the allowed source list: {allowed}")
 
-        _log("Đang kết nối tới DB...")
+        _log("Connecting to the database...")
         conn   = mysql.connector.connect(**db_config)
         ensure_language_audit_schema(db_config)
         language_audit = LanguageAuditRepository(db_config)
-        _log("Đã kết nối DB thành công.")
+        _log("Database connection established.")
         cursor = conn.cursor()
 
         cursor_dict = conn.cursor(dictionary=True)
         try:
-            _log("Đang kiểm tra tiến trình crawl_progress...")
+            _log("Checking crawl_progress...")
             cursor_dict.execute(
                 "SELECT * FROM crawl_progress WHERE target_url=%s AND start_year=%s AND end_year=%s AND status='paused' ORDER BY id DESC LIMIT 1",
                 (request.target_url, request.start_year, request.end_year)
@@ -391,7 +388,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 scrape_status["duplicates"] = prev_progress["duplicate_count"] or 0
                 scrape_status["skipped"] = prev_progress["skipped_count"] or 0
                 _log_id = prev_progress["id"]
-                _log(f"Tiếp tục tiến trình trước đó: đã lưu {scrape_status['success']}, trùng {scrape_status['duplicates']}, bỏ qua {scrape_status['skipped']}")
+                _log(f"Resuming previous progress: {scrape_status['success']} saved, {scrape_status['duplicates']} duplicates, {scrape_status['skipped']} skipped")
                 cursor_dict.execute("UPDATE crawl_progress SET status='running' WHERE id=%s", (_log_id,))
                 conn.commit()
             else:
@@ -401,9 +398,9 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 )
                 conn.commit()
                 _log_id = cursor_dict.lastrowid
-                _log(f"Đã tạo bản ghi tiến trình ID={_log_id}")
+                _log(f"Created progress record ID={_log_id}")
         except Exception as e:
-            _log(f"Không thể kiểm tra tiến trình trong crawl_progress (có thể bảng chưa được tạo): {e}")
+            _log(f"Unable to check crawl_progress (the table may not exist): {e}")
         finally:
             cursor_dict.close()
 
@@ -433,9 +430,9 @@ def run_scraping(request, db_config: dict, output_folder: str):
         # inspect the returned page (including redirects) and discover the
         # archive from href shape instead of relying on Vietnamese link text.
         if archive_url:
-            _log(f"✅ URL đầu vào là trang archive: {archive_url}")
+            _log(f"✅ Input URL is an archive page: {archive_url}")
         else:
-            _log(f"Đang tìm trang archive từ URL đầu vào: {requested_url} ...")
+            _log(f"Looking for an archive page from the input URL: {requested_url} ...")
             try:
                 entry_response = session.get(requested_url, verify=False, timeout=60)
                 if entry_response.status_code != 200:
@@ -444,28 +441,28 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 entry_soup = BeautifulSoup(entry_response.text, "html.parser")
                 archive_url = _find_archive_url(entry_soup, resolved_entry_url)
                 if archive_url:
-                    _log(f"✅ Tìm thấy trang archive: {archive_url}")
+                    _log(f"✅ Archive page found: {archive_url}")
                 else:
                     base_guess = _journal_base_url(resolved_entry_url)
                     archive_url = f"{base_guess}/issue/archive"
-                    _log(f"⚠️ Không thấy liên kết archive; thử URL OJS chuẩn: {archive_url}")
+                    _log(f"⚠️ Archive link not found; trying the standard OJS URL: {archive_url}")
             except requests.exceptions.ConnectionError as ex:
-                _log(f"❌ Không thể kết nối đến '{requested_url}': {ex}")
-                _log("👉 Kiểm tra lại URL hoặc kết nối mạng. Crawler sẽ dừng.")
+                _log(f"❌ Unable to connect to '{requested_url}': {ex}")
+                _log("👉 Check the URL or network connection. The crawler will stop.")
                 return
             except Exception as ex:
                 base_guess = _journal_base_url(requested_url)
                 archive_url = f"{base_guess}/issue/archive"
-                _log(f"⚠️ Không thể dò archive từ trang đầu vào ({ex}); thử {archive_url}")
+                _log(f"⚠️ Unable to discover an archive from the input page ({ex}); trying {archive_url}")
 
         base_url = _journal_base_url(archive_url)
         parsed = urlparse(base_url)
         site_folder = re.sub(r"^www\.", "", parsed.netloc or "unknown")
         site_folder = re.sub(r"[^\w\-\.]", "_", site_folder)
-        _log(f"📁 Thư mục lưu trữ: {site_folder}")
-        _log(f"🗂️ Archive URL sẽ dùng: {archive_url}")
+        _log(f"📁 Storage folder: {site_folder}")
+        _log(f"🗂️ Archive URL: {archive_url}")
 
-        _log("Bắt đầu duyệt toàn bộ các trang archive được website công bố...")
+        _log("Scanning all archive pages published by the website...")
         discovered_issues = _discover_archive_issues(session, archive_url)
         issues_by_year: dict[str, list[dict]] = {}
         unknown_year_count = 0
@@ -479,24 +476,24 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 bucket.append({"url": issue["url"], "name": issue["name"]})
 
         _log(
-            f"✅ Đã duyệt {scrape_status['pages_processed']} trang archive, "
-            f"phát hiện {len(discovered_issues)} số duy nhất."
+            f"✅ Scanned {scrape_status['pages_processed']} archive pages, "
+            f"found {len(discovered_issues)} unique issues."
         )
         if unknown_year_count:
-            _log(f"⚠️ Có {unknown_year_count} số không xác định được năm xuất bản.")
+            _log(f"⚠️ Could not determine the publication year for {unknown_year_count} issues.")
 
         for yr in range(request.start_year, request.end_year + 1):
             if _stop_requested: break
             target_year = str(yr)
             scrape_status["current_year"] = target_year
-            _log(f"\n=== BẮT ĐẦU QUÉT NĂM {target_year} ===")
+            _log(f"\n=== STARTING YEAR {target_year} ===")
             issue_links = issues_by_year.get(target_year, [])
 
             if not issue_links:
-                _log(f"  (Không tìm thấy số tạp chí nào trong năm {target_year}, bỏ qua)")
+                _log(f"  (No journal issues found for {target_year}; skipping)")
                 continue
 
-            _log(f"  ✅ Tổng cộng {len(issue_links)} số tạp chí trong năm {target_year}")
+            _log(f"  ✅ Found {len(issue_links)} journal issues for {target_year}")
 
             # Duyệt từng số
             for issue_info in issue_links:
@@ -505,10 +502,10 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 base_issue_name = issue_info["name"]
                 scrape_status["current_url"] = iu
                 try:
-                    _log(f"\n  📰 Đang truy cập số tạp chí: {iu}")
+                    _log(f"\n  📰 Visiting journal issue: {iu}")
                     resp_issue = session.get(iu, verify=False, timeout=60)
                     if resp_issue.status_code != 200:
-                        _log(f"  ⚠️ Số tạp chí trả về HTTP {resp_issue.status_code}, bỏ qua.")
+                        _log(f"  ⚠️ Journal issue returned HTTP {resp_issue.status_code}; skipping.")
                         continue
                     soup_i = BeautifulSoup(resp_issue.text, "html.parser")
 
@@ -520,19 +517,21 @@ def run_scraping(request, db_config: dict, output_folder: str):
                         else:
                             issue_name = f"Issue_{target_year}"
 
-                    _log(f"  🔍 Đang quét số tạp chí: {issue_name}...")
+                    _log(f"  🔍 Scanning journal issue: {issue_name}...")
 
                     art_links = _article_view_links(soup_i, iu)
                     scrape_status["total_urls"] += len(art_links)
 
-                    _log(f"  📄 Tìm thấy {len(art_links)} bài báo trong số tạp chí này.")
+                    _log(f"  📄 Found {len(art_links)} articles in this issue.")
 
-                    for au in art_links:
+                    for article_index, au in enumerate(art_links, start=1):
                         if _stop_requested: break
+                        scrape_status["current_url"] = au
+                        _log(f"    🔎 Processing article {article_index}/{len(art_links)}: {au}")
                         cursor.execute("SELECT id FROM articles WHERE source_url=%s", (au,))
                         if cursor.fetchone():
                             scrape_status["duplicates"] += 1
-                            _log(f"    ⏩ [TRÙNG] {au.split('/')[-1]}")
+                            _log(f"    ⏩ [DUPLICATE] {au.split('/')[-1]}")
                             continue
                         previous = language_audit.previous_decision(au)
                         if (
@@ -541,7 +540,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
                             and previous["validation_version"] == LANGUAGE_VALIDATION_VERSION
                         ):
                             scrape_status["duplicates"] += 1
-                            _log(f"    ⏩ [ĐÃ KIỂM DUYỆT - {previous['status']}] {au.split('/')[-1]}")
+                            _log(f"    ⏩ [ALREADY REVIEWED - {previous['status']}] {au.split('/')[-1]}")
                             continue
 
                         time.sleep(random.uniform(1.5, 3.0))
@@ -555,14 +554,14 @@ def run_scraping(request, db_config: dict, output_folder: str):
                             )
                             title = (
                                 tt["content"].strip() if tt
-                                else (s.find("h1").get_text(strip=True) if s.find("h1") else "Không có tiêu đề")
+                                else (s.find("h1").get_text(strip=True) if s.find("h1") else "Untitled")
                             )
                             ma = s.find_all("meta", attrs={"name": "citation_author"})
                             authors = (
                                 ", ".join(a.get("content", "").strip() for a in ma) if ma
                                 else (
                                     s.select_one(".authors,.author") or
-                                    type("", (), {"get_text": lambda *a, **k: "Không rõ tác giả"})()
+                                    type("", (), {"get_text": lambda *a, **k: "Unknown author"})()
                                 ).get_text(strip=True)
                             )
 
@@ -609,7 +608,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                     source_url=au, title=title, pdf_url=None, decision=no_pdf
                                 )
                                 _record_rejection(no_pdf.status)
-                                _log(f"    [LOẠI - KHÔNG CÓ PDF] {title[:70]}")
+                                _log(f"    [REJECTED - NO PDF] {title[:70]}")
                                 continue
 
                             candidate_path = _candidate_pdf_path(
@@ -633,7 +632,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                     file_path=stored_path,
                                 )
                                 _record_rejection(no_pdf.status)
-                                _log(f"    [LOẠI - PDF KHÔNG HỢP LỆ] {download_error}: {title[:70]}")
+                                _log(f"    [REJECTED - INVALID PDF] {download_error}: {title[:70]}")
                                 continue
 
                             extracted = extract_from_pdf_path(str(candidate_path))
@@ -656,8 +655,10 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                     file_path=str(quarantine_path),
                                 )
                                 _record_rejection(decision.status)
-                                _log(f"    [LOẠI - {decision.reason}] {title[:70]}")
+                                _log(f"    [REJECTED - {decision.reason}] {title[:70]}")
                                 continue
+
+                            _log(f"    📥 PDF downloaded successfully: {title[:70]}")
 
                             # Only now is the record admitted to MySQL and the final corpus.
                             if not abstract_clean:
@@ -689,16 +690,16 @@ def run_scraping(request, db_config: dict, output_folder: str):
                                     f"\nTÓM TẮT:\n{abstract_clean}\n"
                                 )
                             scrape_status["success"] += 1
-                            _log(f"    💾 Đã nhận vào corpus tiếng Việt: {title[:70]}")
+                            _log(f"    💾 Saved successfully to the Vietnamese corpus: {title[:70]}")
                             total_proc = scrape_status["success"] + scrape_status["duplicates"] + scrape_status["skipped"]
-                            _log(f"    Tiến độ: {total_proc} bài (✅{scrape_status['success']} | 🔁{scrape_status['duplicates']} | ⏭{scrape_status['skipped']})")
+                            _log(f"    Progress: {total_proc} articles (✅{scrape_status['success']} | 🔁{scrape_status['duplicates']} | ⏭{scrape_status['skipped']})")
 
                         except Exception as e:
                             scrape_status["skipped"] += 1
-                            _log(f"    ❌ Lỗi bài báo {au}: {e}")
+                            _log(f"    ❌ Article error {au}: {e}")
 
                 except Exception as e:
-                    _log(f"  ❌ Lỗi số tạp chí {iu}: {e}")
+                    _log(f"  ❌ Journal issue error {iu}: {e}")
 
     except ValueError as e:
         # FIX #1: URL không hợp lệ — hiển thị lỗi rõ ràng
@@ -706,7 +707,7 @@ def run_scraping(request, db_config: dict, output_folder: str):
         _log(f"❌ {e}")
     except Exception as e:
         scrape_status["error"] = str(e)
-        _log(f"❌ LỖI NGHIÊM TRỌNG: {e}")
+        _log(f"❌ CRITICAL ERROR: {e}")
     finally:
         scrape_status["summary"] = {
             k: scrape_status[k] for k in (
@@ -737,11 +738,11 @@ def run_scraping(request, db_config: dict, output_folder: str):
                 log_cursor.close()
                 log_conn.close()
             except Exception as e_log:
-                _log(f"Lỗi khi lưu log vào DB: {e_log}")
+                _log(f"Error saving log to the database: {e_log}")
 
         if cursor: cursor.close()
         if conn:   conn.close()
 
         scrape_status["running"] = False
         scrape_status["done"]    = True
-        _log(f"\n=== HOÀN THÀNH === ✅ {scrape_status['summary']['success']} lưu | 🔁 {scrape_status['summary']['duplicates']} trùng | ⏭ {scrape_status['summary']['skipped']} bỏ qua")
+        _log(f"\n=== COMPLETED === ✅ {scrape_status['summary']['success']} saved | 🔁 {scrape_status['summary']['duplicates']} duplicates | ⏭ {scrape_status['summary']['skipped']} skipped")

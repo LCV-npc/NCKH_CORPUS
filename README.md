@@ -146,6 +146,20 @@ python -m pip install -r requirements.txt
 cd ..
 ```
 
+### 3a. Cài XLM-R local (tùy chọn)
+
+Nếu muốn dùng checkpoint XLM-R đã fine-tune từ Colab trong màn **AI Annotation**, cài thêm:
+
+```powershell
+python -m pip install -r backend\requirements-xlmr.txt
+```
+
+Chép toàn bộ thư mục `best_model` từ Colab vào:
+`ner_finetuning/models/xlmr-vimed-vietbio-v1/best_model/`.
+Thư mục phải có `config.json`, file trọng số và các file tokenizer. Có thể đổi đường dẫn bằng
+`XLMR_MODEL_PATH` trong `backend/.env`. Sau đó màn AI Annotation sẽ có các lựa chọn
+`Gemini`, `XLM-R` và `Compare both`.
+
 Nếu PowerShell chặn script kích hoạt, có thể gọi trực tiếp Python trong môi trường ảo:
 
 ```powershell
