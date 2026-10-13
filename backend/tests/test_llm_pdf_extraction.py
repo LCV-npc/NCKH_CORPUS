@@ -45,12 +45,63 @@ class _FakeStructuredClient:
 class LLMPDFExtractionTests(unittest.TestCase):
     def test_prompt_loader_reads_versioned_extraction_instruction(self):
         prompt = load_pdf_extraction_prompt()
-        self.assertIn("prompt_version: 1.1", prompt)
+        self.assertIn("prompt_version: 1.2", prompt)
         self.assertIn("không phải tóm tắt", prompt.casefold())
         self.assertIn("heading_block_id", prompt)
         self.assertIn("không được bỏ heading cha", prompt.casefold())
         self.assertIn("boundary descriptor", prompt.casefold())
         self.assertIn("không trả `content`", prompt.casefold())
+        self.assertIn("excluded_metadata_blocks", prompt)
+
+    def test_introduction_excludes_llm_identified_contact_metadata_blocks(self):
+        texts = [
+            "I. ĐẶT VẤN ĐỀ",
+            "Nội dung khoa học mở đầu.",
+            "Tác giả liên hệ: Nguyễn Thị A\nTrường Đại học Y Hà Nội\nEmail: a@example.org\nNgày nhận: 24/11/2020\nNgày được chấp nhận: 11/01/2021",
+            "Nội dung khoa học tiếp theo.",
+            "II. PHƯƠNG PHÁP",
+            "Nội dung phương pháp.",
+        ]
+        blocks = [
+            {
+                "id": f"B{index:04d}", "order": index, "page": 1,
+                "text": text, "font_size": 12 if index in {1, 5} else 10,
+                "bold": index in {1, 5},
+                "bbox": {"x0": 40, "y0": index * 20, "x1": 560, "y1": index * 20 + 12},
+            }
+            for index, text in enumerate(texts, 1)
+        ]
+        payload = {
+            "title": None, "title_source_blocks": [],
+            "authors": [], "author_source_blocks": [],
+            "affiliations": [], "affiliation_source_blocks": [],
+            "abstract": None, "abstract_vi": None, "abstract_en": None,
+            "abstract_source_blocks": [], "keywords": [], "keyword_source_blocks": [],
+            "excluded_metadata_blocks": ["B0003"],
+            "sections": [
+                {"label": "I", "title": "ĐẶT VẤN ĐỀ", "full_heading": texts[0], "level": 1, "parent": None, "heading_block_id": "B0001"},
+                {"label": "II", "title": "PHƯƠNG PHÁP", "full_heading": texts[4], "level": 1, "parent": None, "heading_block_id": "B0005"},
+            ],
+        }
+
+        article = LLMPDFExtractor(
+            settings=_settings(), client=_FakeStructuredClient(payload),
+        ).extract(
+            {"blocks": blocks, "headings": [], "title": "", "authors": "", "abstract": ""},
+            source_pdf="paper.pdf",
+        )
+
+        self.assertEqual(
+            "Nội dung khoa học mở đầu. Nội dung khoa học tiếp theo.",
+            article.sections[0].content,
+        )
+        self.assertNotIn("Tác giả liên hệ", article.sections[0].content)
+
+    def test_content_previews_mark_truncation_with_ellipsis(self):
+        from core.article_exporter import build_content_preview
+
+        self.assertEqual("ngắn", build_content_preview("ngắn", limit=10))
+        self.assertEqual("nội dung...", build_content_preview("nội dung rất dài", limit=8))
 
     def test_malformed_llm_json_fails_safely(self):
         with self.assertRaises(LLMInvalidResponseError):
@@ -162,7 +213,15 @@ class LLMPDFExtractionTests(unittest.TestCase):
         self.assertNotIn("Tài liệu A", combined)
 
     def test_filename_sanitizer_is_windows_safe(self):
-        self.assertEqual("A_B_C", ExtractorPipeline._safe_directory_name('A/B:C?'))
+        self.assertEqual("ABC", ExtractorPipeline._safe_directory_name('A/B:C?'))
+
+    def test_extracted_folder_uses_first_five_words_and_ellipsis(self):
+        from core.file_names import compact_article_name
+
+        self.assertEqual(
+            "Đánh giá phương pháp và...",
+            compact_article_name("1. Đánh giá phương pháp và giá trị lâm sàng của xét nghiệm"),
+        )
 
     def test_local_high_confidence_major_heading_recovers_missing_llm_parent(self):
         texts = [

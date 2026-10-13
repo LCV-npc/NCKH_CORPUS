@@ -20,6 +20,7 @@ from core.scraper import (
     _log,
     scrape_status,
 )
+from core.file_names import compact_article_name
 
 
 class OjsDiscoveryTests(unittest.TestCase):
@@ -40,7 +41,32 @@ class OjsDiscoveryTests(unittest.TestCase):
                 "tapchiyhcd.vn", "2025", "Bài báo", "https://tapchiyhcd.vn/article/1", settings
             )
             self.assertEqual(Path(temporary_dir) / "tapchiyhcd.vn" / "2025", path.parent)
-            self.assertTrue(path.name.startswith("Bài báo_"))
+            self.assertEqual("Bài báo.pdf", path.name)
+
+    def test_article_file_name_uses_first_five_words_and_ellipsis(self):
+        self.assertEqual(
+            "Đánh giá phương pháp và...",
+            compact_article_name("1. Đánh giá phương pháp và giá trị lâm sàng"),
+        )
+        self.assertEqual(
+            "Đánh giá phương pháp và...",
+            compact_article_name("Đánh giá phương pháp và..."),
+        )
+
+    def test_candidate_name_adds_disambiguator_only_on_collision(self):
+        with TemporaryDirectory() as temporary_dir:
+            settings = VietnameseCorpusSettings(candidates_dir=Path(temporary_dir))
+            first = _candidate_pdf_path(
+                "example.test", "2025", "Đánh giá phương pháp và giá trị A",
+                "https://example.test/article/1", settings,
+            )
+            first.write_bytes(b"%PDF-one")
+            second = _candidate_pdf_path(
+                "example.test", "2025", "Đánh giá phương pháp và giá trị B",
+                "https://example.test/article/2", settings,
+            )
+            self.assertEqual("Đánh giá phương pháp và....pdf", first.name)
+            self.assertRegex(second.name, r"^Đánh giá phương pháp và\.\.\. \([0-9a-f]{8}\)\.pdf$")
 
     def test_accepted_pdf_remains_at_its_candidate_path(self):
         with TemporaryDirectory() as temporary_dir:

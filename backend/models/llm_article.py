@@ -39,6 +39,7 @@ class LLMExtractionCandidate(BaseModel):
     abstract_source_blocks: list[str] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)
     keyword_source_blocks: list[str] = Field(default_factory=list)
+    excluded_metadata_blocks: list[str] = Field(default_factory=list)
     sections: list[LLMSectionCandidate] = Field(default_factory=list)
 
 
@@ -87,6 +88,7 @@ GEMINI_EXTRACTION_SCHEMA: dict[str, Any] = {
         "abstract_source_blocks": {"type": "ARRAY", "items": {"type": "STRING"}},
         "keywords": {"type": "ARRAY", "items": {"type": "STRING"}},
         "keyword_source_blocks": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "excluded_metadata_blocks": {"type": "ARRAY", "items": {"type": "STRING"}},
         "sections": {
             "type": "ARRAY",
             "items": {
@@ -106,6 +108,6 @@ GEMINI_EXTRACTION_SCHEMA: dict[str, Any] = {
     "required": [
         "title_source_blocks", "authors", "author_source_blocks", "affiliations",
         "affiliation_source_blocks", "abstract_source_blocks", "keywords",
-        "keyword_source_blocks", "sections",
+        "keyword_source_blocks", "excluded_metadata_blocks", "sections",
     ],
 }

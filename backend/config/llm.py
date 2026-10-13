@@ -40,7 +40,7 @@ class PDFLLMSettings:
             timeout_seconds=max(5, int(os.getenv("PDF_LLM_TIMEOUT_SECONDS", "90"))),
             max_retries=max(0, int(os.getenv("PDF_LLM_MAX_RETRIES", "2"))),
             max_input_chars=max(12000, int(os.getenv("PDF_LLM_MAX_INPUT_CHARS", "90000"))),
-            prompt_version=os.getenv("PDF_EXTRACTION_PROMPT_VERSION", "1.1").strip(),
+            prompt_version=os.getenv("PDF_EXTRACTION_PROMPT_VERSION", "1.2").strip(),
         )
 
     def validate(self) -> None:
