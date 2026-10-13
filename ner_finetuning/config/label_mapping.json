@@ -1,0 +1,28 @@
+{
+  "schema": [
+    "DISEASE",
+    "SYMPTOM",
+    "CAUSE",
+    "DIAGNOSTIC_PROCEDURE",
+    "TREATMENT"
+  ],
+  "optional_labels": [
+    "LOCATION",
+    "DATETIME",
+    "ORGANISATION"
+  ],
+  "vietbioner": {
+    "Symptom_and_Disease": "HEURISTIC_SPLIT_TO_DISEASE_OR_SYMPTOM",
+    "DiagnosticProcedure": "DIAGNOSTIC_PROCEDURE",
+    "Location": "LOCATION",
+    "DateTime": "DATETIME",
+    "Organisation": "ORGANISATION"
+  },
+  "vimedner": {
+    "ten_benh": "DISEASE",
+    "trieu_chung_benh": "SYMPTOM",
+    "nguyen_nhan_benh": "CAUSE",
+    "bien_phap_chan_doan": "DIAGNOSTIC_PROCEDURE",
+    "bien_phap_dieu_tri": "TREATMENT"
+  }
+}

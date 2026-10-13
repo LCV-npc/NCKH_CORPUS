@@ -1,0 +1,5 @@
+raw/
+processed/
+predictions/
+__pycache__/
+*.pyc

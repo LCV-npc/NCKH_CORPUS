@@ -1,0 +1,273 @@
+\documentclass[runningheads]{llncs}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\usepackage{marvosym}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{
+    font=small,
+    labelfont=bf,
+    textfont=rm,
+    justification=centering,
+    skip=2pt,
+    belowskip=0pt
+}
+\setlength{\intextsep}{0pt}
+\setlength{\textfloatsep}{0pt}
+\setlength{\floatsep}{0pt}
+\raggedbottom
+\usepackage{placeins}
+\begin{document}
+
+\title{A Hybrid Pre-Annotation Framework Combining Medical Dictionaries and AI for Vietnamese Medical Entity Corpus Construction}
+
+\author{
+Dang Quoc Khang Nguyen\inst{1} \and
+Luong Chan Vu\inst{1} \and
+Nguyen Duc Duy\inst{1} \and
+Huu Nghia Huynh\inst{2}(\Letter)
+}
+
+\authorrunning{D. Q. K. Nguyen et al.}
+
+\institute{
+School of Advanced Study, Open University, Ho Chi Minh City, Vietnam\and
+Faculty of Information Technology, Open University, Ho Chi Minh City, Vietnam\\
+\email{nghia.hh@ou.edu.vn}
+}
+
+\maketitle
+
+\begin{abstract}
+The limited availability of annotated Vietnamese medical corpora remains a challenge for biomedical natural language processing. Manual corpus annotation is time-consuming and requires substantial involvement from medical experts. This paper presents a hybrid pre-annotation framework to support the construction of a Vietnamese medical entity corpus from online medical journal articles. The collected PDF articles are converted into text and preprocessed before annotation. Medical terminology resources, including ICD-10 and other domain-specific sources, are used to identify known medical terms through dictionary matching, while an AI model detects additional entities that are not covered by the dictionaries. The resulting pre-annotations serve as initial suggestions for medical experts, who review and revise them by confirming, modifying, removing, or adding entities as needed. Final annotation decisions therefore remain under expert supervision. The corpus covers multiple medical entity types, including diseases, symptoms, and drugs. The resulting resource is expected to support the development and evaluation of biomedical named entity recognition systems for Vietnamese.
+
+\keywords{Vietnamese medical corpus \and Medical entity annotation \and Pre-annotation \and Human-in-the-loop annotation \and Biomedical NLP}
+\end{abstract}
+
+\section{Introduction}
+Labeled data plays a crucial role in the development and evaluation of natural language processing systems, particularly for entity recognition in the biomedical and medical domains. Building a high-quality medical corpus, however, is a time-consuming and labor-intensive undertaking that demands substantial expert involvement, owing to the inherent complexity of specialized terminology and domain-specific knowledge. With respect to Vietnamese, labeled medical text resources suitable for NLP research remain scarce, thereby posing a significant obstacle to the development and evaluation of biomedical NLP systems for the Vietnamese language.
+
+While labeled data remains limited, a substantial volume of Vietnamese medical content is published on the Web through medical journals and doctor-patient question-and-answer platforms. These sources encompass diverse forms of medical information, ranging from specialized terminology in scholarly articles to natural-language descriptions of symptoms and health concerns. Nevertheless, harnessing such data sources for NLP research requires that the text be collected, organized, processed, and annotated through a controlled and systematic procedure. Consequently, transforming the medical text readily available on the Web into a structured, expert-validated corpus constitutes an issue that warrants serious attention.
+
+Dictionary-based methods can facilitate the annotation process by recognizing established terms drawn from standardized sources such as ICD-10. Nevertheless, their recognition capability is contingent upon the coverage of the terminological resource, meaning that expressive variants or entities absent from the dictionary risk being overlooked. AI, in turn, can supplement this by detecting entities that fall beyond the dictionary's scope; however, automatically generated results may still contain inaccuracies and therefore require expert verification. Accordingly, integrating terminological resources, AI, and expert oversight represents an appropriate approach to constructing labeled medical datasets.
+
+In light of the aforementioned need, this study proposes a hybrid pre-annotation framework for constructing a Vietnamese biomedical entity corpus from online medical sources. The framework integrates Web data collection, PDF processing, terminology-based entity recognition, AI-assisted candidate generation, and expert validation into a traceable workflow.
+
+The main contribution of this study is the integration of these stages within a unified system. Dictionary resources provide standardized medical terms and codes, while AI detects additional candidates beyond dictionary coverage. All automatically generated results are treated as pre-annotations and remain subject to expert review before being included in the validated corpus.
+
+\section{Related Work}
+\subsection{Web Data Collection and Corpus Construction}
+The Web constitutes an important source for constructing text datasets. However, the data gathered from it typically must pass through numerous stages from crawling and content extraction to cleaning, organization, and management. Vijayaraghavan et al. [6] combined web scraping with NLP techniques to extract information from unstructured text. FUNDUS [7] offers a news-collection framework centered on the quality of extracted content, while Trafilatura [8] assists in identifying core content and metadata from Web pages. These studies demonstrate that the collection process extends well beyond mere data downloading, requiring instead that valuable content be separated from extraneous elements present on a webpage.
+
+With respect to scientific literature, S2ORC [9] constructed a large-scale corpus that combines the content and metadata of research works; CCpdf [10] focused on extracting PDF documents from Web-sourced data; and CERMINE [11] supports the extraction of structure and metadata from scholarly publications. Beyond collection and extraction, corpus quality is further shaped by considerations such as duplicate data removal [12], multi-stage data filtering [13], maintaining the freshness of collected sources [14], and selecting an appropriate data management mechanism [15].
+\subsection{Entity Recognition and Pre-Annotation}
+Another line of research concentrates on the automatic or semi-automatic identification of entities within text. Abbas et al. [1] investigated clinical concept extraction using lexical semantics to support automatic annotation. For Vietnamese, VnCoreNLP [2] provides foundational components for a wide range of NLP tasks, while Tien et al. [3] employed a rule-based method for extracting bilingual English--Vietnamese terminology. Within the medical domain, standardized terminological resources such as ICD-10 [16] can supply established codes and concepts to facilitate entity recognition and normalization.
+
+Dictionary- or rule-based methods offer a distinct advantage when entities must be linked to a well-defined terminological resource; their recognition scope, however, is inherently bounded by the terms already represented within that resource. The advent of large language models has, in turn, opened up a complementary avenue, one in which entities can be detected with greater reliance on contextual cues. Xie et al. [4] conducted an empirical study on zero-shot NER using ChatGPT, demonstrating the feasibility of applying LLMs to entity recognition while simultaneously highlighting concerns regarding the reliability of the resulting output.
+\subsection{Assisted Annotation and Human-in-the-Loop}
+Rather than carrying out the entire annotation process either manually or fully automatically, assisted-annotation methods bring humans and automated systems together within a single workflow. Cañizares-Díaz et al. [5] investigated active learning for assisted corpus construction in the context of knowledge mining from biomedical text. This approach illustrates the role automated systems can play in supporting corpus formation, while human-provided input continues to occupy a pivotal position in generating labeled data.
+
+Closely aligned with the framework-based annotation paradigm, Huynh et al. [18] developed an Entity Labeling and Data Analysis Framework intended to facilitate the creation of training and evaluation data for text-mining research. The framework allows users to select and annotate entities or concepts within text, while simultaneously recording the start position, end position, and label type of each entity. The resulting labeled data can then be exported alongside the source text for subsequent reuse. Figure 3 of that work [18] further shows that the framework accepts unlabeled text, evaluation data, and machine-learning prediction outputs, thereby supporting two principal functional groups: entity labeling and analysis of model results.
+
+Beyond its labeling functionality, [18] also compares machine-learning predictions against expert-assigned labels, distinguishing correctly predicted, incorrectly predicted, and omitted entities, while computing the degree of similarity between the two result sets. As such, this work provides a foundation closely related to the present study, particularly with respect to organizing annotation activities and supporting the evaluation of automated results.
+
+Our study extends this line of approach to the process of constructing Vietnamese medical entity data from Web sources. Rather than beginning with an already-unlabeled text file, as in [18], the proposed framework aims instead to connect the collection and processing of online medical text directly with pre-annotation. Medical terminological resources and AI are employed as two complementary sources of proposed labels, after which the resulting output is submitted to experts for validation. At the same time, information regarding the source text, span, entity type, terminology code, and label-generation source is preserved throughout, so as to support full traceability.
+
+Taken together, prior research has furnished important solutions for corpus construction, entity recognition, automatic or assisted annotation, and entity-labeling frameworks. Within the scope of the works surveyed, however, these components have not yet been fully integrated into a unified workflow specifically oriented toward constructing a Vietnamese medical entity corpus from Web sources---one in which dictionary-based and AI-assisted pre-annotations are subject to expert validation and the provenance of each label is maintained throughout the entire process. It is precisely this gap that the framework proposed in the present study seeks to address.
+
+\section{Proposed Framework}
+\subsection{Framework Overview}
+The proposed framework is designed to support the construction and progressive expansion of a labeled Vietnamese medical text corpus through an integrated workflow spanning from data collection to expert validation. Input data are drawn from online medical sources, primarily Vietnamese medical journal websites, with doctor--patient question-and-answer platforms targeted as an additional source going forward. Once collected, documents undergo content extraction, preprocessing, and organization alongside their corresponding source information, thereby generating the input data required for the annotation process. Notably, the proposed framework supports article collection and includes a module for processing question-and-answer structures, although the question-and-answer source has not yet been incorporated into the current experimental corpus. An overview of this workflow is presented in Figure~\ref{fig:framework-overview}.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.5\textwidth]{12.jpg}
+\caption{Overview of the proposed framework for Vietnamese medical corpus construction.}
+\label{fig:framework-overview}
+\end{figure}
+The annotation process is organized around a hybrid pre-annotation strategy that combines medical terminological resources with AI-based models. Resources such as the Vietnamese ICD-10 and other specialized terminology sources are used to recognize already-established entities and preserve their standardized information, while AI serves to further detect candidate entities not yet covered by the dictionary. Outputs from these two sources are then checked and consolidated into a unified set of pre-annotations before being forwarded to experts. Notably, for entities identified by both sources simultaneously, the standardized information drawn from the dictionary is given priority and preserved.
+
+The framework adheres to the human-in-the-loop principle, whereby automatically generated results function solely as proposals to assist annotation and are never regarded as final labels. Experts review each entity together with its span, type, code, and proposal source in order to carry out validation. At the same time, the framework maintains the linkage among source text, annotation results, terminological resources, AI outputs, and processing history, thereby ensuring the traceability of the data (see Figure~\ref{fig:framework-overview}).
+
+This organizational structure enables the framework to bring data acquisition, pre-annotation, and expert validation together into a single, unified workflow, rather than treating them as isolated, independent tasks. The subsequent sections provide a detailed account of the data collection and processing steps, the entity schema and terminological resources, the hybrid pre-annotation mechanism, expert validation, and provenance management.
+
+\subsection{Medical Text Collection and Preprocessing}
+The collection process was designed to accommodate the distinct characteristics of each data source. For online medical journals, the system crawls through issues and article pages to gather titles, authors, publication years, abstracts, source URLs, and links to the corresponding PDF documents. URLs are subsequently used to detect duplicate records during the initial collection stage. Throughout the crawling process, processing status and logs are maintained, thereby allowing collection to resume smoothly whenever an individual page or document encounters an error.
+
+For medical question-and-answer websites, page structures are parsed in order to separate out distinct information fields, namely the patient's question, the physician's response, the medical specialty, and the posting date. This organizational approach makes it possible to store the exchanged content and its associated metadata independently, rather than treating the entire webpage as an undifferentiated block of text. In the current version of the system, the processing functionality for question-and-answer sources has already been developed; however, actual data from this source has not yet been incorporated into the experimental dataset.
+
+Once collected PDF documents undergo verification of format, size, and validity prior to content extraction. The resulting text is then normalized in terms of whitespace and stored in TXT/JSON format, together with information linking it back to the source document. In order to preserve character positioning, entity span identification relies on the reference text rather than on a string that has undergone transformations capable of altering the offset. As a result, the preprocessed data retains a consistent linkage among the textual content, its metadata, and the original source document.
+
+\subsection{Medical Entity Schema and Terminology Resources}
+The framework defines an entity schema comprising six categories to represent medical concepts occurring in the text: Disease/Condition, Symptom, Treatment, Test, Imaging, and Traditional Medicine/Physiology. Disease/Condition covers diseases, syndromes, and diagnosed conditions; Symptom represents symptoms and clinical signs; Treatment includes medications, procedures, and therapeutic interventions; Test covers laboratory tests, indicators, and diagnostic procedures; Imaging represents imaging techniques and findings; and Traditional Medicine/Physiology includes traditional medicine terminology and related physiological concepts.
+
+Given a Vietnamese medical text $X$, each annotation $a_i$ is represented as
+\[
+a_i = (s_i, e_i, x_i, l_i, c_i, m_i)
+\]
+where $s_i$ and $e_i$ denote the start and end character offsets, respectively; $x_i$ is the entity surface form; $l_i$ denotes the entity type; $c_i$ represents the standardized concept code when available; and $m_i$ indicates the annotation source. Each annotation must satisfy
+\[
+0 \leq s_i < e_i \leq |X|,\qquad x_i = X[s_i:e_i].
+\]
+These constraints ensure that each annotated entity is directly aligned with its corresponding span in the reference text, thereby preserving character-offset consistency and supporting conversion to span-based or sequence-labeling formats such as BIO and BIOES. The representation also retains semantic and provenance information required to distinguish the entity type, standardized concept when available, and the source from which the annotation originates.
+
+\subsection{Hybrid Pre-Annotation}
+\subsubsection{Dictionary-Based Pre-Annotation}
+The dictionary-based component relies on a medical terminology dictionary constructed as part of the proposed framework, rather than on a pre-existing ready-to-use dictionary. The primary terminology sources include Vietnamese ICD-10 resources officially published by the Vietnamese Ministry of Health in spreadsheet format, together with traditional medicine terminology and a controlled set of additional aliases. The source records are extracted and transformed into a unified dictionary representation containing medical terms, standardized codes, and associated entity information. Terminology entries are then normalized, their codes are validated, and ambiguous or invalid entries are filtered before being used for annotation. Each dictionary version is recorded through a manifest containing its version information, number of entries, and SHA-256 hash, thereby supporting reproducibility and resource traceability.
+
+The resulting dictionary is used to generate entity candidates from the reference text. Two lookup strategies are maintained: an exact index for Vietnamese expressions with diacritics and an accent-insensitive index that is selectively applied when the input text does not contain diacritics. This distinction reduces ambiguity that may arise from indiscriminate diacritic removal. Candidate terms are matched using a longest-match strategy, with exact matches, abbreviations, aliases, and recognized clinical variants prioritized over accent-insensitive matches. When candidate spans overlap, the higher-ranked candidate is retained. Each accepted match is converted into a pre-annotation containing its character span, entity type, standardized code when available, and matching information.
+
+This process transforms heterogeneous terminology resources into a controlled and versioned dictionary that can produce deterministic pre-annotations while preserving the connection between textual mentions and standardized medical concepts.
+
+\subsubsection{AI-Assisted Pre-Annotation}
+The AI-assisted component complements dictionary-based pre-annotation by identifying medical entity candidates that may not be covered by the constructed terminology dictionary. In the current implementation, Gemini 2.5 Flash is prompted to identify entities according to the predefined medical entity schema and return the results in a structured JSON format. Dictionary-derived annotations are provided as contextual information to the model, while the model is instructed to preserve entity expressions as they occur in the input text.
+
+To reduce unreliable AI-generated annotations, each returned candidate is validated against the reference text before being retained. A candidate is discarded if its surface form cannot be located in the source text or if its entity type falls outside the predefined schema. This validation constrains the AI output to text-grounded entity spans, although it does not guarantee that every retained candidate is semantically correct. Consequently, AI-generated entities are treated only as pre-annotation candidates rather than validated annotations.
+
+\subsubsection{Pre-Annotation Integration}
+The outputs of the dictionary-based and AI-assisted components are integrated into a unified set of pre-annotations. Let $D$ denote the set of dictionary-derived candidates and $A$ the set of validated AI-generated candidates. The resulting pre-annotation set $P$ is expressed as
+\[
+P = M(D, A),
+\]
+where $M$ denotes the integration procedure for combining the two candidate sets and resolving duplicate or conflicting annotations.
+
+When both components identify the same entity span, the dictionary-derived annotation is prioritized. In such cases, the dictionary-derived entity type, standardized code, and normalized terminology information are retained. Valid AI candidates that do not conflict with dictionary-derived annotations can be included as additional pre-annotations. If the AI output is empty or invalid, the dictionary-derived annotations remain unchanged.
+
+This integration strategy allows AI-generated candidates to complement the coverage of dictionary-based annotation without overwriting standardized terminology information. The resulting set $P$ represents the output of the hybrid pre-annotation stage and is subsequently provided to experts for review and validation.
+
+\subsection{Expert Annotation and Validation}
+The annotation results produced by the administrator are presented to medical experts for review rather than being directly accepted as final annotations. For each candidate entity, experts examine the corresponding text span, entity type, standardized code when available, and annotation information. They can confirm, modify, remove, or add entities as necessary, ensuring that automatically generated candidates remain subject to expert supervision before being incorporated into the validated dataset.
+
+To improve annotation reliability, the framework supports a multi-expert validation workflow. Two medical experts independently review and annotate the assigned documents. Their annotation results are subsequently compared to identify agreements and disagreements in entity boundaries, types, and associated information. Cases of disagreement are forwarded to a designated reviewer for adjudication. The reviewer examines the competing annotations and determines the final annotation, thereby separating expert review from final validation.
+
+System-generated annotations are treated as shared initial proposals for both
+experts. If neither expert changes a proposed annotation, it is considered an
+agreement between the two experts. Only annotations that are modified,
+deleted, or newly added by an expert are treated as candidate disagreements
+for reviewer adjudication. This design prevents unchanged system proposals
+from being incorrectly classified as conflicts.
+
+Only annotations that complete this validation process are incorporated into the finalized dataset. After adjudication, the framework allows the validated annotations to be consolidated and published as an annotated Vietnamese medical text dataset for subsequent use in biomedical NLP research. This workflow establishes a controlled transition from automatically generated pre-annotations to expert-validated data, while ensuring that the final annotation decisions remain under human expert authority.
+
+\subsection{Annotation Provenance and Corpus Management}
+The framework maintains annotation provenance throughout the corpus construction process to ensure that annotation results can be traced back to their associated documents and processing sources. Each annotation is linked to the reference text through its character span and retains its entity type, standardized code when available, and annotation source. Document-level metadata and processing information are also preserved, allowing annotation records to remain associated with their original medical texts.
+
+Intermediate annotation results are stored rather than being maintained only at the interface level. In particular, AI-generated results are associated with the corresponding document, input content, extracted entities, model information, and processing time. Dictionary-derived and AI-generated results are maintained separately, enabling their outputs to be retrieved and compared during subsequent annotation activities. Terminology-resource versions are also retained so that dictionary-derived annotations can be associated with the resources used to generate them. This provides a traceable path from the source document and terminology resources to the resulting annotations.
+
+At the corpus level, the framework organizes source documents, metadata, extracted concepts, annotation results, and processing history around persistent document identifiers. Following expert validation and final adjudication, the approved annotations are consolidated as the finalized version of the annotated document. These validated documents can then be organized and published as an annotated Vietnamese medical text corpus, while intermediate results remain available for provenance tracking and future analysis.
+
+\section{Framework Implementation}
+\subsection{System Architecture and Functional Components}
+The proposed framework was implemented as a web-based system with a modular client--server architecture. The implementation consists of four main layers: the frontend, backend/API, data storage, and external services. The frontend provides user interfaces for accessing the framework functions, while the backend exposes HTTP/JSON APIs and centralizes application logic. Structured data are maintained in a MySQL database, whereas document files and intermediate textual resources are stored in the file system. External Web sources and the AI service are accessed through dedicated backend components. This separation allows the user interface, processing services, data management, and external integrations to evolve independently.
+
+The backend is implemented using FastAPI and organized into functional services for Web crawling, PDF extraction, terminology management, dictionary-based annotation, AI-assisted annotation, and expert evaluation. Incoming requests are routed through API endpoints and validated using Pydantic schemas before being forwarded to the corresponding services. Database access is handled through a connection provider, while a transaction management component coordinates data persistence and rollback when processing operations fail. This modular organization reduces dependencies among functional components and enables individual services, such as the AI model or data collection module, to be modified without restructuring the entire application.
+
+The storage layer separates structured records from document-level files. MySQL maintains article metadata, extracted concepts, processing states, annotation histories, and related management information, while PDF, TXT, and JSON files are stored in the file system and linked to their corresponding records through document identifiers and file paths. The backend also provides integration points for external resources: Web collection services access online medical sources, while the AI annotation service communicates with the external language model through its API. This architecture keeps external dependencies outside the core data-management components and provides a common backend interface for the frontend. The resulting system architecture is illustrated in Figure~\ref{fig:system-architecture}.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.6\textwidth]{111.jpg}
+\caption{System architecture of the implemented framework.}
+\label{fig:system-architecture}
+\end{figure}
+
+\subsection{Role-Based User Interfaces}
+The framework provides role-based Web interfaces that align the visible operations with the responsibilities of each participant in the corpus-construction workflow. Three roles are supported: an administrator, who manages source documents and launches dictionary-based or AI-assisted pre-annotation; medical experts, who independently validate and revise the proposed entities; and a reviewer, who compares expert outputs and adjudicates unresolved differences. The roles share the same document identifiers and provenance records, but they do not share the same working view or editing authority. This separation reduces accidental modification of intermediate results and makes the transition from automated suggestions to validated annotations explicit.
+
+The administrator interface begins with document acquisition and processing. As illustrated in Figure~\ref{fig:crawling-interface}, the administrator can select a medical source, specify a publication-year range, and start the crawling process. The interface combines configuration controls with status indicators so that the operator can verify the selected source and processing scope before collection begins. During execution, the system reports the progress of URL processing and records the generated files and document metadata for subsequent extraction and annotation.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{crawl.png}
+\caption{Administrator interface for configuring medical-document collection.}
+\label{fig:crawling-interface}
+\end{figure}
+
+The progress view in Figure~\ref{fig:crawling-progress} provides operational feedback after collection has started. It summarizes the current state of processing, the number of retrieved pages and generated records, duplicate or failed requests, and the files written to storage. The activity log provides a document-level audit trail that helps the administrator identify incomplete retrievals before the data are passed to PDF extraction and pre-annotation. Thus, the collection interface is not merely a control panel for starting a crawler; it also provides an initial quality-control view for the corpus input.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{crawl-progress.png}
+\caption{Administrator interface showing collection progress, summary statistics, and processing logs.}
+\label{fig:crawling-progress}
+\end{figure}
+
+After documents have been processed, the administrator can invoke dictionary matching and AI-assisted pre-annotation from the corpus-management interface. The resulting candidates are displayed with their entity category, surface form, source, and standardized code when available. The interface distinguishes dictionary-supported entities from AI-only candidates and preserves the overlap between the two sources rather than silently replacing one result with the other. This distinction is important because the administrator produces review material, not final gold labels. Figure~\ref{fig:ai-annotation-interface} shows the interface used to inspect and save these pre-annotation results.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{admin1.png}
+\caption{Administrator interface for inspecting dictionary-based and AI-assisted pre-annotations.}
+\label{fig:ai-annotation-interface}
+\end{figure}
+
+The expert interface is organized around document-level review. Experts can enter either the ICD-10-labeled or AI-labeled document list, search by document metadata, and open a dedicated review workspace. The workspace places the original medical text beside the current ICD-10 labels and, when the AI workflow is selected, the AI predictions. The current labels are shown as a separate reference set. AI entities that duplicate an existing current label are suppressed from the prediction view, using normalized codes and disease names for comparison. Consequently, a disease such as ``H02.4 -- Sụp mi'' is not presented a second time as an AI suggestion when it is already available in the current ICD-10 panel. This design keeps the prediction area focused on additional candidates requiring expert attention rather than on repeated information.
+
+Within the same workspace, experts can review each entity at the span level. For every annotation, the interface exposes the text span, entity name, entity type, ICD-10 code when available, and an explicit action such as \textit{KEEP}, \textit{EDIT}, \textit{DELETE}, or \textit{ADD}. Experts may therefore confirm a proposed entity, correct its metadata or boundaries, remove an incorrect candidate, or create a missing annotation without editing an external annotation file. The source text remains visible while these operations are performed, supporting a direct correspondence between the annotation record and the text span. Each expert's submission is stored as an independent review record so that the two expert decisions remain distinguishable.
+
+The reviewer interface is designed for comparison and adjudication rather than for initial annotation. It presents the two expert records side by side and groups their annotations by entity and category. The comparison accounts for span position, entity type, standardized code, and deletion status, thereby distinguishing exact agreement from partial agreement and conflict. Unchanged system-generated proposals are treated as shared initial material; only modifications, deletions, and additions require explicit comparison. For unresolved cases, the reviewer can select the annotation from either expert or enter a corrected final annotation. The interface then records the adjudication decision and displays the resulting final label set separately from the intermediate expert records.
+
+This role-specific design establishes a controlled progression through the system: the administrator prepares traceable candidate annotations, experts independently validate them, and the reviewer resolves only the cases that remain inconsistent. The interface therefore supports both usability and provenance: users see only the controls relevant to their task, while the backend retains the relationship among the source document, the current dictionary labels, the AI suggestions, the expert records, and the final adjudication. Examples of the expert annotation and reviewer adjudication interfaces are shown in Figures~\ref{fig:expert-annotation-interface} and~\ref{fig:reviewer-adjudication}, respectively.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{ex2.png}
+\caption{Medical expert interface for reviewing document text and editing entity-level annotations.}
+\label{fig:expert-annotation-interface}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{rev.png}
+\caption{Reviewer interface for comparing expert records and adjudicating unresolved entities.}
+\label{fig:reviewer-adjudication}
+\end{figure}
+
+\subsection{Data Storage and Implementation Environment}
+The implementation adopts a hybrid storage strategy that separates structured records from document-level files. MySQL is used to manage structured data, including article metadata, extracted concepts, processing status, annotation records, and processing history. Document-level resources, including PDF, TXT, and JSON files, are maintained in the file system and linked to their corresponding database records through persistent document identifiers and file paths. This separation allows large document files to be managed independently while preserving their association with structured corpus information.
+
+Annotation data are organized at the document level to support the different outputs generated during corpus construction. Dictionary-based and AI-assisted pre-annotations, expert annotation results, review and adjudication results, and final validated annotations are associated with their corresponding documents. The finalized annotations are maintained separately from intermediate results, allowing the system to distinguish working annotation records from the validated data prepared for corpus publication.
+
+The framework is implemented as a Web-based application using React for the frontend and FastAPI/Python for backend services. MySQL provides persistent structured storage, while Requests and BeautifulSoup support Web data collection. The AI-assisted annotation component communicates with Gemini through its API, and HTTP/JSON is used for communication between the frontend and backend.
+
+\section{Evaluation and Discussion}
+\subsection{Technical and Functional Evaluation}
+The framework was evaluated as a software-supported corpus construction system. The evaluation covered terminology integrity, character-offset consistency, deterministic dictionary processing, dictionary--AI integration, robustness, and data persistence. The test repository contained 4,182 Vietnamese medical articles and terminology resources comprising 12,219 ICD-10 records, 228 traditional medicine terms, and 295 controlled aliases.
+
+Seventeen functional and integration tests were conducted, covering terminology validation, Unicode and span handling, longest-match and overlap resolution, data collection, authentication, persistence, and exception handling. All tests passed. The system also handled invalid AI responses, API timeouts, corrupted PDFs, and unavailable terminology resources without interrupting the overall workflow.
+
+Repeatability was examined by running the dictionary-based pre-annotation pipeline twice on 10 medical texts. The two runs produced identical outputs and detected seven entity mentions. All detected entities satisfied the span-integrity constraint defined in Section~3.3, and no overlapping spans occurred in this sample. Hybrid tests further confirmed that dictionary-derived information was preserved in conflicting cases, invalid AI candidates were rejected, and dictionary results remained available when AI output was empty or invalid.
+
+At the time of evaluation, 52 of the 4,182 collected articles contained at least one annotation result, whereas 4,130 had not yet completed annotation. Therefore, the 4,182 documents represent the collected medical-text repository rather than a completed annotated corpus. The present results demonstrate technical feasibility and operational consistency, but do not measure medical NER accuracy or annotation-efficiency improvement. Such claims require an independently expert-validated gold-standard corpus and evaluation with Precision, Recall, and F1-score.
+
+\subsection{Discussion}
+The evaluation indicates that the framework provides a consistent workflow for collecting medical documents, generating pre-annotations, and preserving annotation provenance. Dictionary matching produces deterministic candidates linked to standardized terminology, while AI proposes entities beyond the current dictionary coverage. Dictionary information is retained when the two sources overlap, and invalid AI outputs do not interrupt the workflow.
+
+The framework should nevertheless be understood as a controlled pre-annotation system rather than an autonomous annotation method. AI candidates may contain incorrect entity types or semantic interpretations and therefore require expert validation. Current limitations include incomplete terminology coverage, limited support for nested entities, imperfect content-level duplicate detection, and the absence of doctor--patient question-and-answer data from the experimental corpus. Because only a small portion of the collected articles has been annotated, medical NER accuracy and annotation-efficiency gains cannot yet be established.
+
+\section{Conclusion and Future Work}
+This study presented MedNLP Studio, a traceable framework for constructing Vietnamese medical text resources through Web collection, terminology-based pre-annotation, AI-assisted candidate generation, and expert validation. The system records entity spans, types, terminology codes, proposal sources, and processing history within a unified workflow.
+
+Functional evaluation on 4,182 medical articles showed consistent dictionary processing, controlled dictionary--AI integration, valid character offsets, and successful execution of 17 functional and integration tests. These results demonstrate technical feasibility but do not yet establish medical NER accuracy or reduced expert effort.
+
+Future work will incorporate de-identified doctor--patient data, improve nested-entity and duplicate-content handling, and complete the multi-expert annotation and adjudication process. A gold-standard corpus will then be used to compare dictionary-only, AI-only, and hybrid pre-annotation using Precision, Recall, F1-score, inter-annotator agreement, correction time, and annotation cost.
+
+
+\begin{thebibliography}{19}
+\bibitem{ref1} Abbas, A., et al.: Clinical Concept Extraction with Lexical Semantics to Support Automatic Annotation. International Journal of Environmental Research and Public Health 18(20), 10564 (2021). \doi{10.3390/ijerph182010564}
+\bibitem{ref2} Vu, T., Nguyen, D.Q., Nguyen, D.Q., Dras, M., Johnson, M.: VnCoreNLP: A Vietnamese Natural Language Processing Toolkit. NAACL-HLT Demonstrations, pp. 56--60 (2018)
+\bibitem{ref3} Tien, H.N., The, Q.N., Minh, H.N.T., My, L.H.: Rule Based English-Vietnamese Bilingual Terminology Extraction from Vietnamese Documents. KSE, pp. 56--62 (2019). \doi{10.1145/3368926.3369664}
+\bibitem{ref4} Xie, T., et al.: Empirical Study of Zero-Shot NER with ChatGPT. EMNLP, pp. 7935--7956 (2023). \doi{10.18653/v1/2023.emnlp-main.493}
+\bibitem{ref5} Cañizares-Díaz, H., et al.: Active Learning for Assisted Corpus Construction: A Case Study in Knowledge Discovery from Biomedical Text. RANLP, pp. 216--225 (2021)
+\bibitem{ref6} Vijayaraghavan, P., et al.: Web Scraping using Natural Language Processing: Exploiting Unstructured Text for Data Extraction and Analysis. Procedia Computer Science 230, 193--202 (2023)
+\bibitem{ref7} Dallabetta, M., Dobberstein, C., Breiding, A., Akbik, A.: FUNDUS: A Simple-to-Use News Scraper Optimized for High Quality Extractions. ACL System Demonstrations, pp. 305--314 (2024)
+\bibitem{ref8} Barbaresi, A.: Trafilatura: A Web Scraping Library and Command-Line Tool for Text Discovery and Extraction. ACL-IJCNLP System Demonstrations, pp. 122--131 (2021)
+\bibitem{ref9} Lo, K., et al.: S2ORC: The Semantic Scholar Open Research Corpus. ACL, pp. 4969--4983 (2020)
+\bibitem{ref10} Turski, M., et al.: CCpdf: Building a High Quality Corpus for Visually Rich Documents from Web Crawl Data. arXiv:2304.14953 (2023)
+\bibitem{ref11} Tkaczyk, D., et al.: CERMINE: Automatic Extraction of Structured Metadata from Scientific Literature. International Journal on Document Analysis and Recognition 18(4), 317--335 (2015)
+\bibitem{ref12} Lee, K., et al.: Deduplicating Training Data Makes Language Models Better. ACL, pp. 8424--8445 (2022)
+\bibitem{ref13} Tiurin, N., Blanco Escoda, X.: A Multi-Stage Heuristic Filtering Pipeline for Refining a Spanish Legal Corpus for NLP. Langue(s) \& Parole, no. 10, pp. 37--56 (2025)
+\bibitem{ref14} Kolobov, A., Peres, Y., Lubetzky, E., Horvitz, E.: Optimal Freshness Crawl Under Politeness Constraints. SIGIR (2019)
+\bibitem{ref15} Upeksha, D., et al.: Comparison Between Performance of Various Database Systems for Implementing a Language Corpus. BDAS, CCIS 521, pp. 82--91 (2015)
+\bibitem{ref16} World Health Organization: International Statistical Classification of Diseases and Related Health Problems, 10th Revision, 2019 version.
+\bibitem{ref17} Google: Gemini API Documentation: Gemini 2.5 Flash, \url{https://ai.google.dev/}. Accessed 23 Aug 2026
+\bibitem{ref18} Huynh, H.N., Tran, P.V., Bui, N.M.T.: Entity Labeling and Data Analysis Framework. In: Future Data and Security Engineering. Big Data, Security and Privacy, Smart City and Industry 4.0 Applications, CCIS, vol. 2309, pp. 341--348. Springer (2024). \doi{10.1007/978-981-96-0434-0_25}
+\bibitem{ref19} Ministry of Health of Vietnam: Official Decision on Drug and Medical Terminology List. Hanoi, Vietnam (2023)
+\end{thebibliography}
+
+\end{document}

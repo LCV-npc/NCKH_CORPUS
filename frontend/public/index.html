@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedNLP Studio — Hệ thống Quản lý Ngữ liệu Y học</title>
-    <meta name="description" content="Nền tảng NLP y học tiếng Việt: thu thập, xử lý, gán nhãn và quản lý từ điển thuật ngữ y tế">
+    <title>MedNLP Studio — Medical Corpus Management System</title>
+    <meta name="description" content="Vietnamese medical NLP platform for corpus collection, processing, annotation, and terminology management">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="index.css?v=4.9">
+<link rel="stylesheet" href="index.css?v=5.0">
 </head>
 <body class="auth-mode">
 
@@ -15,15 +15,15 @@
     <section class="auth-card">
         <div class="auth-brand">MedNLP <span>Corpus Review System</span></div>
         <div id="loginFormWrap">
-            <h1>Đăng nhập</h1>
-            <p>Truy cập không gian quản trị hoặc chuyên gia.</p>
+            <h1>Sign in</h1>
+            <p>Access the administrator or expert workspace.</p>
             <form id="loginForm" novalidate>
                 <label>Email<input id="loginEmail" type="email" autocomplete="email" required></label>
-                <label>Mật khẩu<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+                <label>Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
                 <p class="auth-error" id="loginError" role="alert"></p>
-                <button class="auth-submit" type="submit">Đăng nhập</button>
+                <button class="auth-submit" type="submit">Sign in</button>
             </form>
-            <p class="auth-account-note">Tài khoản chuyên gia do quản trị viên hệ thống cấp.</p>
+            <p class="auth-account-note">Expert accounts are issued by the system administrator.</p>
         </div>
     </section>
 </main>
@@ -52,7 +52,7 @@
     </div>
 
     <nav class="sidebar-nav">
-        <div class="nav-section-label">Tổng quan</div>
+        <div class="nav-section-label">Overview</div>
         <a class="nav-item active" data-screen="dashboard" onclick="switchScreen('dashboard')">
             <span class="nav-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -65,7 +65,7 @@
             <span class="nav-label">Dashboard</span>
         </a>
 
-        <div class="nav-section-label" style="margin-top:12px;">Công cụ</div>
+        <div class="nav-section-label" style="margin-top:12px;">Tools</div>
         <a class="nav-item" data-screen="crawl" onclick="switchScreen('crawl')">
             <span class="nav-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -73,13 +73,13 @@
                     <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
             </span>
-            <span class="nav-label">Thu thập dữ liệu</span>
+            <span class="nav-label">Data Crawling</span>
             <span class="nav-badge" id="crawl-badge" style="display:none">●</span>
         </a>
 
         <a class="nav-item" data-screen="tamanh-crawler" onclick="switchScreen('tamanh-crawler')">
-            <span class="nav-label">Crawler hỏi đáp y khoa</span>
-            <span class="nav-badge-new">Mới</span>
+            <span class="nav-label">Medical Q&amp;A Crawler</span>
+            <span class="nav-badge-new">New</span>
         </a>
 
         <a class="nav-item" data-screen="labeling" onclick="switchScreen('labeling')">
@@ -89,7 +89,7 @@
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
             </span>
-            <span class="nav-label">Gán nhãn văn bản</span>
+            <span class="nav-label">Text Annotation</span>
         </a>
         <a class="nav-item" data-screen="ai-label" onclick="switchScreen('ai-label')">
             <span class="nav-icon">
@@ -97,8 +97,16 @@
                     <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
                 </svg>
             </span>
-            <span class="nav-label">AI Gán nhãn</span>
+            <span class="nav-label">AI Annotation</span>
             <span class="nav-badge-new" style="background:#a855f7">AI</span>
+        </a>
+        <a class="nav-item" data-screen="ai-evaluation" onclick="switchScreen('ai-evaluation')">
+            <span class="nav-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/>
+                </svg>
+            </span>
+            <span class="nav-label">AI Evaluation</span>
         </a>
         <a class="nav-item" data-screen="logs" onclick="switchScreen('logs')">
             <span class="nav-icon">
@@ -108,7 +116,7 @@
                     <line x1="12" y1="4" x2="12" y2="20"/>
                 </svg>
             </span>
-            <span class="nav-label">Nhật ký thu thập</span>
+            <span class="nav-label">Crawl History</span>
         </a>
         <a class="nav-item" data-screen="split-pdf" onclick="switchScreen('split-pdf')">
             <span class="nav-icon">
@@ -119,15 +127,15 @@
                     <line x1="9" y1="17" x2="12" y2="17"/>
                 </svg>
             </span>
-            <span class="nav-label">Tách nội dung PDF</span>
-            <span class="nav-badge-new">Mới</span>
+            <span class="nav-label">PDF Content Extraction</span>
+            <span class="nav-badge-new">New</span>
         </a>
     </nav>
 
     <div class="sidebar-footer">
         <div class="server-status" id="serverStatus">
             <span class="status-dot" id="statusDot"></span>
-            <span id="statusText">Đang kết nối...</span>
+            <span id="statusText">Connecting...</span>
         </div>
     </div>
 </aside>
@@ -141,15 +149,14 @@
     <header class="topbar">
         <div class="topbar-left">
             <h2 class="topbar-title" id="topbarTitle">Dashboard</h2>
-            <span class="topbar-sub" id="topbarSub">Tổng quan hệ thống</span>
+                <span class="topbar-sub" id="topbarSub">System overview</span>
         </div>
         <div class="topbar-right">
             <div class="user-identity" id="userIdentity" hidden>
                 <span id="currentUserName"></span>
                 <span class="role-chip" id="currentUserRole"></span>
-                <button class="logout-button" type="button" onclick="logoutCurrentUser()">Đăng xuất</button>
+                <button class="logout-button" type="button" onclick="logoutCurrentUser()">Sign out</button>
             </div>
-            <div class="topbar-time" id="topbarClock"></div>
         </div>
     </header>
 
@@ -171,8 +178,8 @@
                 </div>
                 <div class="kpi-body">
                     <div class="kpi-value" id="kpi-articles">—</div>
-                    <div class="kpi-label">Bài báo</div>
-                    <div class="kpi-change positive" id="kpi-articles-sub">Tổng số văn bản</div>
+                    <div class="kpi-label">Articles</div>
+                    <div class="kpi-change positive" id="kpi-articles-sub">Total documents</div>
                 </div>
                 <div class="kpi-sparkline" id="spark-articles"></div>
             </div>
@@ -185,8 +192,8 @@
                 </div>
                 <div class="kpi-body">
                     <div class="kpi-value" id="kpi-labeled">—</div>
-                    <div class="kpi-label">Văn bản đã gán nhãn</div>
-                    <div class="kpi-change positive" id="kpi-labeled-sub">Đã xử lý NER</div>
+                    <div class="kpi-label">Annotated documents</div>
+                    <div class="kpi-change positive" id="kpi-labeled-sub">NER processed</div>
                 </div>
             </div>
             <div class="kpi-card kpi-concepts">
@@ -197,8 +204,8 @@
                 </div>
                 <div class="kpi-body">
                     <div class="kpi-value" id="kpi-concepts">—</div>
-                    <div class="kpi-label">Thực thể y tế</div>
-                    <div class="kpi-change" id="kpi-concepts-sub">Tổng extracted_concepts</div>
+                    <div class="kpi-label">Medical entities</div>
+                    <div class="kpi-change" id="kpi-concepts-sub">Total extracted concepts</div>
                 </div>
             </div>
         </div>
@@ -208,11 +215,11 @@
         <!-- Recent Articles -->
         <div class="section-card">
             <div class="section-header">
-                <div class="section-title">Bài báo gần đây</div>
-                <button class="btn-ghost" onclick="switchScreen('labeling')">Xem tất cả →</button>
+                <div class="section-title">Recent articles</div>
+                <button class="btn-ghost" onclick="switchScreen('labeling')">View all →</button>
             </div>
             <div class="recent-list" id="recentArticles">
-                <div class="list-placeholder">Đang tải...</div>
+                <div class="list-placeholder">Loading...</div>
             </div>
         </div>
     </section>
@@ -224,60 +231,60 @@
         <div class="tamanh-layout">
             <div class="panel config-panel">
                 <div class="panel-header">
-                    <div class="panel-title">Crawler hỏi đáp y khoa</div>
-                    <div class="panel-sub">Chỉ thu thập Q&amp;A công khai, không lấy dữ liệu form.</div>
+                    <div class="panel-title">Medical Q&amp;A Crawler</div>
+                    <div class="panel-sub">Collects public Q&amp;A only; form data is not collected.</div>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="tamanhSource">Nguồn</label>
+                    <label class="form-label" for="tamanhSource">Source</label>
                     <select id="tamanhSource" class="form-select" onchange="setTamanhSource()">
                         <option value="https://tamanhhospital.vn/">Tâm Anh Hospital</option>
-                        <option value="" disabled>NCYH — chưa hỗ trợ trong crawler này</option>
-                        <option value="" disabled>YHCD — chưa hỗ trợ trong crawler này</option>
-                        <option value="" disabled>YHVN — chưa hỗ trợ trong crawler này</option>
+                        <option value="" disabled>NCYH — not supported by this crawler</option>
+                        <option value="" disabled>YHCD — not supported by this crawler</option>
+                        <option value="" disabled>YHVN — not supported by this crawler</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="tamanhSourceUrl">URL nguồn</label>
+                    <label class="form-label" for="tamanhSourceUrl">Source URL</label>
                     <input type="url" id="tamanhSourceUrl" class="form-input" value="https://tamanhhospital.vn/" required>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label" for="tamanhStartYear">Từ năm</label>
+                        <label class="form-label" for="tamanhStartYear">From year</label>
                         <input type="number" id="tamanhStartYear" class="form-input" min="1900" value="2020">
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="tamanhEndYear">Đến năm</label>
+                        <label class="form-label" for="tamanhEndYear">To year</label>
                         <input type="number" id="tamanhEndYear" class="form-input" min="1900" value="2026">
                     </div>
                 </div>
 
-                <p class="tamanh-note">Năm chỉ lọc những trang có ngày xuất bản rõ ràng; trang không có năm sẽ không bị gán năm.</p>
-                <button id="btnStartTamanh" class="btn-primary-full" onclick="startTamanhCrawler()">Bắt đầu thu thập</button>
-                <button id="btnStopTamanh" class="btn-danger-full" onclick="stopTamanhCrawler()" style="display:none">Dừng</button>
+                <p class="tamanh-note">Years filter pages with an explicit publication date; pages without a year are not assigned one.</p>
+                <button id="btnStartTamanh" class="btn-primary-full" onclick="startTamanhCrawler()">Start crawling</button>
+                <button id="btnStopTamanh" class="btn-danger-full" onclick="stopTamanhCrawler()" style="display:none">Stop</button>
             </div>
 
             <div class="crawl-right">
                 <div class="panel progress-panel">
                     <div class="panel-header">
-                        <div class="panel-title">Tiến độ Tâm Anh</div>
-                        <div class="crawl-state-badge" id="tamanhStateBadge">Chờ</div>
+                        <div class="panel-title">Tam Anh Progress</div>
+                        <div class="crawl-state-badge" id="tamanhStateBadge">Waiting</div>
                     </div>
                     <div class="tamanh-progress-grid">
-                        <div><strong id="tamanhCategories">0 / 0</strong><span>Chuyên khoa</span></div>
-                        <div><strong id="tamanhPages">0</strong><span>Trang</span></div>
+                        <div><strong id="tamanhCategories">0 / 0</strong><span>Specialties</span></div>
+                        <div><strong id="tamanhPages">0</strong><span>Pages</span></div>
                         <div><strong id="tamanhQuestions">0</strong><span>Q&amp;A</span></div>
-                        <div><strong id="tamanhFiles">0</strong><span>File đã tạo</span></div>
-                        <div><strong id="tamanhDuplicates">0</strong><span>Trùng</span></div>
-                        <div><strong id="tamanhErrors">0</strong><span>Lỗi</span></div>
+                        <div><strong id="tamanhFiles">0</strong><span>Files created</span></div>
+                        <div><strong id="tamanhDuplicates">0</strong><span>Duplicates</span></div>
+                        <div><strong id="tamanhErrors">0</strong><span>Errors</span></div>
                     </div>
-                    <div class="progress-msg" id="tamanhProgressMsg">Sẵn sàng thu thập từ https://tamanhhospital.vn/</div>
+                    <div class="progress-msg" id="tamanhProgressMsg">Ready to crawl from https://tamanhhospital.vn/</div>
                 </div>
                 <div class="panel log-panel">
-                    <div class="panel-header"><div class="panel-title">Nhật ký Tâm Anh</div></div>
-                    <div class="log-terminal" id="tamanhLogTerminal"><div class="log-placeholder">Nhật ký crawler sẽ xuất hiện tại đây.</div></div>
+                    <div class="panel-header"><div class="panel-title">Tam Anh Log</div></div>
+                    <div class="log-terminal" id="tamanhLogTerminal"><div class="log-placeholder">Crawler logs will appear here.</div></div>
                 </div>
             </div>
         </div>
@@ -293,16 +300,16 @@
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-icon">🌐</span>
-                        Cấu hình Crawler
+                        Crawler Configuration
                     </div>
-                    <div class="panel-sub">Nhập URL trang chủ hoặc trang lưu trữ (archive)</div>
+                    <div class="panel-sub">Enter a homepage or archive URL</div>
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Tên miền đích</label>
+                    <label class="form-label">Target domain</label>
                     <div class="input-with-prefix">
                         <span class="input-prefix">🔗</span>
-                        <input type="text" id="targetUrl" list="journalOptions" class="form-input" placeholder="https://... hoặc https://.../issue/archive">
+                        <input type="text" id="targetUrl" list="journalOptions" class="form-input" placeholder="https://... or https://.../issue/archive">
                         <datalist id="journalOptions">
                             <option value="https://tapchinghiencuuyhoc.vn">
                             <option value="https://tapchiyhcd.vn/">
@@ -313,17 +320,17 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Từ năm</label>
+                        <label class="form-label">From year</label>
                         <input type="number" id="startYear" class="form-input" min="1900" value="2020">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Đến năm</label>
+                        <label class="form-label">To year</label>
                         <input type="number" id="endYear" class="form-input" min="1900" value="2025">
                     </div>
                 </div>
 
                 <div class="preset-urls">
-                    <div class="preset-label">Nguồn phổ biến:</div>
+                    <div class="preset-label">Popular sources:</div>
                     <div class="preset-chips">
                         <button class="preset-chip" onclick="setUrl('https://tapchinghiencuuyhoc.vn')">NCYH</button>
                         <button class="preset-chip" onclick="setUrl('https://tapchiyhcd.vn/')">YHCD</button>
@@ -333,32 +340,32 @@
 
                 <button id="btnScrape" class="btn-primary-full" onclick="startScraping()">
                     <span class="btn-icon">🚀</span>
-                    Bắt đầu thu thập
+                    Start crawling
                 </button>
                 <button id="btnStopScrape" class="btn-danger-full" onclick="stopScraping()" style="display:none">
                     <span class="btn-icon">⏹</span>
-                    Dừng thu thập
+                    Stop crawling
                 </button>
 
                 <!-- Summary Box -->
                 <div id="summaryBox" class="summary-box" style="display:none">
-                    <div class="summary-title">✅ Kết quả thu thập</div>
+                    <div class="summary-title">✅ Crawl Results</div>
                     <div class="summary-stats">
                         <div class="summary-stat success">
                             <div class="s-num" id="sum-success">0</div>
-                            <div class="s-lbl">Đã lưu</div>
+                            <div class="s-lbl">Saved</div>
                         </div>
                         <div class="summary-stat warning">
                             <div class="s-num" id="sum-dup">0</div>
-                            <div class="s-lbl">Đã có</div>
+                            <div class="s-lbl">Existing</div>
                         </div>
                         <div class="summary-stat danger">
                             <div class="s-num" id="sum-skip">0</div>
-                            <div class="s-lbl">Bỏ qua</div>
+                            <div class="s-lbl">Skipped</div>
                         </div>
                         <div class="summary-stat danger">
                             <div class="s-num" id="sum-language-rejected">0</div>
-                            <div class="s-lbl">Loại ngôn ngữ</div>
+                            <div class="s-lbl">Language rejected</div>
                         </div>
                         <div class="summary-stat warning">
                             <div class="s-num" id="sum-quarantined">0</div>
@@ -375,33 +382,33 @@
                     <div class="panel-header">
                         <div class="panel-title">
                             <span class="panel-icon">📊</span>
-                            Tiến độ thu thập
+                            Crawl Progress
                         </div>
-                        <div class="crawl-state-badge" id="crawlStateBadge">Chờ</div>
+                        <div class="crawl-state-badge" id="crawlStateBadge">Waiting</div>
                     </div>
 
                     <div class="progress-stats">
                         <div class="prog-stat">
                             <div class="prog-num" id="prog-total">0</div>
-                            <div class="prog-lbl">Tổng URL</div>
+                            <div class="prog-lbl">Total URLs</div>
                         </div>
                         <div class="prog-stat">
                             <div class="prog-num success" id="prog-saved">0</div>
-                            <div class="prog-lbl">Đã lưu</div>
+                            <div class="prog-lbl">Saved</div>
                         </div>
                         <div class="prog-stat">
                             <div class="prog-num warning" id="prog-dup">0</div>
-                            <div class="prog-lbl">Trùng</div>
+                            <div class="prog-lbl">Duplicates</div>
                         </div>
                         <div class="prog-stat">
                             <div class="prog-num danger" id="prog-skip">0</div>
-                            <div class="prog-lbl">Lỗi</div>
+                            <div class="prog-lbl">Errors</div>
                         </div>
                     </div>
 
 
 
-                    <div class="progress-msg" id="progressMsg">Nhấn nút để bắt đầu thu thập dữ liệu</div>
+                    <div class="progress-msg" id="progressMsg">Click the button to start crawling</div>
                 </div>
 
                 <!-- Log Terminal -->
@@ -409,16 +416,16 @@
                     <div class="panel-header">
                         <div class="panel-title">
                             <span class="panel-icon">📋</span>
-                            Nhật ký hoạt động
+                            Activity Log
                         </div>
                         <div class="log-actions">
-                            <button class="btn-ghost-sm" onclick="clearLog()">Xóa log</button>
-                            <button class="btn-ghost-sm" onclick="toggleAutoScroll()" id="autoScrollBtn">↓ Tự cuộn</button>
+                            <button class="btn-ghost-sm" onclick="clearLog()">Clear log</button>
+                            <button class="btn-ghost-sm" onclick="toggleAutoScroll()" id="autoScrollBtn">↓ Auto-scroll</button>
                         </div>
                     </div>
                     <div class="log-terminal" id="logTerminal">
                         <div class="log-placeholder">
-                            <span class="log-cursor">█</span> Nhật ký sẽ xuất hiện tại đây khi crawler hoạt động...
+                            <span class="log-cursor">█</span> Logs will appear here when the crawler is active...
                         </div>
                     </div>
                 </div>
@@ -438,27 +445,27 @@
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-icon">📚</span>
-                        Danh sách văn bản
+                        Document list
                     </div>
                 </div>
                 <div class="article-search-bar">
                     <div class="search-wrap">
                         <span class="search-icon">🔍</span>
-                        <input type="text" id="searchInput" class="search-input" placeholder="Tìm bài báo..."
+                        <input type="text" id="searchInput" class="search-input" placeholder="Search articles..."
                                onkeydown="if(event.key==='Enter') loadData()">
                     </div>
-                    <button class="btn-outline-sm" onclick="loadData()">Tìm</button>
+                    <button class="btn-outline-sm" onclick="loadData()">Search</button>
                 </div>
                 <div class="article-filter-row">
-                    <button class="filter-pill active" onclick="setArticleFilter('all', this)">Tất cả</button>
-                    <button class="filter-pill" onclick="setArticleFilter('labeled', this)">Đã gán nhãn</button>
-                    <button class="filter-pill" onclick="setArticleFilter('unlabeled', this)">Chưa gán nhãn</button>
+                    <button class="filter-pill active" onclick="setArticleFilter('all', this)">All</button>
+                    <button class="filter-pill" onclick="setArticleFilter('labeled', this)">Annotated</button>
+                    <button class="filter-pill" onclick="setArticleFilter('unlabeled', this)">Unannotated</button>
                 </div>
                 <div class="article-list-scroll" id="articleListScroll">
-                    <div class="list-placeholder">Đang tải...</div>
+                    <div class="list-placeholder">Loading...</div>
                 </div>
                 <div class="article-pagination">
-                    <span class="page-info" id="pageInfo">0 bài báo</span>
+                    <span class="page-info" id="pageInfo">0 articles</span>
                 </div>
             </div>
 
@@ -466,8 +473,8 @@
             <div class="panel viewer-panel">
                 <div class="viewer-placeholder" id="viewerPlaceholder">
                     <div class="placeholder-icon">📄</div>
-                    <div class="placeholder-text">Chọn một bài báo để xem và gán nhãn</div>
-                    <div class="placeholder-sub">Hệ thống sẽ tự động so khớp thuật ngữ y tế từ từ điển</div>
+                    <div class="placeholder-text">Select an article to view and annotate</div>
+                    <div class="placeholder-sub">The system automatically matches medical terms from the dictionary</div>
                 </div>
 
                 <div class="viewer-content" id="viewerContent" style="display:none">
@@ -483,12 +490,12 @@
                     <!-- Toolbar -->
                     <div class="label-toolbar">
                         <div class="toolbar-left">
-                            <button class="btn-ner active" id="btnNer" onclick="toggleNer()">Bật gán nhãn</button>
+                            <button class="btn-ner active" id="btnNer" onclick="toggleNer()">Enable annotation</button>
                             <button class="btn-primary-sm" id="btnAiNer" onclick="runAiNer()" style="margin-left:8px; display:none;">
-                                Gán nhãn bằng AI
+                                Annotate with AI
                             </button>
                             <button class="btn-save-ner" id="btnSaveNer" onclick="saveCurrentHighlight()" style="display:none; margin-left:8px;">
-                                Lưu kết quả
+                                Save results
                             </button>
                         </div>
                         <div class="toolbar-right">
@@ -498,13 +505,12 @@
 
                     <!-- Legend -->
                     <div class="entity-legend" id="entityLegend" style="display:none">
-                        <span class="legend-label">Chú thích:</span>
-                        <span class="legend-item disease">Bệnh lý</span>
-                        <span class="legend-item symptom">Triệu chứng</span>
-                        <span class="legend-item treatment">Điều trị</span>
-                        <span class="legend-item labtest">Xét nghiệm</span>
-                        <span class="legend-item imaging">Hình ảnh</span>
-                        <span class="legend-item tradmed">Đông y</span>
+                        <span class="legend-label">Legend:</span>
+                        <span class="legend-item disease">Disease</span>
+                        <span class="legend-item symptom">Symptom</span>
+                        <span class="legend-item cause">Cause</span>
+                        <span class="legend-item diagnostic">Diagnostic</span>
+                        <span class="legend-item treatment">Treatment</span>
                     </div>
 
                     <!-- Text Body -->
@@ -514,24 +520,24 @@
 
                     <!-- Extracted Entities -->
                     <div class="entities-panel" id="entitiesPanel" style="display:none">
-                        <div class="entities-title">Thực thể đã tìm thấy</div>
+                        <div class="entities-title">Detected entities</div>
                         <div class="entities-grid" id="entitiesGrid"></div>
                         <div class="entities-actions">
-                            <button class="btn-outline-sm" onclick="saveToDict()">Thêm vào từ điển</button>
+                            <button class="btn-outline-sm" onclick="saveToDict()">Add to dictionary</button>
                             <span class="save-status" id="saveDictStatus"></span>
                         </div>
                     </div>
 
                     <!-- AI Comparison Panel -->
                     <div class="entities-panel" id="aiPanel" style="display:none; border-color: var(--primary);">
-                        <div class="entities-title" style="color: var(--primary);">So sánh kết quả AI và từ điển</div>
+                        <div class="entities-title" style="color: var(--primary);">Compare AI and dictionary results</div>
                         <div id="aiComparisonBody" style="font-size: 13px; line-height: 1.5;"></div>
                     </div>
 
 
                     <!-- Preprocessing Log -->
                     <div class="preproc-panel" id="preprocPanel" style="display:none">
-                        <div class="preproc-title">Nhật ký tiền xử lý</div>
+                        <div class="preproc-title">Preprocessing log</div>
                         <div class="preproc-body" id="preprocBody"></div>
                     </div>
                 </div>
@@ -549,24 +555,24 @@
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-icon">📚</span>
-                        Danh sách văn bản (AI)
+                        Document list (AI)
                     </div>
                 </div>
                 <div class="article-search-bar">
                     <div class="search-wrap">
                         <span class="search-icon">🔍</span>
-                        <input type="text" id="aiSearchInput" class="search-input" placeholder="Tìm bài báo..."
+                        <input type="text" id="aiSearchInput" class="search-input" placeholder="Search articles..."
                                onkeydown="if(event.key==='Enter') filterAiArticles()">
                     </div>
-                    <button class="btn-outline-sm" onclick="filterAiArticles()">Tìm</button>
+                    <button class="btn-outline-sm" onclick="filterAiArticles()">Search</button>
                 </div>
                 <div class="article-filter-row" id="aiFilterPills">
-                    <button class="filter-pill active" data-filter="all">Tất cả</button>
-                    <button class="filter-pill" data-filter="labeled">Đã gán nhãn</button>
-                    <button class="filter-pill" data-filter="unlabeled">Chưa gán nhãn</button>
+                    <button class="filter-pill active" data-filter="all">All</button>
+                    <button class="filter-pill" data-filter="labeled">Annotated</button>
+                    <button class="filter-pill" data-filter="unlabeled">Unannotated</button>
                 </div>
                 <div class="article-list-scroll" id="aiArticleListScroll">
-                    <div class="list-placeholder">Đang tải...</div>
+                    <div class="list-placeholder">Loading...</div>
                 </div>
             </div>
 
@@ -585,22 +591,29 @@
                     <!-- Toolbar -->
                     <div class="label-toolbar">
                         <div class="toolbar-left">
-                            <button class="btn-primary-sm" id="btnRunAiNer" onclick="runAiLabel()">Gán nhãn bằng AI</button>
+                            <button class="btn-primary-sm" id="btnRunAiNer" onclick="runAiLabel()">Annotate with AI</button>
+                            <label class="ai-model-picker" for="aiModelMode">
+                                <span>Model</span>
+                                <select id="aiModelMode" aria-label="Choose AI annotation model">
+                                    <option value="gemini">Gemini</option>
+                                    <option value="xlmr">XLM-R</option>
+                                    <option value="compare">Compare both</option>
+                                </select>
+                            </label>
                             <button class="btn-save-ner" id="btnSaveAiLabel" onclick="saveAiLabelResult()" disabled style="margin-left:8px;">
-                                Lưu kết quả AI
+                                Save AI results
                             </button>
                         </div>
                     </div>
 
                     <!-- Legend -->
                     <div class="entity-legend" style="display:flex;">
-                        <span class="legend-label">Chú thích:</span>
-                        <span class="legend-item disease">Bệnh lý</span>
-                        <span class="legend-item symptom">Triệu chứng</span>
-                        <span class="legend-item treatment">Điều trị</span>
-                        <span class="legend-item labtest">Xét nghiệm</span>
-                        <span class="legend-item imaging">Hình ảnh</span>
-                        <span class="legend-item physiology" style="color:#c2410c;">Sinh lý</span>
+                        <span class="legend-label">Legend:</span>
+                        <span class="legend-item disease">Disease</span>
+                        <span class="legend-item symptom">Symptom</span>
+                        <span class="legend-item cause">Cause</span>
+                        <span class="legend-item diagnostic">Diagnostic</span>
+                        <span class="legend-item treatment">Treatment</span>
                     </div>
 
                     <!-- Text Body -->
@@ -610,13 +623,49 @@
 
                     <!-- Extracted Entities -->
                     <div class="entities-panel">
-                        <div class="entities-title">Thực thể đã tìm thấy (<span id="aiTotalEntitiesCount">0</span>)</div>
+                        <div class="entities-title">Detected entities (<span id="aiTotalEntitiesCount">0</span>)</div>
                         <div class="entities-grid" id="aiEntitiesList">
-                            <div class="empty-state">Chưa phân tích</div>
+                            <div class="empty-state">Not analyzed yet</div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <section class="screen" id="screen-ai-evaluation">
+        <div class="evaluation-toolbar">
+            <div>
+                <h2>100-Article Experiment</h2>
+                <p class="muted">One input snapshot, three configurations, and immutable checkpoints.</p>
+            </div>
+            <div class="evaluation-actions" id="evaluationAdminActions">
+                <input id="evaluationNote" class="search-input" placeholder="Describe changes for this run">
+                <button class="btn-primary-sm" id="btnStartEvaluation" onclick="startNerExperiment()">Run 100 articles</button>
+                <button class="btn-outline-sm" id="btnStopEvaluation" onclick="stopNerExperiment()" disabled>Stop</button>
+                <button class="btn-outline-sm" id="btnResumeEvaluation" onclick="resumeNerExperiment()" disabled>Resume</button>
+            </div>
+        </div>
+
+        <div class="evaluation-grid" id="evaluationProgressGrid">
+            <div class="evaluation-system" data-system="current_ai"><div class="evaluation-system-head"><strong>Current AI</strong><span class="status-badge">Not started</span></div><div class="progress-track"><span></span></div><div class="evaluation-stats">0 / 100</div></div>
+            <div class="evaluation-system" data-system="vietbioner"><div class="evaluation-system-head"><strong>VietBioNER 5-shot</strong><span class="status-badge">Not started</span></div><div class="progress-track"><span></span></div><div class="evaluation-stats">0 / 100</div></div>
+            <div class="evaluation-system" data-system="vimedner"><div class="evaluation-system-head"><strong>ViMedNer 5-shot</strong><span class="status-badge">Not started</span></div><div class="progress-track"><span></span></div><div class="evaluation-stats">0 / 100</div></div>
+            <div class="evaluation-system disabled"><div class="evaluation-system-head"><strong>Prompt + trained AI</strong><span class="status-badge">Not configured</span></div><p>Vertex endpoint required.</p></div>
+            <div class="evaluation-system disabled"><div class="evaluation-system-head"><strong>Prompt + trained AI + dictionary</strong><span class="status-badge">Not configured</span></div><p>Vertex endpoint required.</p></div>
+        </div>
+
+        <div class="panel evaluation-panel">
+            <div class="panel-header"><div class="panel-title">Checkpoint History</div><div class="panel-sub" id="evaluationRunSummary">No runs yet</div></div>
+            <div class="dict-table-wrap">
+                <table class="data-table"><thead><tr><th>Run</th><th>Status</th><th>Progress</th><th>API Errors</th><th>Notes</th><th>Actions</th></tr></thead><tbody id="evaluationRunsBody"><tr><td colspan="6" class="table-empty">Loading...</td></tr></tbody></table>
+            </div>
+        </div>
+
+        <div class="panel evaluation-panel">
+            <div class="panel-header"><div class="panel-title">Results and Error Analysis</div><div class="panel-sub">P/R/F1 appear only when enough gold data is available; predictions are not gold data.</div></div>
+            <div id="evaluationMetrics" class="evaluation-metrics-empty">No five-label gold set is available for the first 100 articles.</div>
+            <div class="dict-table-wrap"><table class="data-table"><thead><tr><th>System</th><th>Article</th><th>Error Type</th><th>Details</th></tr></thead><tbody id="evaluationErrorsBody"><tr><td colspan="4" class="table-empty">Select a run to view errors.</td></tr></tbody></table></div>
         </div>
     </section>
 
@@ -628,30 +677,30 @@
             <div class="panel-header">
                 <div class="panel-title">
                     <span class="panel-icon">📋</span>
-                    Nhật ký thu thập
+                    Crawl History
                 </div>
-                <div class="panel-sub">Lịch sử các lần cào dữ liệu</div>
+                <div class="panel-sub">History of data crawl runs</div>
             </div>
             <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-                <button class="btn-primary-sm" onclick="verifyData()">Kiểm chứng dữ liệu</button>
+                <button class="btn-primary-sm" onclick="verifyData()">Verify data</button>
             </div>
 
             <div class="dict-table-wrap" style="margin-top: 16px;">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th style="width:120px">Ngày</th>
-                            <th>Nguồn (URL)</th>
-                            <th style="width:80px; text-align:center;">Từ năm</th>
-                            <th style="width:80px; text-align:center;">Đến năm</th>
-                            <th style="width:100px; text-align:center;">Tổng bài</th>
-                            <th style="width:100px; text-align:center;">Thành công</th>
-                            <th style="width:100px; text-align:center;">Trùng lặp</th>
-                            <th style="width:100px; text-align:center;">Lỗi/Bỏ qua</th>
+                            <th style="width:120px">Date</th>
+                            <th>Source (URL)</th>
+                            <th style="width:80px; text-align:center;">From year</th>
+                            <th style="width:80px; text-align:center;">To year</th>
+                            <th style="width:100px; text-align:center;">Total articles</th>
+                            <th style="width:100px; text-align:center;">Successful</th>
+                            <th style="width:100px; text-align:center;">Duplicates</th>
+                            <th style="width:100px; text-align:center;">Errors/Skipped</th>
                         </tr>
                     </thead>
                     <tbody id="logsTableBody">
-                        <tr><td colspan="7" class="table-empty">Đang tải nhật ký...</td></tr>
+                        <tr><td colspan="7" class="table-empty">Loading history...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -667,9 +716,9 @@
                 <div class="panel-header">
                     <div class="panel-title">
                         <span class="panel-icon">✂️</span>
-                        Tách nội dung PDF
+                        PDF Content Extraction
                     </div>
-                    <div class="panel-sub">PyMuPDF dựng layout, Gemini nhận diện cấu trúc, backend kiểm chứng và tạo TXT/JSON nguyên văn</div>
+                    <div class="panel-sub">PyMuPDF builds the layout, Gemini identifies structure, and the backend verifies and creates raw TXT/JSON output</div>
                 </div>
 
                 <div class="pdf-dropzone" id="splitPdfDropzone"
@@ -685,15 +734,15 @@
                             <polyline points="9 15 12 12 15 15"/>
                         </svg>
                     </div>
-                    <div class="dropzone-text">Chọn thư mục hoặc các file PDF</div>
-                    <div class="dropzone-sub">Chọn thư mục sẽ lấy toàn bộ PDF bên trong; bạn cũng có thể chọn từng file để xem danh sách ngay.</div>
+                    <div class="dropzone-text">Choose a folder or PDF files</div>
+                    <div class="dropzone-sub">Choosing a folder includes all PDFs inside it; you can also select individual files to see them immediately.</div>
                     <input type="file" id="splitPdfInput" webkitdirectory directory multiple accept=".pdf" style="display:none" onchange="splitPdfSelected(event)">
                     <input type="file" id="splitPdfFileInput" multiple accept="application/pdf,.pdf" style="display:none" onchange="splitPdfSelected(event)">
                 </div>
 
                 <div style="display:flex; justify-content:center; gap:10px; margin-top:12px;">
-                    <button type="button" class="btn-outline-sm" onclick="return openPdfFolderPicker(event)">Chọn thư mục</button>
-                    <button type="button" class="btn-outline-sm" onclick="return openPdfFilePicker(event)">Chọn file PDF</button>
+                    <button type="button" class="btn-outline-sm" onclick="return openPdfFolderPicker(event)">Choose folder</button>
+                    <button type="button" class="btn-outline-sm" onclick="return openPdfFilePicker(event)">Choose PDF files</button>
                 </div>
 
                 <div class="pdf-file-info" id="splitPdfInfo" style="display:none">
@@ -703,35 +752,35 @@
                         <div class="file-info-size" id="splitPdfSize">—</div>
                         <div class="file-info-size" id="splitPdfPreview"></div>
                     </div>
-                    <button class="file-info-remove" onclick="clearSplitPdf()" title="Xóa file">✕</button>
+                    <button class="file-info-remove" onclick="clearSplitPdf()" title="Remove file">✕</button>
                 </div>
 
                 <button class="btn-primary-full" id="btnSplitPdf" onclick="executeSplitPdf()" disabled style="margin-top:20px;">
                     <span class="btn-icon">✂️</span>
-                    <span>Trích xuất PDF</span>
+                        <span>Extract PDF</span>
                 </button>
                 <button class="btn-danger-full" id="btnStopSplitPdf" type="button" onclick="stopSplitPdf()" style="display:none; margin-top:10px;">
                     <span class="btn-icon">⏹️</span>
-                    <span>Dừng tách</span>
+                        <span>Stop extraction</span>
                 </button>
             </div>
             
             <div class="pdf-result-area">
                 <div class="panel" id="splitPdfResultPanel" style="display:none">
                     <div class="panel-header">
-                        <div class="panel-title"><span class="panel-icon">✅</span> Kết quả tách file</div>
+                        <div class="panel-title"><span class="panel-icon">✅</span> Extraction Results</div>
                     </div>
                     <div style="padding: 16px;">
                         <p id="splitPdfMessage" style="color: var(--success); font-weight: 500; margin-bottom: 12px;"></p>
-                        <p style="margin-bottom: 8px;"><strong>Các file đã tạo:</strong></p>
+                        <p style="margin-bottom: 8px;"><strong>Created files:</strong></p>
                         <ul id="splitPdfFilesList" style="list-style: none; padding-left: 0; line-height: 1.6;"></ul>
                     </div>
                 </div>
                 
                 <div class="pdf-empty-state" id="splitPdfEmpty">
                     <div class="empty-icon">📄</div>
-                    <div class="empty-text">Chưa có file PDF nào được tải lên</div>
-                    <div class="empty-sub">Mỗi PDF tạo article.json, structured_article.json, metadata.json, title.txt, authors.txt, abstract.txt, keywords.txt và TXT/JSON từng section trong Kho_Ngu_Lieu_Txt/pdf_extracted/</div>
+                    <div class="empty-text">No PDF files uploaded yet</div>
+                    <div class="empty-sub">Each PDF creates article.json, structured_article.json, metadata.json, title.txt, authors.txt, abstract.txt, keywords.txt, and TXT/JSON files for each section in Kho_Ngu_Lieu_Txt/pdf_extracted/</div>
                 </div>
             </div>
         </div>
@@ -743,14 +792,14 @@
 <div id="verifyModal" class="modal-overlay" style="display:none;">
     <div class="modal-content" style="max-width: 800px; width: 90%; max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
-            <h3 style="margin:0; font-size: 1.25rem;">Báo cáo Kiểm chứng Dữ liệu</h3>
+            <h3 style="margin:0; font-size: 1.25rem;">Data Verification Report</h3>
             <button onclick="document.getElementById('verifyModal').style.display='none'" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
         </div>
         <div class="modal-body" style="overflow-y: auto; flex: 1;" id="verifyModalBody">
-            Đang kiểm chứng...
+            Verifying...
         </div>
         <div class="modal-footer" style="margin-top: 16px; text-align: right;">
-            <button class="btn-outline-sm" onclick="document.getElementById('verifyModal').style.display='none'">Đóng</button>
+            <button class="btn-outline-sm" onclick="document.getElementById('verifyModal').style.display='none'">Close</button>
         </div>
     </div>
 </div>
@@ -758,7 +807,7 @@
 <!-- TOAST NOTIFICATION -->
 <div class="toast-container" id="toastContainer"></div>
 
-  <script src="review.js?v=1.7"></script>
+  <script src="review.js?v=2.0"></script>
   <script src="script.js?v=6.4"></script>
 </body>
 </html>

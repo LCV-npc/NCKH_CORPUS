@@ -3,6 +3,10 @@ import json
 import os
 import io
 import hashlib
+import smtplib
+from email.message import EmailMessage
+from pathlib import Path
+from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
 import mysql.connector
@@ -18,9 +22,9 @@ from core.ner_dict import (
     reload_ner_dictionary,
 )
 from core.scraper import scrape_status, run_scraping, clean_filename, stop_scraping
-from core.file_names import compact_article_name
 from core.ai_ner import extract_entities_with_ai
 from core.ai_label import extract_with_ai_label
+from core.xlmr_ner import XLMRInferenceError, xlmr_ner
 from core.auth import (
     ROLE_ADMIN,
     ROLE_EXPERT,
@@ -32,6 +36,15 @@ from core.auth import (
     revoke_session,
 )
 from core.tamanh_crawler import TamanhCrawlRequest, TamanhCrawlerJobManager
+from core.ner_experiment import (
+    LABELS as EXPERIMENT_LABELS,
+    TEXT_ROOT,
+    entities_to_bio,
+    bio_text,
+    ner_experiment_manager,
+    normalize_entity,
+    resolve_overlaps,
+)
 
 router = APIRouter()
 
@@ -47,6 +60,7 @@ def init_router(db_config: dict, output_folder: str) -> None:
     _db_config = db_config
     _output_folder = output_folder
     tamanh_job_manager.configure_db(db_config)
+    ner_experiment_manager.configure_db(db_config)
 
 class HighlightRequest(BaseModel):
     text:                str
@@ -61,6 +75,10 @@ class NerRequest(BaseModel):
     enable_noun_phrase:  bool = False
 
 class AiLabelRequest(BaseModel):
+    text: str
+
+
+class XLMRNERRequest(BaseModel):
     text: str
 
 class SaveAiLabelRequest(BaseModel):
@@ -83,14 +101,14 @@ class ReviewCreateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     review_status: str = Field(..., alias="reviewStatus")
     label_source: str = Field("icd10", alias="labelSource")  # 'icd10' | 'ai'
+    annotations: list[dict[str, Any]] = Field(default_factory=list)
     suggested_icd10_code: str | None = Field(None, alias="suggestedIcd10Code")
     comment: str
 
 class ReviewerAdjudicationRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-    expert_review_a_id: int = Field(..., alias="expertReviewAId")
-    expert_review_b_id: int = Field(..., alias="expertReviewBId")
     decisions: list[dict[str, Any]]
+    final_labels: list[dict[str, Any]] = Field(default_factory=list, alias="finalLabels")
+    resolution_status: str = Field("RESOLVED", alias="resolutionStatus")
     note: str = ""
 
 class SaveHighlightRequest(BaseModel):
@@ -112,8 +130,58 @@ class TamanhCrawlerRequest(BaseModel):
 class SaveDictionaryRequest(BaseModel):
     matched_concepts: list
 
+
+class NerExperimentCreateRequest(BaseModel):
+    limit: int = Field(100, ge=1, le=100)
+    note: str = ""
+    parent_run_id: str | None = Field(None, alias="parentRunId")
+
+
+class GoldAnnotationRequest(BaseModel):
+    entities: list[dict[str, Any]] = Field(default_factory=list)
+    note: str = ""
+
+class LabelingSessionRequest(BaseModel):
+    name: str
+    description: str = ""
+    article_ids: list[int] = Field(default_factory=list, alias="articleIds")
+    expert_ids: list[int] = Field(default_factory=list, alias="expertIds")
+    reviewer_id: int = Field(..., alias="reviewerId")
+    send_email: bool = Field(True, alias="sendEmail")
+
+    model_config = ConfigDict(populate_by_name=True)
+
 def _get_conn():
     return mysql.connector.connect(**_db_config)
+
+def _send_assignment_email(recipients: list[dict[str, Any]], session_name: str, article_count: int) -> list[str]:
+    host = os.getenv("SMTP_HOST")
+    if not host:
+        return [str(item["email"]) for item in recipients]
+    sent = []
+    port = int(os.getenv("SMTP_PORT", "587"))
+    username = os.getenv("SMTP_USERNAME", "")
+    password = os.getenv("SMTP_PASSWORD", "")
+    sender = os.getenv("SMTP_FROM", username)
+    message_template = (
+        f"Hello {{name}},\n\nYou have been assigned to labeling session '{session_name}'.\n"
+        f"Documents assigned: {article_count}. Please sign in to MedNLP Studio to begin.\n\n"
+        "Best regards,\nMedNLP Studio"
+    )
+    with smtplib.SMTP(host, port, timeout=20) as server:
+        if os.getenv("SMTP_TLS", "1") != "0":
+            server.starttls()
+        if username:
+            server.login(username, password)
+        for recipient in recipients:
+            msg = EmailMessage()
+            msg["Subject"] = f"MedNLP labeling assignment: {session_name}"
+            msg["From"] = sender
+            msg["To"] = recipient["email"]
+            msg.set_content(message_template.format(name=recipient["name"]))
+            server.send_message(msg)
+            sent.append(recipient["email"])
+    return sent
 
 
 def _first_ai_icd_label(label_data: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -142,6 +210,8 @@ def _persist_ai_label(article_id: int, label_data: dict[str, Any], user_id: int)
         cursor.execute("SELECT id FROM articles WHERE id = %s", (article_id,))
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail=f"Không tìm thấy bài báo id={article_id}")
+        metadata = label_data.get("_metadata") if isinstance(label_data.get("_metadata"), dict) else {}
+        model_name = str(metadata.get("model_name") or os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest"))
         cursor.execute(
             "SELECT id FROM ai_document_labels WHERE article_id = %s AND label_payload = %s ORDER BY id DESC LIMIT 1",
             (article_id, serialized_labels),
@@ -158,7 +228,7 @@ def _persist_ai_label(article_id: int, label_data: dict[str, Any], user_id: int)
             """,
             (
                 article_id,
-                os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest"),
+                model_name,
                 serialized_labels,
                 code,
                 label,
@@ -283,6 +353,68 @@ def ai_ner_endpoint(req: NerRequest, _: dict[str, Any] = Depends(_require_admin)
         raise HTTPException(500, f"Lỗi AI: {str(e)}")
 
 
+@router.post("/api/xlmr-ner")
+def xlmr_ner_endpoint(req: XLMRNERRequest, _: dict[str, Any] = Depends(_require_admin)):
+    """Run the locally fine-tuned XLM-R token-classification checkpoint."""
+    try:
+        return xlmr_ner.predict(req.text)
+    except XLMRInferenceError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Lỗi XLM-R NER: {exc}") from exc
+
+@router.get("/api/admin/labeling-options")
+def labeling_options(_: dict[str, Any] = Depends(_require_admin)):
+    connection = cursor = None
+    try:
+        connection = _get_conn(); cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT a.id, a.title, a.authors, a.publication_year, COUNT(DISTINCT lsa.session_id) AS assigned_sessions FROM articles a LEFT JOIN labeling_session_assignments lsa ON lsa.article_id = a.id GROUP BY a.id, a.title, a.authors, a.publication_year ORDER BY a.id DESC LIMIT 1000")
+        articles = cursor.fetchall()
+        cursor.execute("SELECT id, full_name AS name, email FROM users WHERE role = 'EXPERT' AND is_active = 1 ORDER BY full_name")
+        experts = cursor.fetchall()
+        cursor.execute("SELECT id, full_name AS name, email FROM users WHERE role = 'REVIEWER' AND is_active = 1 ORDER BY full_name")
+        reviewers = cursor.fetchall()
+        return {"articles": articles, "experts": experts, "reviewers": reviewers}
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+@router.post("/api/admin/labeling-sessions", status_code=201)
+def create_labeling_session(req: LabelingSessionRequest, user: dict[str, Any] = Depends(_require_admin)):
+    if not req.name.strip() or not req.article_ids or len(req.expert_ids) != 2:
+        raise HTTPException(422, "A session name, at least one document, and exactly two experts are required.")
+    if req.expert_ids[0] == req.expert_ids[1]:
+        raise HTTPException(422, "Select two different experts.")
+    connection = cursor = None
+    try:
+        connection = _get_conn(); cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT id, full_name AS name, email FROM users WHERE id IN (%s,%s) AND role='EXPERT' AND is_active=1", tuple(req.expert_ids))
+        experts = cursor.fetchall()
+        if len(experts) != 2: raise HTTPException(422, "One or more selected experts are invalid.")
+        cursor.execute("SELECT id FROM users WHERE id=%s AND role='REVIEWER' AND is_active=1", (req.reviewer_id,))
+        if not cursor.fetchone(): raise HTTPException(422, "Selected reviewer is invalid.")
+        cursor.execute("INSERT INTO labeling_sessions (name, description, reviewer_id, created_by) VALUES (%s,%s,%s,%s)", (req.name.strip(), req.description.strip(), req.reviewer_id, user["id"]))
+        session_id = cursor.lastrowid
+        rows = [(session_id, article_id, expert_id) for article_id in sorted(set(req.article_ids)) for expert_id in req.expert_ids]
+        cursor.executemany("INSERT INTO labeling_session_assignments (session_id, article_id, expert_id) VALUES (%s,%s,%s)", rows)
+        connection.commit()
+        if req.send_email:
+            try:
+                emailed = _send_assignment_email(experts, req.name.strip(), len(set(req.article_ids)))
+                email_status = "sent" if emailed else "not_configured"
+            except Exception as email_error:
+                email_status = f"failed: {email_error}"
+        else:
+            email_status = "disabled"
+        return {"sessionId": int(session_id), "emailStatus": email_status, "assignedExperts": len(experts)}
+    except HTTPException:
+        if connection: connection.rollback()
+        raise
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
 @router.post("/api/ai-label")
 def ai_label_endpoint(req: AiLabelRequest, _: dict[str, Any] = Depends(_require_admin)):
     """Endpoint dùng Gemini để gán nhãn thực thể y khoa (6 nhóm)."""
@@ -301,6 +433,172 @@ def save_ai_label_endpoint(req: SaveAiLabelRequest, user: dict[str, Any] = Depen
     result = _persist_ai_label(req.article_id, req.labels, int(user["id"]))
     message = "Kết quả AI đã được lưu vào cơ sở dữ liệu." if result["saved"] else "Kết quả AI này đã được lưu trước đó."
     return {"message": message, **result}
+
+
+# ── NER experiment runner and gold workflow ──────────────────────────
+
+@router.post("/api/ner-experiments")
+def create_ner_experiment(req: NerExperimentCreateRequest, _: dict[str, Any] = Depends(_require_admin)):
+    try:
+        run = ner_experiment_manager.start(req.limit, req.note.strip(), req.parent_run_id)
+        return run.public()
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@router.get("/api/ner-experiments")
+def list_ner_experiments(_: dict[str, Any] = Depends(_current_user)):
+    return {"runs": ner_experiment_manager.list(), "labels": list(EXPERIMENT_LABELS)}
+
+
+@router.get("/api/ner-experiments/{run_id}")
+def get_ner_experiment(run_id: str, _: dict[str, Any] = Depends(_current_user)):
+    run = ner_experiment_manager.get(run_id)
+    if not run:
+        raise HTTPException(404, "Không tìm thấy run.")
+    payload = run.public()
+    for filename, key in (("metrics.json", "metrics"), ("fatal_errors.jsonl", "fatalErrors")):
+        path = run.directory / filename
+        if path.exists():
+            if path.suffix == ".json":
+                payload[key] = json.loads(path.read_text(encoding="utf-8"))
+            else:
+                payload[key] = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    return payload
+
+
+@router.get("/api/ner-experiments/{run_id}/errors")
+def get_ner_experiment_errors(run_id: str, _: dict[str, Any] = Depends(_current_user)):
+    run = ner_experiment_manager.get(run_id)
+    if not run:
+        raise HTTPException(404, "Không tìm thấy run.")
+    rows: list[dict[str, Any]] = []
+    for system in ("current_ai", "vietbioner", "vimedner"):
+        for filename in ("conversion_issues.jsonl",):
+            path = run.directory / system / filename
+            if path.exists():
+                rows.extend({"system": system, **json.loads(line)} for line in path.read_text(encoding="utf-8").splitlines() if line)
+    return {"errors": rows[:2000], "total": len(rows)}
+
+
+@router.post("/api/ner-experiments/{run_id}/stop")
+def stop_ner_experiment(run_id: str, _: dict[str, Any] = Depends(_require_admin)):
+    run = ner_experiment_manager.stop(run_id)
+    if not run:
+        raise HTTPException(404, "Không tìm thấy run.")
+    return run.public()
+
+
+@router.post("/api/ner-experiments/{run_id}/resume")
+def resume_ner_experiment(run_id: str, _: dict[str, Any] = Depends(_require_admin)):
+    try:
+        run = ner_experiment_manager.resume(run_id)
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+    if not run:
+        raise HTTPException(404, "Không tìm thấy run.")
+    return run.public()
+
+
+@router.post("/api/ner-experiments/{run_id}/promote")
+def promote_ner_experiment(run_id: str, _: dict[str, Any] = Depends(_require_admin)):
+    try:
+        run = ner_experiment_manager.promote(run_id)
+        return {"message": "Đã chọn checkpoint làm bản hiện hành.", **run.public()}
+    except KeyError:
+        raise HTTPException(404, "Không tìm thấy run.")
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+
+
+def _gold_article(article_id: int) -> dict[str, Any]:
+    connection = cursor = None
+    try:
+        connection = _get_conn()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT id, title, abstract FROM articles WHERE id=%s", (article_id,))
+        article = cursor.fetchone()
+        if not article or not article.get("abstract"):
+            raise HTTPException(404, "Không tìm thấy bài báo.")
+        return {"article_id": int(article["id"]), "title": article.get("title") or "", "abstract": article["abstract"]}
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+@router.get("/api/ner-gold/articles/{article_id}")
+def get_gold_article(article_id: int, _: dict[str, Any] = Depends(_current_user)):
+    if not 1 <= article_id <= 100:
+        raise HTTPException(422, "Gold thử nghiệm chỉ gồm article_id 1..100.")
+    return {**_gold_article(article_id), "labels": list(EXPERIMENT_LABELS)}
+
+
+@router.post("/api/ner-gold/articles/{article_id}")
+def save_gold_draft(article_id: int, req: GoldAnnotationRequest, user: dict[str, Any] = Depends(_require_expert)):
+    article = _gold_article(article_id)
+    normalized = []
+    for entity in req.entities:
+        item = normalize_entity(article["abstract"], entity)
+        if item is None:
+            raise HTTPException(422, f"Entity không hợp lệ hoặc không khớp nguyên văn: {entity}")
+        normalized.append(item)
+    normalized, conflicts = resolve_overlaps(normalized)
+    if conflicts:
+        raise HTTPException(422, "Gold không cho phép entity trùng hoặc chồng lấn.")
+    path = TEXT_ROOT / "gold" / "drafts" / f"expert_{int(user['id'])}" / f"{article_id:04d}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {**article, "entities": normalized, "note": req.note, "expert_id": int(user["id"]), "saved_at": datetime.utcnow().isoformat() + "Z"}
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return {"saved": True, "articleId": article_id, "entityCount": len(normalized)}
+
+
+@router.get("/api/ner-gold/review")
+def list_gold_drafts(_: dict[str, Any] = Depends(_require_reviewer)):
+    rows = []
+    for path in (TEXT_ROOT / "gold" / "drafts").glob("expert_*/*.json"):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        rows.append({"articleId": payload["article_id"], "expertId": payload["expert_id"], "entityCount": len(payload["entities"]), "savedAt": payload["saved_at"]})
+    return {"drafts": sorted(rows, key=lambda row: (row["articleId"], row["expertId"]))}
+
+
+@router.post("/api/ner-gold/review/{article_id}/finalize")
+def finalize_gold(article_id: int, req: GoldAnnotationRequest, user: dict[str, Any] = Depends(_require_reviewer)):
+    article = _gold_article(article_id)
+    normalized = []
+    for entity in req.entities:
+        item = normalize_entity(article["abstract"], entity)
+        if item is None:
+            raise HTTPException(422, f"Entity không hợp lệ: {entity}")
+        normalized.append(item)
+    normalized, conflicts = resolve_overlaps(normalized)
+    if conflicts:
+        raise HTTPException(422, "Gold không cho phép entity trùng hoặc chồng lấn.")
+    final_dir = TEXT_ROOT / "gold" / "final"
+    final_dir.mkdir(parents=True, exist_ok=True)
+    payload = {**article, "entities": normalized, "note": req.note, "reviewer_id": int(user["id"]), "finalized_at": datetime.utcnow().isoformat() + "Z"}
+    (final_dir / f"{article_id:04d}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    _export_gold_files(final_dir)
+    return {"finalized": True, "articleId": article_id, "entityCount": len(normalized)}
+
+
+def _export_gold_files(final_dir: Path) -> None:
+    rows = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(final_dir.glob("*.json"))]
+    gold_dir = TEXT_ROOT / "gold"
+    jsonl = "".join(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n" for row in rows)
+    (gold_dir / "gold.jsonl").write_text(jsonl, encoding="utf-8")
+    conll = []
+    for row in rows:
+        tokens, issues = entities_to_bio(row["abstract"], row["entities"])
+        if issues:
+            raise HTTPException(422, f"Gold article {row['article_id']} không khớp token boundary.")
+        conll.append(bio_text(tokens))
+    (gold_dir / "test.txt").write_text("".join(conll), encoding="utf-8")
+    digest = hashlib.sha256(jsonl.encode("utf-8")).hexdigest()
+    (gold_dir / "manifest.json").write_text(json.dumps({"articles": len(rows), "checksum": digest, "updated_at": datetime.utcnow().isoformat() + "Z"}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 
@@ -350,14 +648,13 @@ def verify_data(_: dict[str, Any] = Depends(_require_admin)):
                 all_txts.extend([f.lower() for f in files if f.endswith('.txt')])
                 
         for art in articles:
-            safe_title = compact_article_name(art['title'])
+            safe_title = clean_filename(art['title'])
             
-            # PDF crawler dùng tối đa 5 từ đầu và thêm dấu ba chấm khi rút gọn.
+            # Kiểm tra PDF: safe_title có thể đã bị cắt gọn
             pdf_found = False
-            short_title = safe_title.lower()
-            title_prefix = short_title.removesuffix("...")
+            short_title = safe_title[:45].lower()
             for pdf_file in all_pdfs:
-                if short_title in pdf_file or title_prefix in pdf_file:
+                if short_title in pdf_file:
                     pdf_found = True
                     break
             if not pdf_found:
@@ -493,15 +790,22 @@ def save_highlight_endpoint(req: SaveHighlightRequest, _: dict[str, Any] = Depen
             name  = (c.get("name") or "").strip()
             ctype = (c.get("type") or "DISEASE").strip()
             code  = (c.get("code") or "").strip()
-            if name and name.lower() not in seen:
-                seen.add(name.lower())
-                rows.append((req.article_id, name, ctype, code))
+            identity = (
+                name.casefold(),
+                int(c.get("start", -1)),
+                int(c.get("end", -1)),
+                ctype.casefold(),
+                code.casefold(),
+            )
+            if name and identity not in seen:
+                seen.add(identity)
+                rows.append((req.article_id, name, ctype, code, c.get("start"), c.get("end")))
 
         if rows:
             cursor.executemany(
                 "INSERT INTO extracted_concepts "
-                "(article_id, concept_name, concept_type, concept_code) "
-                "VALUES (%s, %s, %s, %s)",
+                "(article_id, concept_name, concept_type, concept_code, concept_start, concept_end) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
                 rows,
             )
         conn.commit()
@@ -724,6 +1028,24 @@ def _latest_ai_label(cursor, document_id: int) -> dict[str, Any] | None:
     return row
 
 
+def _all_ai_labels(cursor, document_id: int) -> list[dict[str, Any]]:
+    cursor.execute(
+        """
+        SELECT id, model_name, label_payload, primary_icd10_code, primary_icd10_label,
+               confidence, created_at
+        FROM ai_document_labels WHERE article_id = %s ORDER BY id DESC
+        """,
+        (document_id,),
+    )
+    rows = cursor.fetchall()
+    for row in rows:
+        try:
+            row["labels"] = json.loads(row.pop("label_payload"))
+        except (KeyError, TypeError, json.JSONDecodeError):
+            row["labels"] = {}
+    return rows
+
+
 def _document_labels(cursor, document_id: int) -> list[dict[str, str]]:
     """Return only dictionary labels for the Current ICD-10 panel.
 
@@ -751,6 +1073,142 @@ def _document_labels(cursor, document_id: int) -> list[dict[str, str]]:
     return labels
 
 
+def _annotation_seed(text: str, label_source: str = "icd10", ai_payload: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Build editable per-entity annotations with stable source offsets."""
+    if label_source == "ai":
+        result: list[dict[str, Any]] = []
+        used_ranges: set[tuple[int, int]] = set()
+        for category, values in (ai_payload or {}).items():
+            if not isinstance(values, list):
+                continue
+            for raw in values:
+                item = raw if isinstance(raw, dict) else {"term": str(raw)}
+                term = str(item.get("term") or item.get("text") or "").strip()
+                spans = item.get("spans") or []
+                candidates = [
+                    (int(span.get("start", -1)), int(span.get("end", -1)))
+                    for span in spans
+                    if isinstance(span, dict)
+                ]
+                if not candidates:
+                    cursor = 0
+                    while True:
+                        found = text.casefold().find(term.casefold(), cursor)
+                        if found < 0:
+                            break
+                        candidates.append((found, found + len(term)))
+                        cursor = found + 1
+                        if len(candidates) >= 1:
+                            break
+                for start, end in candidates:
+                    if term and 0 <= start < end <= len(text) and (start, end) not in used_ranges:
+                        used_ranges.add((start, end))
+                        result.append({
+                            "text": text[start:end], "start": start, "end": end,
+                            "category": category, "type": category,
+                            "code": str(item.get("code") or ""),
+                            "label": str(item.get("label_vn") or term),
+                            "action": "KEEP",
+                        })
+        return result
+    _, _, entities, _ = run_ner(text or "", enable_tone_restore=False, enable_noun_phrase=False)
+    return [
+        {
+            "text": entity["text"],
+            "start": entity["start"],
+            "end": entity["end"],
+            "category": entity.get("entity_type", "DISEASE"),
+            "type": entity.get("entity_type", "DISEASE"),
+            "code": entity.get("icd_code", ""),
+            "label": entity.get("icd_label_vn") or entity["text"],
+            "action": "KEEP",
+        }
+        for entity in entities
+    ]
+
+
+def _normalize_annotations(raw: list[dict[str, Any]], text: str) -> list[dict[str, Any]]:
+    allowed_actions = {"KEEP", "EDIT", "DELETE", "ADD"}
+    normalized: list[dict[str, Any]] = []
+    used_ranges: set[tuple[int, int]] = set()
+    for item in raw or []:
+        if not isinstance(item, dict):
+            continue
+        raw_start, raw_end = item.get("start"), item.get("end")
+        start = int(raw_start) if raw_start is not None and str(raw_start) != "" else -1
+        end = int(raw_end) if raw_end is not None and str(raw_end) != "" else -1
+        action = str(item.get("action") or "KEEP").upper()
+        surface = str(item.get("text") or "").strip()
+        if action not in allowed_actions or not surface:
+            raise HTTPException(status_code=422, detail="Annotation cần có đoạn thực thể và thao tác hợp lệ.")
+        if start < 0 or end <= start or end > len(text) or text[start:end] != surface:
+            start = end = -1
+            search_from = 0
+            while True:
+                found = text.casefold().find(surface.casefold(), search_from)
+                if found < 0:
+                    break
+                candidate = (found, found + len(surface))
+                if candidate not in used_ranges:
+                    start, end = candidate
+                    break
+                search_from = found + 1
+        if start < 0 or end <= start or end > len(text):
+            raise HTTPException(status_code=422, detail=f"Không tìm thấy đoạn thực thể trong văn bản: {surface}")
+        used_ranges.add((start, end))
+        if text[start:end] != surface:
+            raise HTTPException(status_code=422, detail="Đoạn text của annotation không khớp văn bản gốc.")
+        normalized.append({
+            "text": surface,
+            "start": start,
+            "end": end,
+            "category": str(item.get("category") or item.get("type") or "Khác"),
+            "type": str(item.get("type") or item.get("category") or "Khác"),
+            "code": str(item.get("code") or ""),
+            "label": str(item.get("label") or surface),
+            "action": action,
+        })
+    return normalized
+
+
+def _stored_ner_result(cursor, document_id: int) -> dict[str, Any]:
+    """Return the exact rule-based NER rendering saved by the Admin."""
+    cursor.execute("SELECT highlighted_html, abstract FROM articles WHERE id = %s", (document_id,))
+    article = cursor.fetchone() or {}
+    article_text = article.get("abstract") or ""
+    cursor.execute(
+        """
+        SELECT concept_name AS name, concept_type AS type, concept_code AS code,
+               concept_start AS start, concept_end AS end
+        FROM extracted_concepts
+        WHERE article_id = %s
+        ORDER BY id
+        """,
+        (document_id,),
+    )
+    stored = cursor.fetchall()
+    concepts = [
+        {
+            "text": item["name"],
+            "start": item["start"],
+            "end": item["end"],
+            "category": item["type"],
+            "type": item["type"],
+            "code": item["code"] or "",
+            "label": item["name"],
+            "action": "KEEP",
+        }
+        for item in stored
+        if item.get("start") is not None and item.get("end") is not None
+    ]
+    if not concepts:
+        concepts = _annotation_seed(article_text)
+    return {
+        "highlightedHtml": article.get("highlighted_html") or "",
+        "concepts": concepts,
+    }
+
+
 def _assert_expert_document_access(cursor, document_id: int) -> None:
     cursor.execute("SELECT id FROM articles WHERE id = %s", (document_id,))
     if not cursor.fetchone():
@@ -768,7 +1226,8 @@ def _assert_expert_document_access(cursor, document_id: int) -> None:
 
 def _review_history(cursor, document_id: int, expert_id: int | None = None) -> list[dict[str, Any]]:
     sql = """
-        SELECT r.id, r.review_status, r.original_labels_json, r.suggested_icd10_code,
+        SELECT r.id, r.review_status, r.label_source, r.original_labels_json,
+               r.annotations_json, r.suggested_icd10_code,
                r.suggested_icd10_label, r.comment, r.created_at, r.updated_at,
                u.id AS expert_id, u.full_name AS expert_name, u.email AS expert_email
         FROM expert_reviews r JOIN users u ON u.id = r.expert_id
@@ -786,7 +1245,39 @@ def _review_history(cursor, document_id: int, expert_id: int | None = None) -> l
             row["original_labels"] = json.loads(row.pop("original_labels_json"))
         except (KeyError, TypeError, json.JSONDecodeError):
             row["original_labels"] = []
+        try:
+            row["annotations"] = json.loads(row.pop("annotations_json") or "[]")
+        except (KeyError, TypeError, json.JSONDecodeError):
+            row["annotations"] = row["original_labels"]
     return rows
+
+
+def _case_resolution_status(cursor, document_id: int) -> str:
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS expert_count
+        FROM (
+            SELECT expert_id
+            FROM expert_reviews
+            WHERE document_id = %s
+            GROUP BY expert_id
+        ) experts
+        """,
+        (document_id,),
+    )
+    if int(cursor.fetchone()["expert_count"] or 0) < 2:
+        return "PENDING"
+    cursor.execute(
+        """
+        SELECT resolution_status
+        FROM reviewer_adjudications
+        WHERE document_id = %s
+        ORDER BY id DESC LIMIT 1
+        """,
+        (document_id,),
+    )
+    adjudication = cursor.fetchone()
+    return str(adjudication["resolution_status"]).upper() if adjudication else "CONFLICT"
 
 
 @router.get("/api/expert/dashboard")
@@ -856,10 +1347,12 @@ def expert_icd_documents(
             )
             WHERE (%s = '' OR a.title LIKE %s OR a.authors LIKE %s)
               AND (%s = '' OR ec.concept_code LIKE %s)
+              AND (NOT EXISTS (SELECT 1 FROM labeling_session_assignments own_assign WHERE own_assign.expert_id = %s)
+                   OR EXISTS (SELECT 1 FROM labeling_session_assignments assigned WHERE assigned.article_id = a.id AND assigned.expert_id = %s))
             GROUP BY a.id, a.title, a.authors, a.publication_year, latest.review_status, latest.id
             ORDER BY a.id DESC
         """
-        params = (user["id"], q, f"%{q}%", f"%{q}%", icd, f"%{icd}%")
+        params = (user["id"], q, f"%{q}%", f"%{q}%", icd, f"%{icd}%", user["id"], user["id"])
         cursor.execute(query, params)
         rows = cursor.fetchall()
         status = review_status.casefold()
@@ -898,9 +1391,11 @@ def expert_ai_documents(
                 WHERE r.document_id = a.id AND r.expert_id = %s
             )
             WHERE (%s = '' OR a.title LIKE %s OR a.authors LIKE %s)
+              AND (NOT EXISTS (SELECT 1 FROM labeling_session_assignments own_assign WHERE own_assign.expert_id = %s)
+                   OR EXISTS (SELECT 1 FROM labeling_session_assignments assigned WHERE assigned.article_id = a.id AND assigned.expert_id = %s))
             ORDER BY a.id DESC
             """,
-            (user["id"], q, f"%{q}%", f"%{q}%"),
+            (user["id"], q, f"%{q}%", f"%{q}%", user["id"], user["id"]),
         )
         rows = cursor.fetchall()
         status = review_status.casefold()
@@ -956,7 +1451,21 @@ def _expert_document_detail(document_id: int, user: dict[str, Any]) -> dict[str,
         article = cursor.fetchone()
         article["currentLabels"] = _document_labels(cursor, document_id)
         article["aiLabel"] = _latest_ai_label(cursor, document_id)
+        article["aiLabels"] = _all_ai_labels(cursor, document_id)
         article["reviewHistory"] = _review_history(cursor, document_id, int(user["id"]))
+        source = "icd10"
+        if article["reviewHistory"]:
+            source = article["reviewHistory"][0].get("label_source") or source
+        article["annotationSeed"] = (
+            article["reviewHistory"][0]["annotations"]
+            if article["reviewHistory"] and article["reviewHistory"][0].get("annotations")
+            else _annotation_seed(
+                article.get("abstract") or "",
+                source,
+                article["aiLabel"]["labels"] if source == "ai" and article["aiLabel"] else None,
+            )
+        )
+        article["nerResult"] = _stored_ner_result(cursor, document_id)
         return article
     finally:
         if cursor: cursor.close()
@@ -995,8 +1504,8 @@ def save_expert_review(
     if not 3 <= len(comment) <= 8000:
         raise HTTPException(status_code=422, detail="Nhận xét cần từ 3 đến 8000 ký tự.")
     suggested_code = str(req.suggested_icd10_code or "").strip()
-    if status in {"INCORRECT", "NEEDS_REVISION"} and not suggested_code:
-        raise HTTPException(status_code=422, detail="Cần chọn mã ICD-10 đề xuất cho trạng thái này.")
+    if status in {"INCORRECT", "NEEDS_REVISION"} and not req.annotations and not suggested_code:
+        raise HTTPException(status_code=422, detail="Cần gửi các nhãn đã chỉnh sửa hoặc mã ICD-10/YHCT đề xuất.")
     suggested_label = None
     if suggested_code:
         suggested_label = _icd_code_catalog().get(suggested_code.casefold())
@@ -1008,35 +1517,38 @@ def save_expert_review(
         connection = _get_conn()
         cursor = connection.cursor(dictionary=True)
         _assert_expert_document_access(cursor, document_id)
+        cursor.execute("SELECT abstract FROM articles WHERE id = %s", (document_id,))
+        article_text = (cursor.fetchone() or {}).get("abstract") or ""
 
         # Lấy nhãn gốc tương ứng với nguồn gốc của bài báo
         if label_source == "ai":
             ai_row = _latest_ai_label(cursor, document_id)
             if ai_row and ai_row.get("labels"):
                 # Chuẩn hoá về cùng schema [{code, label, source, type}]
-                original_labels = [
-                    {
-                        "source": "AI Gemini",
-                        "code": ai_row.get("primary_icd10_code") or "",
-                        "label": ai_row.get("primary_icd10_label") or "",
-                        "type": "AI prediction",
-                    }
-                ]
+                original_labels = _annotation_seed(article_text, "ai", ai_row.get("labels"))
             else:
                 original_labels = []
         else:
-            original_labels = _document_labels(cursor, document_id)
+            original_labels = _annotation_seed(article_text)
+        annotations = _normalize_annotations(req.annotations or original_labels, article_text)
+        changed_annotations = [item for item in annotations if item["action"] != "KEEP"]
+        if status in {"INCORRECT", "NEEDS_REVISION"} and not changed_annotations and not suggested_code:
+            raise HTTPException(status_code=422, detail="Incorrect hoặc Needs Revision cần ít nhất một nhãn được sửa, xóa hoặc thêm.")
+        for item in annotations:
+            if item["code"] and item["code"].casefold() not in _icd_code_catalog():
+                raise HTTPException(status_code=422, detail=f"Mã nhãn không tồn tại trong từ điển: {item['code']}")
 
         cursor.execute(
             """
             INSERT INTO expert_reviews
             (document_id, expert_id, review_status, label_source, original_labels_json,
-             suggested_icd10_code, suggested_icd10_label, comment)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+             annotations_json, suggested_icd10_code, suggested_icd10_label, comment)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 document_id, user["id"], status, label_source,
                 json.dumps(original_labels, ensure_ascii=False),
+                json.dumps(annotations, ensure_ascii=False),
                 suggested_code or None, suggested_label, comment,
             ),
         )
@@ -1162,46 +1674,31 @@ def reviewer_document_detail(document_id: int, user: dict[str, Any] = Depends(_r
         if not article:
             raise HTTPException(status_code=404, detail=f"Không tìm thấy văn bản id={document_id}")
         article["currentLabels"] = _document_labels(cursor, document_id)
+        article["annotationSeed"] = _annotation_seed(article.get("abstract") or "")
+        article["nerResult"] = _stored_ner_result(cursor, document_id)
         article["aiLabel"] = _latest_ai_label(cursor, document_id)
-        review_history = _review_history(cursor, document_id)
-        article["reviewHistory"] = review_history
-
-        # Match a saved adjudication only to the exact latest reviews from two
-        # distinct experts. This prevents an old decision from being displayed
-        # after either expert submits a newer review.
-        latest_by_expert: dict[int, dict[str, Any]] = {}
-        for review in review_history:
-            expert_id = int(review["expert_id"])
-            if expert_id not in latest_by_expert:
-                latest_by_expert[expert_id] = review
-        current_reviews = sorted(
-            list(latest_by_expert.values())[:2],
-            key=lambda item: (item.get("created_at"), int(item["id"])),
+        article["reviewHistory"] = _review_history(cursor, document_id)
+        article["resolutionStatus"] = _case_resolution_status(cursor, document_id)
+        cursor.execute(
+            """
+            SELECT id, decision_payload, note, created_at
+                   , final_labels_json, resolution_status
+            FROM reviewer_adjudications
+            WHERE document_id = %s AND reviewer_id = %s
+            ORDER BY id DESC LIMIT 1
+            """,
+            (document_id, user["id"]),
         )
-        adjudication = None
-        if len(current_reviews) == 2:
-            cursor.execute(
-                """
-                SELECT id, expert_review_a_id, expert_review_b_id,
-                       decision_payload, note, created_at, updated_at
-                FROM reviewer_adjudications
-                WHERE document_id = %s AND reviewer_id = %s
-                  AND expert_review_a_id = %s AND expert_review_b_id = %s
-                ORDER BY id DESC LIMIT 1
-                """,
-                (
-                    document_id,
-                    user["id"],
-                    current_reviews[0]["id"],
-                    current_reviews[1]["id"],
-                ),
-            )
-            adjudication = cursor.fetchone()
+        adjudication = cursor.fetchone()
         if adjudication:
             try:
                 adjudication["decisions"] = json.loads(adjudication.pop("decision_payload"))
             except (TypeError, json.JSONDecodeError):
                 adjudication["decisions"] = []
+            try:
+                adjudication["final_labels"] = json.loads(adjudication.pop("final_labels_json") or "[]")
+            except (TypeError, json.JSONDecodeError):
+                adjudication["final_labels"] = []
         article["adjudication"] = adjudication
         return article
     finally:
@@ -1215,10 +1712,17 @@ def save_reviewer_adjudication(
     req: ReviewerAdjudicationRequest,
     user: dict[str, Any] = Depends(_require_reviewer),
 ):
+    resolution = str(req.resolution_status or "").strip().upper()
+    if resolution not in {"CONFLICT", "RESOLVED"}:
+        raise HTTPException(status_code=422, detail="Trạng thái adjudication không hợp lệ.")
+    if resolution == "RESOLVED" and not req.final_labels:
+        # A document with no conflicts may legitimately resolve to an empty
+        # final set, but a conflict resolution must contain the chosen labels.
+        has_conflict = any(str(item.get("status") or "").lower() != "agree" for item in req.decisions)
+        if has_conflict:
+            raise HTTPException(status_code=422, detail="Kết quả RESOLVED cần có bộ nhãn cuối.")
     if len(req.note) > 8000:
         raise HTTPException(status_code=422, detail="Ghi chú không được vượt quá 8000 ký tự.")
-    if req.expert_review_a_id == req.expert_review_b_id:
-        raise HTTPException(status_code=422, detail="Cần hai kết quả review khác nhau.")
     connection = cursor = None
     try:
         connection = _get_conn()
@@ -1226,51 +1730,63 @@ def save_reviewer_adjudication(
         cursor.execute("SELECT id FROM articles WHERE id = %s", (document_id,))
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail=f"Không tìm thấy văn bản id={document_id}")
-        cursor.execute(
-            """
-            SELECT id, expert_id
-            FROM expert_reviews
-            WHERE document_id = %s AND id IN (%s, %s)
-            """,
-            (document_id, req.expert_review_a_id, req.expert_review_b_id),
-        )
-        expert_reviews = cursor.fetchall()
-        if len(expert_reviews) != 2:
-            raise HTTPException(
-                status_code=422,
-                detail="Không tìm thấy đủ hai kết quả chuyên gia của văn bản này.",
-            )
-        if len({int(item["expert_id"]) for item in expert_reviews}) != 2:
-            raise HTTPException(
-                status_code=422,
-                detail="Hai kết quả phải thuộc về hai chuyên gia khác nhau.",
-            )
-
-        decision_payload = json.dumps(req.decisions, ensure_ascii=False, separators=(",", ":"))
+        cursor.execute("SELECT abstract FROM articles WHERE id = %s", (document_id,))
+        article_text = (cursor.fetchone() or {}).get("abstract") or ""
+        final_labels = _normalize_annotations(req.final_labels, article_text)
+        if resolution == "RESOLVED":
+            conflict_decisions = [item for item in req.decisions if str(item.get("status") or "").lower() != "agree"]
+            unresolved = [
+                item for item in conflict_decisions
+                if str(item.get("decision") or "") not in {"expert_a", "expert_b", "custom"}
+            ]
+            if unresolved:
+                raise HTTPException(status_code=422, detail="Vẫn còn mâu thuẫn chưa được reviewer quyết định.")
         cursor.execute(
             """
             INSERT INTO reviewer_adjudications
-                (document_id, reviewer_id, expert_review_a_id, expert_review_b_id,
-                 decision_payload, note)
+                (document_id, reviewer_id, decision_payload, final_labels_json, resolution_status, note)
             VALUES (%s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                decision_payload = VALUES(decision_payload),
-                note = VALUES(note),
-                updated_at = CURRENT_TIMESTAMP,
-                id = LAST_INSERT_ID(id)
             """,
             (
                 document_id,
                 user["id"],
-                req.expert_review_a_id,
-                req.expert_review_b_id,
-                decision_payload,
+                json.dumps(req.decisions, ensure_ascii=False),
+                json.dumps(final_labels, ensure_ascii=False),
+                resolution,
                 req.note.strip(),
             ),
         )
-        adjudication_id = int(cursor.lastrowid)
         connection.commit()
-        return {"message": "Đã lưu thành công.", "id": adjudication_id, "saved": True}
+        return {"message": "Đã lưu quyết định reviewer.", "id": cursor.lastrowid}
+    finally:
+        if cursor: cursor.close()
+        if connection: connection.close()
+
+
+@router.get("/api/reviewer/documents/{document_id}/adjudication")
+def reviewer_adjudication_detail(document_id: int, user: dict[str, Any] = Depends(_require_reviewer)):
+    connection = cursor = None
+    try:
+        connection = _get_conn()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT id, decision_payload, final_labels_json, resolution_status, note, created_at
+            FROM reviewer_adjudications
+            WHERE document_id = %s AND reviewer_id = %s
+            ORDER BY id DESC LIMIT 1
+            """,
+            (document_id, user["id"]),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Chưa có quyết định reviewer cho văn bản này.")
+        for source, target in (("decision_payload", "decisions"), ("final_labels_json", "finalLabels")):
+            try:
+                row[target] = json.loads(row.pop(source) or "[]")
+            except (KeyError, TypeError, json.JSONDecodeError):
+                row[target] = []
+        return row
     finally:
         if cursor: cursor.close()
         if connection: connection.close()
@@ -1339,6 +1855,7 @@ def admin_document_detail(document_id: int, _: dict[str, Any] = Depends(_require
             raise HTTPException(status_code=404, detail=f"Không tìm thấy văn bản id={document_id}")
         article["currentLabels"] = _document_labels(cursor, document_id)
         article["aiLabel"] = _latest_ai_label(cursor, document_id)
+        article["aiLabels"] = _all_ai_labels(cursor, document_id)
         article["reviewHistory"] = _review_history(cursor, document_id)
         return article
     finally:

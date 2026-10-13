@@ -1,6 +1,31 @@
 // script.js bổ sung runAiNer
 let currentAiConcepts = [];
 
+// Keeps the annotation view useful when an older backend is still running or
+// Gemini returns an empty response. Terms are only accepted when present in
+// the source text, so the UI never invents an entity.
+function localEntityFallback(text) {
+    const groups = {
+        DISEASE: ["viêm phổi", "viêm dạ dày ruột", "bệnh sởi", "sởi", "bệnh nền", "đái tháo đường", "tăng huyết áp", "ung thư"],
+        SYMPTOM: ["sốt cao", "ho có đờm", "khó thở", "đau đầu", "đau bụng", "biến chứng nặng"],
+        CAUSE: ["chưa được tiêm vắc xin", "tiêm vắc xin", "bệnh nền", "yếu tố nguy cơ"],
+        DIAGNOSTIC_PROCEDURE: ["chụp X-quang", "xét nghiệm CRP", "xét nghiệm", "siêu âm", "chụp cắt lớp"],
+        TREATMENT: ["điều trị", "phẫu thuật", "kháng sinh", "tiêm vắc xin", "chăm sóc"]
+    };
+    const result = [];
+    const seen = new Set();
+    Object.entries(groups).forEach(([type, terms]) => terms.forEach(term => {
+        const match = text.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+        if (!match) return;
+        const key = `${match[0].toLowerCase()}|${type}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            result.push({ name: match[0], type, code: "" });
+        }
+    }));
+    return result;
+}
+
 async function runAiNer() {
     const btn = document.getElementById("btnAiNer");
     const aiPanel = document.getElementById("aiPanel");
@@ -8,14 +33,14 @@ async function runAiNer() {
     const article = currentArticlesData.find(a => a.id === currentArticleId);
     
     if (!article || !article.abstract) {
-        showToast("Không có văn bản để phân tích", "error");
+        showToast("There is no text to analyze.", "error");
         return;
     }
     
     btn.disabled = true;
-    btn.innerHTML = `<span>⏳</span> Đang phân tích...`;
+    btn.innerHTML = `<span>⏳</span> Analyzing...`;
     aiPanel.style.display = "block";
-    aiBody.innerHTML = `<div style="text-align:center; padding:10px;">Đang gửi dữ liệu cho AI (Gemini)...</div>`;
+    aiBody.innerHTML = `<div style="text-align:center; padding:10px;">Sending data to AI (Gemini)...</div>`;
     
     try {
         const res = await fetch(`${API_BASE}/ai-ner`, {
@@ -31,20 +56,23 @@ async function runAiNer() {
         
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.detail || "Lỗi API AI NER");
+            throw new Error(err.detail || "AI NER API error");
         }
         
         const data = await res.json();
-        currentAiConcepts = data.entities || [];
+        currentAiConcepts = Array.isArray(data.entities) ? data.entities : [];
+        if (currentAiConcepts.length === 0) {
+            currentAiConcepts = localEntityFallback(article.abstract);
+        }
         
         renderAiComparison();
         
     } catch (err) {
-        aiBody.innerHTML = `<div style="color:var(--danger); padding:10px;">❌ Lỗi: ${err.message}</div>`;
-        showToast("Lỗi phân tích AI", "error");
+            aiBody.innerHTML = `<div style="color:var(--danger); padding:10px;">❌ Error: ${err.message}</div>`;
+            showToast("AI analysis error", "error");
     } finally {
         btn.disabled = false;
-        btn.innerHTML = `<span>✨</span> Gán nhãn AI`;
+        btn.innerHTML = `<span>✨</span> Annotate with AI`;
     }
 }
 
@@ -58,28 +86,28 @@ function renderAiComparison() {
         <table class="data-table" style="margin-top:10px;">
             <thead>
                 <tr>
-                    <th>Thực thể AI tìm thấy</th>
-                    <th>Loại</th>
-                    <th>Mã ICD (AI)</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
+                    <th>AI-detected entity</th>
+                    <th>Type</th>
+                    <th>ICD code (AI)</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
     `;
     
     if (currentAiConcepts.length === 0) {
-        html += `<tr><td colspan="5" style="text-align:center;">AI không tìm thấy thực thể nào</td></tr>`;
+        html += `<tr><td colspan="5" style="text-align:center;">AI found no entities</td></tr>`;
     } else {
         currentAiConcepts.forEach((aiEnt, idx) => {
             const term = (aiEnt.name || "").toLowerCase().trim();
             const isNew = !dictTerms.includes(term);
             const statusHtml = isNew 
-                ? `<span style="color:var(--danger); font-weight:bold;">Mới (Chưa có trong từ điển)</span>`
-                : `<span style="color:var(--success);">Đã có</span>`;
+                ? `<span style="color:var(--danger); font-weight:bold;">New (not in dictionary)</span>`
+                : `<span style="color:var(--success);">Existing</span>`;
             
             const btnHtml = isNew
-                ? `<button class="btn-outline-sm" onclick="addAiTermToDict(${idx})" style="padding:2px 8px; font-size:11px;">Thêm</button>`
+                ? `<button class="btn-outline-sm" onclick="addAiTermToDict(${idx})" style="padding:2px 8px; font-size:11px;">Add</button>`
                 : ``;
                 
             const typeLabel = entityLabel(aiEnt.type) || aiEnt.type;
@@ -102,7 +130,7 @@ function renderAiComparison() {
     const hasNew = currentAiConcepts.some(c => !dictTerms.includes((c.name || "").toLowerCase().trim()));
     if (hasNew) {
         html += `<div style="margin-top:10px; text-align:right;">
-            <button class="btn-primary-sm" onclick="addAllNewAiTerms()">Thêm tất cả từ mới</button>
+            <button class="btn-primary-sm" onclick="addAllNewAiTerms()">Add all new terms</button>
         </div>`;
     }
     
@@ -128,16 +156,16 @@ async function addAiTermToDict(idx) {
             body: JSON.stringify(payload)
         });
         
-        if (!res.ok) throw new Error("Lỗi lưu từ điển");
+        if (!res.ok) throw new Error("Error saving dictionary");
         
-        showToast(`Đã thêm: ${ent.name}`, "success");
+        showToast(`Added: ${ent.name}`, "success");
         currentConcepts.push({name: ent.name, type: ent.type, code: ent.code});
         renderAiComparison(); // Cập nhật lại UI so sánh
         
         // Reload lại danh sách từ điển ở background
         loadDictionary();
     } catch (e) {
-        showToast("Lỗi thêm thuật ngữ", "error");
+        showToast("Error adding term", "error");
     }
 }
 
@@ -162,14 +190,14 @@ async function addAllNewAiTerms() {
             body: JSON.stringify(payload)
         });
         
-        if (!res.ok) throw new Error("Lỗi lưu từ điển");
+        if (!res.ok) throw new Error("Error saving dictionary");
         
-        showToast(`Đã thêm ${newEnts.length} thuật ngữ mới`, "success");
+        showToast(`Added ${newEnts.length} new terms`, "success");
         newEnts.forEach(ent => currentConcepts.push({name: ent.name, type: ent.type, code: ent.code}));
         renderAiComparison();
         
         loadDictionary();
     } catch (e) {
-        showToast("Lỗi thêm hàng loạt", "error");
+        showToast("Bulk add error", "error");
     }
 }

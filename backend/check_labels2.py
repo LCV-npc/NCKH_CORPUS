@@ -1,8 +1,14 @@
-import sys, mysql.connector
+import os
+import sys
+
+import mysql.connector
 sys.stdout.reconfigure(encoding="utf-8")
 
 conn = mysql.connector.connect(
-    host="127.0.0.1", user="root", password="17092005khang", database="yhoc_corpus"
+    host=os.getenv("DB_HOST", "127.0.0.1"),
+    user=os.getenv("DB_USER", "root"),
+    password=os.getenv("DB_PASSWORD", ""),
+    database=os.getenv("DB_NAME", "yhoc_corpus"),
 )
 cur = conn.cursor(dictionary=True)
 

@@ -36,6 +36,22 @@ yarn-error.log*
 # =========================
 *.log
 
+# Experiment outputs and model checkpoints
+ner_finetuning/models/
+ner_finetuning/evaluation_runs/
+ner_finetuning/experiment_runs/
+ner_finetuning/error_driven_runs/
+ner_finetuning/error_driven_preview/
+ner_finetuning/reports/
+text/
+
+# External dataset checkouts and temporary analysis artifacts
+VietBioNER/
+ViMedNer/
+tmp/
+tmp_pdf*_pages/
+tmp_pdf*.txt
+
 # =========================
 # OS
 # =========================

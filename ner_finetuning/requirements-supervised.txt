@@ -1,0 +1,10 @@
+# Use Python 3.10 or 3.11 for the widest CUDA/PyTorch compatibility.
+torch>=2.2
+transformers>=4.45,<6
+accelerate>=1.0
+numpy>=1.26
+sentencepiece>=0.2
+pytorch-crf==0.7.2
+# Optional: evaluation falls back to an equivalent strict IOB2 span counter
+# when seqeval cannot be installed on newer Python runtimes.
+# seqeval>=1.2.2

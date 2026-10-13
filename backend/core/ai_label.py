@@ -253,7 +253,11 @@ Văn bản:
 {text}
 """
 
-    response = model.generate_content(prompt, generation_config={"temperature": 0})
+    response = model.generate_content(
+        prompt,
+        generation_config={"temperature": 0},
+        request_options={"timeout": float(os.getenv("GEMINI_TIMEOUT_SECONDS", "90"))},
+    )
     output = response.text.strip()
     output = re.sub(r"^```(?:json)?\s*", "", output, flags=re.IGNORECASE)
     output = re.sub(r"\s*```$", "", output).strip()

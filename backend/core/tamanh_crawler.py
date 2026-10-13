@@ -392,17 +392,17 @@ class TamanhMedicalCrawler:
             home_html = self._get_html(base_url, status)
             tu_van_url = self.parser.discover_tu_van_url(home_html, base_url)
             if not tu_van_url:
-                raise ValueError("Không tìm thấy khu vực Tư vấn trên website.")
+                raise ValueError("The consultation section was not found on the website.")
             root_html = self._get_html(tu_van_url, status)
             categories = self.parser.discover_categories(root_html, tu_van_url)
             if not categories:
-                raise ValueError("Không tìm thấy chuyên khoa trong khu vực Tư vấn trên website.")
+                raise ValueError("No specialties were found in the consultation section.")
             status.categories_found = len(categories)
             status.add_log(f"Found /tu-van/: {tu_van_url}")
             status.add_log(f"Found {len(categories)} categories")
             self._crawl_categories(categories, request, status)
             status.status = "STOPPED" if status.stop_requested else "COMPLETED"
-            status.message = "Đã dừng theo yêu cầu." if status.stop_requested else "Hoàn tất thu thập Tâm Anh."
+            status.message = "Stopped as requested." if status.stop_requested else "Tam Anh crawl completed."
         except Exception as exc:  # errors are exposed as status rather than silently lost in the thread
             status.errors += 1
             status.status = "ERROR"
@@ -416,11 +416,11 @@ class TamanhMedicalCrawler:
         candidate = (source_url or self.settings.base_url).strip()
         parsed = urlparse(candidate)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ValueError("URL nguồn không hợp lệ. Vui lòng nhập URL đầy đủ https://...")
+            raise ValueError("Invalid source URL. Please enter a complete https://... URL.")
         configured_host = (urlparse(self.settings.base_url).hostname or "").removeprefix("www.").casefold()
         candidate_host = (parsed.hostname or "").removeprefix("www.").casefold()
         if candidate_host != configured_host:
-            raise ValueError("Phiên bản hiện tại chỉ hỗ trợ domain tamanhhospital.vn.")
+            raise ValueError("This version supports only the tamanhhospital.vn domain.")
         return self.parser.canonical_url(candidate, candidate) or self.settings.base_url
 
     def _load_robots(self, base_url: str, status: TamanhJobStatus) -> None:
@@ -429,7 +429,7 @@ class TamanhMedicalCrawler:
         if response.status_code == 404:
             return
         if response.status_code != 200:
-            raise RuntimeError(f"Không thể kiểm tra robots.txt (HTTP {response.status_code}).")
+            raise RuntimeError(f"Unable to check robots.txt (HTTP {response.status_code}).")
         applies = False
         for raw_line in response.text.splitlines():
             line = raw_line.split("#", 1)[0].strip()
@@ -447,7 +447,7 @@ class TamanhMedicalCrawler:
 
     def _request(self, url: str, status: TamanhJobStatus, check_robots: bool = True) -> requests.Response:
         if check_robots and not self._allowed_by_robots(url):
-            raise RuntimeError(f"URL bị robots.txt chặn: {url}")
+            raise RuntimeError(f"URL blocked by robots.txt: {url}")
         delay_seconds = max(0, self.settings.request_delay_ms) / 1000
         remaining = delay_seconds - (time.monotonic() - self._last_request_at)
         if remaining > 0:
@@ -455,11 +455,11 @@ class TamanhMedicalCrawler:
         response = self._session.get(url, timeout=max(1, self.settings.timeout_ms) / 1000)
         self._last_request_at = time.monotonic()
         if response.status_code in {403, 429}:
-            raise RuntimeError(f"Website từ chối hoặc giới hạn truy cập (HTTP {response.status_code}): {url}")
+            raise RuntimeError(f"Website denied or rate-limited access (HTTP {response.status_code}): {url}")
         if response.status_code == 404:
-            raise RuntimeError(f"Không tìm thấy trang (HTTP 404): {url}")
+            raise RuntimeError(f"Page not found (HTTP 404): {url}")
         if response.status_code != 200:
-            raise RuntimeError(f"Không thể tải trang (HTTP {response.status_code}): {url}")
+            raise RuntimeError(f"Unable to load page (HTTP {response.status_code}): {url}")
         return response
 
     def _get_html(self, url: str, status: TamanhJobStatus) -> str:
@@ -470,7 +470,7 @@ class TamanhMedicalCrawler:
         category_list = list(categories)
         category_urls = {category.url for category in category_list}
         if not self.metadata_repository:
-            raise RuntimeError("Metadata repository Tâm Anh chưa được khởi tạo.")
+            raise RuntimeError("Tam Anh metadata repository has not been initialized.")
         exporter = TamanhFileExporter(self.settings.output_dir, self.metadata_repository)
         seen_detail_urls: set[str] = set()
         for category in category_list:
@@ -547,7 +547,7 @@ class TamanhCrawlerJobManager:
     def start(self, request: TamanhCrawlRequest) -> TamanhJobStatus:
         with self._lock:
             if any(job.status in {"QUEUED", "RUNNING"} for job in self._jobs.values()):
-                raise RuntimeError("Đang có một Tâm Anh crawler chạy.")
+                raise RuntimeError("A Tam Anh crawler is already running.")
             status = TamanhJobStatus(job_id=str(uuid.uuid4()))
             self._jobs[status.job_id] = status
         thread = threading.Thread(target=self._run, args=(request, status), daemon=True)
@@ -566,5 +566,5 @@ class TamanhCrawlerJobManager:
         status = self.get(job_id)
         if status:
             status.stop_requested = True
-            status.add_log("Đã nhận yêu cầu dừng crawler.")
+            status.add_log("Crawler stop request received.")
         return status
