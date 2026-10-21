@@ -17,11 +17,6 @@
       "path": "yhct_v1.json",
       "sha256": "cda29a0da97dd5031105f4a3734fcaeec70d18ff5860a44ac090d5a53808e0b1",
       "count": 228
-    },
-    "custom": {
-      "path": "Kho Ngữ Liệu Y Học Tiếng Việt/Từ_Điển_v1.json",
-      "sha256": "3829672fc3eb137eda5c61882860eb4bd0724dafca7e2df56b3df58e617a5bca",
-      "count": 293
     }
   }
 }

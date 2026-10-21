@@ -16,7 +16,6 @@ from core.ner_engine import reset_ner_engine, run_ner
 from core.ner_dict import (
     DICT_DIR,
     MANIFEST_PATH,
-    VERSIONED_CUSTOM_PATH,
     dictionary_metadata,
     normalize_match_text,
     reload_ner_dictionary,
@@ -48,8 +47,6 @@ from core.ner_experiment import (
 
 router = APIRouter()
 
-# Đường dẫn file Từ Điển
-DICTIONARY_PATH = VERSIONED_CUSTOM_PATH
 _db_config: dict = {}
 _output_folder: str = ""
 tamanh_job_manager = TamanhCrawlerJobManager()
@@ -827,13 +824,24 @@ def save_highlight_endpoint(req: SaveHighlightRequest, _: dict[str, Any] = Depen
 
 @router.get("/api/dictionary")
 def get_dictionary(_: dict[str, Any] = Depends(_require_admin)):
-    """Trả về toàn bộ từ điển y khoa."""
+    """Trả về các mục từ hai nguồn ICD-10 và YHCT đã xác thực."""
     try:
-        if DICTIONARY_PATH.is_file() and DICTIONARY_PATH.stat().st_size > 0:
-            with DICTIONARY_PATH.open("r", encoding="utf-8") as f:
-                payload = json.load(f)
-                return payload.get("entries", payload if isinstance(payload, list) else [])
-        return []
+        manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        entries = []
+        for source_key in ("icd10", "yhct"):
+            source = manifest["files"][source_key]
+            payload = json.loads((DICT_DIR / source["path"]).read_text(encoding="utf-8"))
+            for entry in payload.get("entries", []):
+                entries.append({
+                    "term": entry.get("canonical_term") or entry.get("yhct_term") or "",
+                    "canonical_term": entry.get("canonical_term") or entry.get("yhct_term") or "",
+                    "type": entry.get("category") or "Đông Y / YHCT",
+                    "code": entry.get("code") or "",
+                    "active_for_ner": entry.get("active_for_ner", True),
+                    "ambiguous": entry.get("ambiguous", False),
+                    "source": source_key,
+                })
+        return entries
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -850,82 +858,11 @@ def get_dictionary_status(_: dict[str, Any] = Depends(_require_admin)):
 
 @router.post("/api/save-to-dictionary")
 def save_to_dictionary_endpoint(req: SaveDictionaryRequest, _: dict[str, Any] = Depends(_require_admin)):
-    """Chỉ thêm bí danh trỏ tới mã đã tồn tại trong ICD-10/YHCT nguồn."""
-    try:
-        payload = json.loads(DICTIONARY_PATH.read_text(encoding="utf-8"))
-        dictionary = payload.get("entries", [])
-        manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-        valid_codes = {}
-        for source_key in ("icd10", "yhct"):
-            source_path = DICT_DIR / manifest["files"][source_key]["path"]
-            source_payload = json.loads(source_path.read_text(encoding="utf-8"))
-            for entry in source_payload.get("entries", []):
-                if not entry.get("active_for_ner") or entry.get("ambiguous"):
-                    continue
-                code = str(entry.get("code") or "").strip()
-                if code:
-                    valid_codes[code.casefold()] = (
-                        entry.get("canonical_term", ""), entry.get("category", "Bệnh Lý")
-                    )
-
-        existing_terms = {normalize_match_text(entry.get("term", "")) for entry in dictionary}
-        added, skipped = [], []
-
-        for c in req.matched_concepts:
-            name  = (c.get("name") or "").strip()
-            code  = (c.get("code") or "").strip()
-
-            if not name:
-                continue
-
-            key = normalize_match_text(name)
-            canonical = valid_codes.get(code.casefold())
-            if not canonical:
-                skipped.append({"term": name, "reason": "Mã không tồn tại trong ICD-10/YHCT nguồn"})
-            elif key in existing_terms:
-                skipped.append(name)
-            else:
-                existing_terms.add(key)
-                dictionary.append({
-                    "term": name,
-                    "canonical_term": canonical[0],
-                    "type": canonical[1],
-                    "code": code,
-                    "active_for_ner": True,
-                    "ambiguous": False,
-                    "case_sensitive": name.isupper() and len(name) <= 10,
-                    "source": "user_alias",
-                })
-                added.append(name)
-
-        payload["entries"] = dictionary
-        payload["counts"] = {
-            "all": len(dictionary),
-            "active": sum(bool(item.get("active_for_ner", True)) for item in dictionary),
-            "ambiguous": sum(bool(item.get("ambiguous", False)) for item in dictionary),
-        }
-        encoded = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
-        temp_path = DICTIONARY_PATH.with_suffix(".tmp")
-        temp_path.write_bytes(encoded)
-        os.replace(temp_path, DICTIONARY_PATH)
-
-        manifest["files"]["custom"]["sha256"] = hashlib.sha256(encoded).hexdigest()
-        manifest["files"]["custom"]["count"] = len(dictionary)
-        manifest_temp = MANIFEST_PATH.with_suffix(".tmp")
-        manifest_temp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(manifest_temp, MANIFEST_PATH)
-        reload_ner_dictionary()
-        reset_ner_engine()
-
-        return {
-            "added": added,
-            "skipped": skipped,
-            "total_in_dictionary": len(dictionary),
-            "dictionary_version": dictionary_metadata.get("dictionary_version"),
-        }
-
-    except Exception as e:
-        raise HTTPException(500, str(e))
+    """Disabled: NER chỉ sử dụng hai từ điển được xác thực."""
+    raise HTTPException(
+        status_code=410,
+        detail="Hệ thống chỉ sử dụng từ điển ICD-10 và YHCT; không cho thêm thuật ngữ tùy chỉnh.",
+    )
 
 
 @router.get("/api/articles")

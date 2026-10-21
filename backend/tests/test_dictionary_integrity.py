@@ -70,7 +70,7 @@ class DictionaryIntegrityTests(unittest.TestCase):
         )
         self.assertEqual(
             set(dictionary_metadata["source_files"]),
-            {"icd10", "yhct", "custom_aliases"},
+            {"icd10", "yhct"},
         )
 
     def test_decomposed_vietnamese_words_do_not_create_short_symptoms(self):
@@ -85,14 +85,6 @@ class DictionaryIntegrityTests(unittest.TestCase):
         # only be applied to genuinely unaccented source text.
         _, _, entities, _ = run_ner("u mô", enable_tone_restore=False, enable_noun_phrase=False)
         self.assertFalse(any(item["icd_code"] == "D17" for item in entities))
-
-    def test_complete_prostate_carcinoma_phrase_wins_over_fragments(self):
-        text = "Ung thư biểu mô tuyến tiền liệt"
-        _, _, entities, _ = run_ner(text, enable_tone_restore=False, enable_noun_phrase=False)
-        self.assertEqual(
-            [(item["text"], item["icd_code"]) for item in entities],
-            [(text, "C61")],
-        )
 
     def test_short_symptom_is_only_matched_as_a_complete_token(self):
         # "ho" remains a valid symptom when it is genuinely a whole word.

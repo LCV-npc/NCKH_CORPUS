@@ -356,11 +356,9 @@ backend/core/Tu Dien Y Hoc/
 └── yhct_v1.json
 ```
 
-Từ điển tùy chỉnh nằm tại:
-
-```text
-backend/Kho Ngữ Liệu Y Học Tiếng Việt/Từ_Điển_v1.json
-```
+Runtime NER chỉ sử dụng hai nguồn đã kiểm định là ICD-10 và YHCT. Các alias
+tùy chỉnh không được nạp vào `term_dict` và API thêm thuật ngữ đã bị vô hiệu hóa
+để kết quả luôn truy nguyên được về hai nguồn này.
 
 `ner_engine.py` chuẩn hóa mục từ, đối chiếu theo ranh giới từ/cụm từ và ưu tiên cụm dài nhằm hạn chế việc khớp một phần giữa từ như `ho` trong `học` hoặc `u mô` bên trong một tên bệnh dài.
 

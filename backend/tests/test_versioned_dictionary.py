@@ -82,11 +82,3 @@ def test_yhct_codes_are_complete_and_generic_other_forms_are_inactive():
             assert item["active_for_ner"] is False
             assert item["ambiguous"] is True
 
-
-def test_ambiguous_custom_aliases_are_not_active():
-    manifest = _load(MANIFEST_PATH)
-    payload = _load(PROJECT_DIR / manifest["files"]["custom"]["path"])
-    by_term = {entry["term"].casefold(): entry for entry in payload["entries"]}
-    for term in ("giang mai", "u ác tính", "tổn thương"):
-        assert by_term[term]["active_for_ner"] is False
-        assert by_term[term]["ambiguous"] is True

@@ -377,12 +377,10 @@ def build_custom_aliases(legacy_path: Path = LEGACY_CUSTOM) -> dict[str, Any]:
 def build_all() -> dict[str, Any]:
     icd = build_icd10()
     yhct = build_yhct()
-    custom = build_custom_aliases()
     generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
     _atomic_json(ICD_OUTPUT, icd)
     _atomic_json(YHCT_OUTPUT, yhct)
-    _atomic_json(CUSTOM_OUTPUT, custom)
 
     manifest = {
         "schema_version": SCHEMA_VERSION,
@@ -392,11 +390,6 @@ def build_all() -> dict[str, Any]:
         "files": {
             "icd10": {"path": ICD_OUTPUT.name, "sha256": _sha256(ICD_OUTPUT), "count": len(icd["entries"])},
             "yhct": {"path": YHCT_OUTPUT.name, "sha256": _sha256(YHCT_OUTPUT), "count": len(yhct["entries"])},
-            "custom": {
-                "path": str(CUSTOM_OUTPUT.relative_to(BACKEND_DIR)).replace("\\", "/"),
-                "sha256": _sha256(CUSTOM_OUTPUT),
-                "count": len(custom["entries"]),
-            },
         },
     }
     _atomic_json(MANIFEST_OUTPUT, manifest)

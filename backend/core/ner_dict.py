@@ -17,7 +17,6 @@ BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 DICT_DIR = BASE_DIR / "Tu Dien Y Hoc"
 MANIFEST_PATH = DICT_DIR / "manifest_v1.json"
-VERSIONED_CUSTOM_PATH = PROJECT_DIR / "Kho Ngữ Liệu Y Học Tiếng Việt" / "Từ_Điển_v1.json"
 DATA_DIR = PROJECT_DIR.parent / "data"
 LEGACY_ICD10_JSON = DICT_DIR / "01_icd10_dictionary.json"
 LEGACY_YHCT_JSON = DICT_DIR / "02_phuluc1_yhct.json"
@@ -266,9 +265,7 @@ def load_ner_dictionary(force_rebuild: bool = False) -> dict[str, dict[str, Any]
     files = manifest["files"]
     icd = _verified_payload(DICT_DIR / files["icd10"]["path"], files["icd10"])
     yhct = _verified_payload(DICT_DIR / files["yhct"]["path"], files["yhct"])
-    custom_path = PROJECT_DIR / files["custom"]["path"]
-    custom = _verified_payload(custom_path, files["custom"])
-    versions = {icd.get("dictionary_version"), yhct.get("dictionary_version"), custom.get("dictionary_version")}
+    versions = {icd.get("dictionary_version"), yhct.get("dictionary_version")}
     if versions != {manifest.get("dictionary_version")}:
         raise ValueError(f"Các từ điển không cùng phiên bản: {versions}")
 
@@ -277,7 +274,6 @@ def load_ner_dictionary(force_rebuild: bool = False) -> dict[str, dict[str, Any]
 
     _load_icd(icd["entries"])
     _load_yhct(yhct["entries"])
-    _load_custom(custom["entries"])
     _build_accentless_index()
     dictionary_metadata.clear()
     dictionary_metadata.update({
@@ -290,10 +286,6 @@ def load_ner_dictionary(force_rebuild: bool = False) -> dict[str, dict[str, Any]
         "source_files": {
             "icd10": icd_source,
             "yhct": yhct_source,
-            "custom_aliases": {
-                "path": str(custom_path),
-                "sha256": files["custom"]["sha256"],
-            },
         },
         "scope": list(manifest.get("scope") or []),
     })
