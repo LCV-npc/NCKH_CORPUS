@@ -2,7 +2,9 @@
 
 Hệ thống thu thập, chuẩn hóa, trích xuất và gán nhãn kho ngữ liệu y tế tiếng Việt. Ứng dụng hỗ trợ thu thập bài báo khoa học và hỏi đáp y khoa, tách cấu trúc bài báo từ PDF, gán nhãn thực thể bằng từ điển hoặc Gemini, đồng thời cung cấp quy trình để chuyên gia thẩm định kết quả.
 
-Repository: <https://github.com/QKhang17/Building-a-Vietnamese-medical-corpus->
+Repository: <https://github.com/LCV-npc/NCKH_CORPUS>
+
+Tài liệu phân tích chi tiết kiến trúc, data lineage, API, user flow và đối chiếu kỹ thuật với các bài báo trong `Newspaper/`: [docs/SYSTEM_ANALYSIS_AND_DATA_FLOW.md](docs/SYSTEM_ANALYSIS_AND_DATA_FLOW.md).
 
 ## Chức năng chính
 

@@ -68,7 +68,7 @@ async function runAiNer() {
         renderAiComparison();
         
     } catch (err) {
-            aiBody.innerHTML = `<div style="color:var(--danger); padding:10px;">❌ Error: ${err.message}</div>`;
+            aiBody.innerHTML = `<div style="color:var(--danger); padding:10px;">❌ Lỗi: ${escapeHtml(err.message)}</div>`;
             showToast("AI analysis error", "error");
     } finally {
         btn.disabled = false;

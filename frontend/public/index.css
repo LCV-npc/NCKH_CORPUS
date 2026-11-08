@@ -855,6 +855,14 @@ body.auth-mode > .main-content { display: none; }
 .annotation-field > span { color: var(--text-2); font-size: 11px; font-weight: 700; line-height: 1.2; }
 .annotation-field > small { color: var(--text-3); font-size: 10px; line-height: 1.2; }
 .expert-annotation-row input, .expert-annotation-row select { width: 100%; min-width: 0; height: 36px; border: 1px solid var(--border-2); border-radius: 5px; padding: 7px 9px; color: var(--text); background: #fff; font: inherit; font-size: 12px; }
+.ner-suggestions-help { margin: -6px 0 12px; color: var(--text-3); font-size: 11px; line-height: 1.45; }
+.ner-suggestions-grid { display: grid; gap: 8px; }
+.ner-suggestion-card { display: grid; gap: 3px; padding: 9px 10px; border: 1px dashed #f59e0b; border-radius: 6px; background: #fffbeb; color: var(--text-2); font-size: 12px; }
+.ner-suggestion-card strong { color: #92400e; }
+.ner-suggestion-card span, .ner-suggestion-card small { color: var(--text-3); font-size: 11px; }
+.ner-suggestion-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ner-suggestion-action { border: 1px solid #f59e0b; border-radius: 5px; background: #fffaf0; color: #9a3412; cursor: pointer; font: inherit; font-size: 12px; padding: 4px 8px; }
+.ner-suggestion-action:hover { background: #ffedd5; }
 .expert-annotation-row input:focus, .expert-annotation-row select:focus { outline: 2px solid var(--primary-light); border-color: var(--primary); }
 .annotation-delete { position: absolute; top: 14px; right: 14px; min-height: 30px; padding: 5px 9px; border: 1px solid #fecaca; border-radius: 5px; color: #b91c1c; background: #fff1f2; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .annotation-delete:hover { border-color: #ef4444; color: #fff; background: #dc2626; }
@@ -975,6 +983,26 @@ body.auth-mode > .main-content { display: none; }
 
 .progress-pct { font-size: 13px; font-weight: 700; color: var(--text-2); width: 36px; }
 .progress-msg { font-size: 12px; color: var(--text-3); }
+.crawl-progress-track {
+  height: 8px;
+  margin: 16px 0 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.crawl-progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width .25s ease;
+}
+.crawl-progress-percent {
+  color: var(--text-3);
+  font-size: 11px;
+  text-align: right;
+}
 
 /* Log Terminal */
 .log-panel {
@@ -2116,4 +2144,73 @@ body.auth-mode > #authShell { display: grid !important; min-height: 100vh; }
 @media (max-width: 1100px) {
   .review-layout-ai, .ai-extraction-grid { grid-template-columns: 1fr; }
   .review-layout-ai .document-review-main { position: static; }
+}
+
+/* Unified accessibility and responsive shell overrides. */
+.skip-link {
+  position: fixed; left: 12px; top: -60px; z-index: 1000;
+  padding: 9px 12px; border-radius: 8px; color: #fff; background: #1d4ed8;
+}
+.skip-link:focus { top: 12px; }
+.nav-item {
+  width: 100%; border: 0; background: transparent; text-align: left; font: inherit;
+}
+.nav-item:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .35);
+  outline-offset: 2px;
+}
+.password-field { position: relative; display: block; margin-top: 7px; }
+.password-field input { width: 100%; padding-right: 64px !important; }
+.password-field button {
+  position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+  border: 0; border-radius: 6px; padding: 5px 8px; color: var(--primary);
+  background: var(--primary-light); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.mobile-menu-button {
+  display: none; width: 38px; height: 38px; border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); background: #fff; font-size: 20px; cursor: pointer;
+}
+.sidebar-backdrop {
+  position: fixed; inset: 0; z-index: 90; border: 0; background: rgba(15, 23, 42, .44);
+}
+.kpi-grid { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.admin-review-heading { margin-top: 12px; }
+.session-list-card { overflow: hidden; }
+.session-row-actions, .account-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.danger-action { color: var(--danger); border-color: #fecaca; }
+
+@media (max-width: 700px) {
+  .mobile-menu-button { display: inline-grid; place-items: center; flex: 0 0 auto; }
+  .topbar-left { display: flex; align-items: center; min-width: 0; gap: 10px; }
+  .topbar-sub { display: none; }
+  body.mobile-nav-open .sidebar {
+    display: flex; width: min(82vw, 300px); box-shadow: 12px 0 36px rgba(15, 23, 42, .22);
+  }
+  body.mobile-nav-open .brand-text,
+  body.mobile-nav-open .nav-label,
+  body.mobile-nav-open .nav-section-label,
+  body.mobile-nav-open .sidebar-footer { display: block; }
+  body.mobile-nav-open .nav-item { justify-content: flex-start; }
+  body.mobile-nav-open .sidebar-backdrop { display: block !important; }
+  .review-table { min-width: 720px; }
+  .topbar { padding: 0 14px; }
+}
+
+/* Keep collapsed navigation discoverable on tablets. The compact shell hides
+   labels, so icons must remain visible until the mobile drawer is available. */
+@media (max-width: 900px) {
+  .nav-icon { display: flex !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

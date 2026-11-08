@@ -60,6 +60,6 @@ async function verifyData() {
         body.innerHTML = html;
         
     } catch (err) {
-        body.innerHTML = `<div style="color:var(--danger); text-align:center; padding:20px;">❌ Error: ${err.message}</div>`;
+        body.innerHTML = `<div style="color:var(--danger); text-align:center; padding:20px;">❌ Lỗi: ${escapeHtml(err.message)}</div>`;
     }
 }

@@ -39,6 +39,34 @@ def ensure_auth_review_schema(db_config: dict[str, Any]) -> None:
     try:
         connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
+
+        def ensure_column(table: str, column: str, definition: str) -> None:
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                "WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s",
+                (table, column),
+            )
+            if not cursor.fetchone()[0]:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+        def ensure_index(table: str, index: str, definition: str) -> None:
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.statistics "
+                "WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s",
+                (table, index),
+            )
+            if not cursor.fetchone()[0]:
+                cursor.execute(f"ALTER TABLE {table} ADD {definition}")
+
+        def ensure_foreign_key(table: str, constraint: str, definition: str) -> None:
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.table_constraints "
+                "WHERE constraint_schema = DATABASE() AND table_name = %s "
+                "AND constraint_name = %s AND constraint_type = 'FOREIGN KEY'",
+                (table, constraint),
+            )
+            if not cursor.fetchone()[0]:
+                cursor.execute(f"ALTER TABLE {table} ADD CONSTRAINT {constraint} {definition}")
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -197,13 +225,22 @@ def ensure_auth_review_schema(db_config: dict[str, Any]) -> None:
                 status VARCHAR(24) NOT NULL DEFAULT 'OPEN',
                 created_by BIGINT UNSIGNED NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
+                KEY idx_labeling_sessions_status (status),
                 KEY idx_labeling_sessions_reviewer (reviewer_id),
+                CONSTRAINT chk_labeling_sessions_status CHECK (status IN ('OPEN', 'CLOSED', 'CANCELLED')),
                 CONSTRAINT fk_labeling_sessions_reviewer FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE RESTRICT,
                 CONSTRAINT fk_labeling_sessions_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """
         )
+        ensure_column(
+            "labeling_sessions",
+            "updated_at",
+            "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+        )
+        ensure_index("labeling_sessions", "idx_labeling_sessions_status", "KEY idx_labeling_sessions_status (status)")
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS labeling_session_assignments (
@@ -220,6 +257,46 @@ def ensure_auth_review_schema(db_config: dict[str, Any]) -> None:
                 CONSTRAINT fk_assignment_expert FOREIGN KEY (expert_id) REFERENCES users(id) ON DELETE RESTRICT
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """
+        )
+        ensure_index(
+            "labeling_session_assignments",
+            "idx_assignment_article",
+            "KEY idx_assignment_article (article_id, session_id)",
+        )
+
+        # Reviews and adjudications are linked to the exact labeling session.
+        # Keeping these nullable preserves legacy rows while every new write is
+        # required by the API to provide a session.
+        ensure_column("expert_reviews", "session_id", "BIGINT UNSIGNED NULL AFTER document_id")
+        ensure_index("expert_reviews", "idx_reviews_session", "KEY idx_reviews_session (session_id, document_id, expert_id)")
+        ensure_foreign_key(
+            "expert_reviews",
+            "fk_reviews_session",
+            "FOREIGN KEY (session_id) REFERENCES labeling_sessions(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+        )
+
+        ensure_column("reviewer_adjudications", "session_id", "BIGINT UNSIGNED NULL AFTER document_id")
+        ensure_column("reviewer_adjudications", "expert_review_a_id", "BIGINT UNSIGNED NULL AFTER reviewer_id")
+        ensure_column("reviewer_adjudications", "expert_review_b_id", "BIGINT UNSIGNED NULL AFTER expert_review_a_id")
+        ensure_index(
+            "reviewer_adjudications",
+            "idx_adjudications_session",
+            "KEY idx_adjudications_session (session_id, document_id, id)",
+        )
+        ensure_foreign_key(
+            "reviewer_adjudications",
+            "fk_adjudications_session",
+            "FOREIGN KEY (session_id) REFERENCES labeling_sessions(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+        )
+        ensure_foreign_key(
+            "reviewer_adjudications",
+            "fk_adjudications_review_a",
+            "FOREIGN KEY (expert_review_a_id) REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+        )
+        ensure_foreign_key(
+            "reviewer_adjudications",
+            "fk_adjudications_review_b",
+            "FOREIGN KEY (expert_review_b_id) REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE RESTRICT",
         )
         for column, definition in (
             ("final_labels_json", "LONGTEXT NULL"),

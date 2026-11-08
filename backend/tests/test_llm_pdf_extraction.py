@@ -45,10 +45,10 @@ class _FakeStructuredClient:
 class LLMPDFExtractionTests(unittest.TestCase):
     def test_prompt_loader_reads_versioned_extraction_instruction(self):
         prompt = load_pdf_extraction_prompt()
-        self.assertIn("prompt_version: 1.2", prompt)
+        self.assertIn("prompt_version: 1.5", prompt)
         self.assertIn("không phải tóm tắt", prompt.casefold())
         self.assertIn("heading_block_id", prompt)
-        self.assertIn("không được bỏ heading cha", prompt.casefold())
+        self.assertIn("heading la mã", prompt.casefold())
         self.assertIn("boundary descriptor", prompt.casefold())
         self.assertIn("không trả `content`", prompt.casefold())
         self.assertIn("excluded_metadata_blocks", prompt)

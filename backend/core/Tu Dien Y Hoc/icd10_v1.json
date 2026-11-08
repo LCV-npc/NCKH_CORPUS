@@ -4,7 +4,7 @@
   "kind": "icd10_vietnam",
   "source": {
     "file": "phu-lu-c-1-danh-mu-c-icd-10-thay-the-dmdc-phie-n-ba-n-6.xlsx",
-    "sha256": "5dcceae9006f1131ebdb7eac244a50ab4ff3dfff25bb8a831ae45f489e7194c2",
+    "sha256": "bf643cda9664df1671fc990222df770a632c95ff6167daece54980bbd57669ca",
     "sheet": "ICD10"
   },
   "counts": {

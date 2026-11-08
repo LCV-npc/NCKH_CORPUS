@@ -14,12 +14,6 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
-      // Proxy tới Spring Boot backend (port 8080) nếu cần
-      '/spring': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/spring/, ''),
-      },
     },
   },
 

@@ -6,6 +6,8 @@ import html
 import re
 import unicodedata
 from dataclasses import dataclass
+from difflib import SequenceMatcher
+from collections import defaultdict
 from typing import Any, Optional
 
 from core.ner_dict import (
@@ -15,6 +17,7 @@ from core.ner_dict import (
     load_ner_dictionary,
     normalize_match_text,
     strip_diacritics,
+    term_candidates,
     term_dict,
 )
 
@@ -30,6 +33,9 @@ class Token:
 
 class NEREngine:
     """Longest-match engine. It never rewrites input before computing offsets."""
+
+    def __init__(self) -> None:
+        self._fuzzy_signature_cache: tuple[int, dict[tuple[int, str, str], list[tuple[str, dict[str, Any]]]]] | None = None
 
     def _tokenize(self, text: str) -> list[Token]:
         """Tokenize without splitting Unicode combining marks from a word.
@@ -122,18 +128,129 @@ class NEREngine:
                     "end": char_end,
                     "token_count": size,
                     "icd_code": info["code"],
+                    "concept_id": info.get("concept_id") or info["code"],
+                    "concept_id_source": info.get("concept_id_source", ""),
                     "display_code": info.get("display_code", info["code"]),
                     "icd_label_vn": info["label_vn"],
+                    "canonical_term": info.get("canonical_term", info["label_vn"]),
                     "entity_type": info["cat"],
                     "is_dagger": info.get("is_dagger", False),
                     "is_asterisk": info.get("is_asterisk", False),
                     "qualifier": info.get("qualifier", ""),
                     "matched_by": matched_by,
                     "source": info.get("source", ""),
+                    "confidence": {
+                        "exact": 1.0,
+                        "alias": 0.98,
+                        "clinical_form": 0.97,
+                        "accentless": 0.94,
+                    }.get(matched_by, 0.96),
                     "paired_cause_code": "",
                     "paired_cause_text": "",
                 })
         return candidates
+
+    def _fuzzy_index(self) -> dict[tuple[int, str, str], list[tuple[str, dict[str, Any]]]]:
+        """Build a small deterministic index for review-only fuzzy suggestions."""
+        signature = len(term_candidates)
+        if self._fuzzy_signature_cache and self._fuzzy_signature_cache[0] == signature:
+            return self._fuzzy_signature_cache[1]
+        index: dict[tuple[int, str, str], list[tuple[str, dict[str, Any]]]] = defaultdict(list)
+        for key, values in term_candidates.items():
+            if len(key) < 8:
+                continue
+            words = key.split()
+            for info in values:
+                # Only unique concepts can be suggested automatically. An
+                # ambiguous surface form must remain a reviewer decision.
+                index[(len(words), key[0], key[-1])].append((key, info))
+        self._fuzzy_signature_cache = (signature, index)
+        return index
+
+    def _suggestions(self, text: str, tokens: list[Token]) -> list[dict[str, Any]]:
+        """Return ambiguous/fuzzy candidates without making final labels."""
+        if not tokens:
+            return []
+        suggestions: list[dict[str, Any]] = []
+        seen: set[tuple[int, int, str]] = set()
+        max_words = max((len(key.split()) for key in term_candidates), default=1)
+
+        # Exact but ambiguous dictionary phrases are useful reviewer prompts,
+        # but never become an automatic entity.
+        for start_index in range(len(tokens)):
+            for size in range(min(max_words, len(tokens) - start_index), 0, -1):
+                chunk = tokens[start_index:start_index + size]
+                key = " ".join(token.key for token in chunk)
+                values = term_candidates.get(key)
+                if not values or key in term_dict:
+                    continue
+                char_start, char_end = chunk[0].start, chunk[-1].end
+                identity = (char_start, char_end, "ambiguous")
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                suggestions.append({
+                    "text": text[char_start:char_end],
+                    "start": char_start,
+                    "end": char_end,
+                    "matched_by": "ambiguous",
+                    "confidence": 0.25,
+                    "review_state": "UNCERTAIN",
+                    "candidate_concepts": [
+                        {
+                            "concept_id": info.get("concept_id") or info.get("code"),
+                            "concept_code": info.get("code", ""),
+                            "canonical_term": info.get("canonical_term", info.get("label_vn", "")),
+                            "entity_type": info.get("cat", "Bệnh Lý"),
+                        }
+                        for info in values
+                    ],
+                })
+                break
+
+        # Review-only fuzzy matching. It requires the same number of tokens,
+        # similar boundary characters, a minimum surface length, and a high
+        # ratio. No result from this branch enters HTML highlights.
+        # Avoid turning a large abstract into an O(tokens × dictionary) review
+        # job. Exact matching still runs for large texts; fuzzy discovery can
+        # be requested later from a bounded corpus-review batch.
+        if len(tokens) > 4000:
+            return sorted(suggestions, key=lambda item: (item["start"], item["end"], item["matched_by"]))[:100]
+        index = self._fuzzy_index()
+        for start_index in range(len(tokens)):
+            for size in range(2, min(max_words, len(tokens) - start_index) + 1):
+                chunk = tokens[start_index:start_index + size]
+                key = " ".join(token.key for token in chunk)
+                if len(key) < 8 or key in term_dict or key in term_candidates:
+                    continue
+                bucket = index.get((size, key[0], key[-1]), [])
+                for target_key, info in bucket:
+                    if target_key == key or abs(len(target_key) - len(key)) > max(2, int(len(target_key) * 0.2)):
+                        continue
+                    ratio = SequenceMatcher(None, key, target_key).ratio()
+                    if ratio < 0.92:
+                        continue
+                    char_start, char_end = chunk[0].start, chunk[-1].end
+                    identity = (char_start, char_end, target_key)
+                    if identity in seen:
+                        continue
+                    seen.add(identity)
+                    suggestions.append({
+                        "text": text[char_start:char_end],
+                        "start": char_start,
+                        "end": char_end,
+                        "matched_by": "fuzzy_candidate",
+                        "confidence": round(ratio, 5),
+                        "review_state": "UNCERTAIN",
+                        "candidate_concepts": [{
+                            "concept_id": info.get("concept_id") or info.get("code"),
+                            "concept_code": info.get("code", ""),
+                            "canonical_term": info.get("canonical_term", info.get("label_vn", "")),
+                            "entity_type": info.get("cat", "Bệnh Lý"),
+                        }],
+                    })
+                    break
+        return sorted(suggestions, key=lambda item: (item["start"], item["end"], item["matched_by"]))[:100]
 
     @staticmethod
     def _resolve_overlaps(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -161,8 +278,17 @@ class NEREngine:
         load_ner_dictionary()
         tokens = self._tokenize(text)
         entities = self._resolve_overlaps(self._candidates(text, tokens))
+        suggestions = [
+            suggestion
+            for suggestion in self._suggestions(text, tokens)
+            if not any(
+                suggestion["start"] < entity["end"] and entity["start"] < suggestion["end"]
+                for entity in entities
+            )
+        ]
         return {
             "entities": entities,
+            "suggestions": suggestions,
             "tone_log": [],
             "np_matches": [],
             "preprocessed_text": text,
@@ -190,7 +316,8 @@ def ner_with_fuzzy(
     enable_tone_restore: bool = False,
     enable_noun_phrase: bool = False,
 ) -> dict[str, Any]:
-    # Parameters remain for API compatibility; this pipeline intentionally has no fuzzy/AI stage.
+    # ``threshold`` remains for API compatibility. Fuzzy output is review-only
+    # and is never added to ``entities`` or the persisted highlight HTML.
     del threshold
     return _get_engine().analyze(text, enable_tone_restore, enable_noun_phrase)
 
@@ -217,8 +344,9 @@ def run_ner(
 ):
     if not text:
         return "", [], [], {
-            "engine": "rule_dictionary_v1", "dictionary": dict(dictionary_metadata),
+            "engine": "rule_dictionary_v2", "dictionary": dict(dictionary_metadata),
             "exact_count": 0, "alias_count": 0, "accentless_count": 0,
+            "suggestions": [],
         }
     result = ner_with_fuzzy(text, threshold, enable_tone_restore, enable_noun_phrase)
     entities = result["entities"]
@@ -245,10 +373,14 @@ def run_ner(
             "name": entity["text"],
             "type": entity["entity_type"],
             "code": entity["icd_code"],
+            "concept_id": entity.get("concept_id") or entity["icd_code"],
+            "concept_id_source": entity.get("concept_id_source", ""),
             "display_code": entity.get("display_code", entity["icd_code"]),
             "icd_label_vn": entity["icd_label_vn"],
+            "canonical_term": entity.get("canonical_term", entity["icd_label_vn"]),
             "matched_by": entity["matched_by"],
             "source": entity.get("source", ""),
+            "confidence": entity.get("confidence", 1.0),
             "start": entity["start"],
             "end": entity["end"],
         })
@@ -258,11 +390,12 @@ def run_ner(
         key = f'{entity["matched_by"]}_count'
         counts[key] = counts.get(key, 0) + 1
     preprocessing_log = {
-        "engine": "rule_dictionary_v1",
+        "engine": "rule_dictionary_v2",
         "dictionary": dict(dictionary_metadata),
         "preprocessed_text": text,
         "tone_restore": [],
         "np_count": 0,
+        "suggestions": result.get("suggestions", []),
         **counts,
     }
     return "".join(pieces), concepts, entities, preprocessing_log

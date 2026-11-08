@@ -52,6 +52,16 @@ tmp/
 tmp_pdf*_pages/
 tmp_pdf*.txt
 
+# Local artifact workspaces generated while preparing documents/slides.
+_docx_media/
+_docx_review/
+_docx_unzip/
+_docx_speaking_render/
+_pptx_build/
+_pptx_output/
+.codex-finalizer/
+data/~$*
+
 # =========================
 # OS
 # =========================

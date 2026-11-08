@@ -40,6 +40,18 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
+-- Migration for installations that created the alias table before the
+-- confidence/provenance columns were added.
+-- Run each ALTER only once on an existing database.
+-- ALTER TABLE dictionary_alias_candidates
+--     ADD COLUMN match_method VARCHAR(40) NOT NULL DEFAULT 'grammar_variant' AFTER evidence_json,
+--     ADD COLUMN confidence_score DECIMAL(6,5) NULL AFTER match_method,
+--     ADD COLUMN uncertainty_score DECIMAL(6,5) NULL AFTER confidence_score,
+--     ADD COLUMN occurrence_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER uncertainty_score,
+--     ADD COLUMN document_frequency INT UNSIGNED NOT NULL DEFAULT 0 AFTER occurrence_count,
+--     ADD COLUMN context_json LONGTEXT NULL AFTER document_frequency,
+--     ADD COLUMN dictionary_version VARCHAR(64) NULL AFTER context_json;
+
 
 -- ============================================================
 -- 2. BẢNG KHÁI NIỆM/THỰC THỂ ĐÃ GÁN NHÃN
@@ -53,6 +65,10 @@ CREATE TABLE IF NOT EXISTS extracted_concepts (
     concept_name VARCHAR(500) NOT NULL,
     concept_type VARCHAR(100) NOT NULL,
     concept_code VARCHAR(100) NOT NULL DEFAULT '',
+    concept_id VARCHAR(255) NOT NULL DEFAULT '',
+    match_method VARCHAR(40) NOT NULL DEFAULT 'exact',
+    confidence_score DECIMAL(6,5) NULL,
+    dictionary_version VARCHAR(64) NULL,
     concept_start INT NULL,
     concept_end INT NULL,
 
@@ -70,11 +86,63 @@ CREATE TABLE IF NOT EXISTS extracted_concepts (
     KEY idx_concepts_article_id (article_id),
     KEY idx_concepts_type (concept_type),
     KEY idx_concepts_code (concept_code),
+    KEY idx_concepts_concept_id (concept_id),
+    KEY idx_concepts_match_method (match_method),
     KEY idx_concepts_name (concept_name(191)),
     KEY idx_concepts_top_statistics (
         concept_type,
         concept_name(191)
     )
+)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
+-- Migration for existing extracted_concepts tables:
+-- ALTER TABLE extracted_concepts
+--     ADD COLUMN concept_id VARCHAR(255) NOT NULL DEFAULT '' AFTER concept_code,
+--     ADD COLUMN match_method VARCHAR(40) NOT NULL DEFAULT 'exact' AFTER concept_id,
+--     ADD COLUMN confidence_score DECIMAL(6,5) NULL AFTER match_method,
+--     ADD COLUMN dictionary_version VARCHAR(64) NULL AFTER confidence_score;
+
+
+-- ============================================================
+-- Alias candidates discovered from the corpus.
+-- Run this block manually before using the Dictionary Alias UI.
+-- APPROVED rows are loaded by the NER engine at backend startup;
+-- PENDING_REVIEW rows never affect highlighting.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS dictionary_alias_candidates (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    surface_form VARCHAR(500) NOT NULL,
+    concept_id VARCHAR(100) NOT NULL,
+    canonical_term VARCHAR(500) NOT NULL,
+    concept_code VARCHAR(100) NOT NULL,
+    concept_type VARCHAR(100) NOT NULL,
+    alias_type VARCHAR(40) NOT NULL DEFAULT 'grammar_variant',
+    discovery_source VARCHAR(80) NOT NULL DEFAULT 'corpus',
+    evidence_json LONGTEXT NULL,
+    match_method VARCHAR(40) NOT NULL DEFAULT 'grammar_variant',
+    confidence_score DECIMAL(6,5) NULL,
+    uncertainty_score DECIMAL(6,5) NULL,
+    occurrence_count INT UNSIGNED NOT NULL DEFAULT 0,
+    document_frequency INT UNSIGNED NOT NULL DEFAULT 0,
+    context_json LONGTEXT NULL,
+    dictionary_version VARCHAR(64) NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'PENDING_REVIEW',
+    reviewed_by BIGINT UNSIGNED NULL,
+    reviewed_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_dictionary_alias_surface_code (surface_form(191), concept_code),
+    KEY idx_dictionary_alias_status (status, updated_at),
+    KEY idx_dictionary_alias_concept (concept_id),
+    KEY idx_dictionary_alias_method (match_method, status),
+    KEY idx_dictionary_alias_reviewed_by (reviewed_by)
 )
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
@@ -290,16 +358,57 @@ CREATE TABLE IF NOT EXISTS ai_document_labels (
 )
 ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS labeling_sessions (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    reviewer_id BIGINT UNSIGNED NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'OPEN',
+    created_by BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_labeling_sessions_status (status),
+    KEY idx_labeling_sessions_reviewer (reviewer_id),
+    CONSTRAINT chk_labeling_sessions_status CHECK (status IN ('OPEN', 'CLOSED', 'CANCELLED')),
+    CONSTRAINT fk_labeling_sessions_reviewer FOREIGN KEY (reviewer_id)
+        REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_labeling_sessions_creator FOREIGN KEY (created_by)
+        REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+)
+ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS labeling_session_assignments (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    session_id BIGINT UNSIGNED NOT NULL,
+    article_id INT UNSIGNED NOT NULL,
+    expert_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_session_article_expert (session_id, article_id, expert_id),
+    KEY idx_assignment_expert (expert_id),
+    KEY idx_assignment_article (article_id, session_id),
+    CONSTRAINT fk_assignment_session FOREIGN KEY (session_id)
+        REFERENCES labeling_sessions(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_assignment_article FOREIGN KEY (article_id)
+        REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_assignment_expert FOREIGN KEY (expert_id)
+        REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+)
+ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS expert_reviews (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     document_id INT UNSIGNED NOT NULL,
+    session_id BIGINT UNSIGNED NULL,
     expert_id BIGINT UNSIGNED NOT NULL,
     review_status VARCHAR(32) NOT NULL,
     -- 'icd10' = nhãn từ NER/từ điển (extracted_concepts)
     -- 'ai'    = nhãn từ AI Gemini (ai_document_labels)
-    label_source VARCHAR(10) NOT NULL DEFAULT 'icd10'
+    label_source VARCHAR(16) NOT NULL DEFAULT 'icd10'
         COMMENT 'icd10 = NER dictionary, ai = AI label',
     original_labels_json LONGTEXT NOT NULL,
+    annotations_json LONGTEXT NULL,
     suggested_icd10_code VARCHAR(100) NULL,
     suggested_icd10_label VARCHAR(500) NULL,
     comment TEXT NOT NULL,
@@ -307,10 +416,13 @@ CREATE TABLE IF NOT EXISTS expert_reviews (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_reviews_document (document_id, id),
+    KEY idx_reviews_session (session_id, document_id, expert_id),
     KEY idx_reviews_expert (expert_id, id),
     KEY idx_reviews_status (review_status),
     CONSTRAINT fk_reviews_article FOREIGN KEY (document_id)
         REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_reviews_session FOREIGN KEY (session_id)
+        REFERENCES labeling_sessions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_reviews_expert FOREIGN KEY (expert_id)
         REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT chk_reviews_status CHECK (
@@ -324,24 +436,36 @@ ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- [MIGRATION] Thêm cột label_source vào bảng đã tồn tại (chạy 1 lần):
 -- ALTER TABLE expert_reviews
---     ADD COLUMN label_source VARCHAR(10) NOT NULL DEFAULT 'icd10'
+--     ADD COLUMN label_source VARCHAR(16) NOT NULL DEFAULT 'icd10'
 --     COMMENT 'icd10 = NER dictionary, ai = AI label'
 --     AFTER review_status;
 
 CREATE TABLE IF NOT EXISTS reviewer_adjudications (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     document_id INT UNSIGNED NOT NULL,
+    session_id BIGINT UNSIGNED NULL,
     reviewer_id BIGINT UNSIGNED NOT NULL,
+    expert_review_a_id BIGINT UNSIGNED NULL,
+    expert_review_b_id BIGINT UNSIGNED NULL,
     decision_payload LONGTEXT NOT NULL,
+    final_labels_json LONGTEXT NULL,
+    resolution_status VARCHAR(24) NOT NULL DEFAULT 'CONFLICT',
     note TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_adjudications_document (document_id, id),
+    KEY idx_adjudications_session (session_id, document_id, id),
     KEY idx_adjudications_reviewer (reviewer_id, id),
     CONSTRAINT fk_adjudications_article FOREIGN KEY (document_id)
         REFERENCES articles(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_adjudications_session FOREIGN KEY (session_id)
+        REFERENCES labeling_sessions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_adjudications_reviewer FOREIGN KEY (reviewer_id)
-        REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+        REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_adjudications_review_a FOREIGN KEY (expert_review_a_id)
+        REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_adjudications_review_b FOREIGN KEY (expert_review_b_id)
+        REFERENCES expert_reviews(id) ON UPDATE CASCADE ON DELETE RESTRICT
 )
 ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 

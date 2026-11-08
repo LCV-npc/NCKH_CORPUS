@@ -2,6 +2,7 @@ import html
 import re
 
 from core.ner_engine import run_ner
+from core.ner_dict import load_runtime_aliases, term_candidates, term_dict
 
 
 def entities(text):
@@ -52,3 +53,53 @@ def test_highlight_html_preserves_plain_source_and_escapes_markup():
     assert html.unescape(plain) == text
     assert "&lt;b&gt;" in highlighted and "&amp;" in highlighted
     assert all(text[item["start"]:item["end"]] == item["text"] for item in found)
+
+
+def test_approved_runtime_alias_maps_to_same_icd_concept():
+    alias = "Rối loạn trương lực cơ khác của trẻ sơ sinh"
+    load_runtime_aliases([
+        {
+            "surface_form": alias,
+            "concept_id": "P948",
+            "canonical_term": "Các rối loạn trương lực cơ khác của trẻ sơ sinh",
+            "concept_code": "P948",
+            "alias_type": "grammar_variant",
+        }
+    ])
+    try:
+        found = entities(f"Có {alias}.")
+        assert any(
+            item["text"] == alias
+            and item["icd_code"] == "P948"
+            and item["matched_by"] == "grammar_variant"
+            for item in found
+        )
+    finally:
+        load_runtime_aliases([])
+
+
+def test_confirmed_entity_exposes_stable_concept_id():
+    found = entities("Bệnh lý tăng huyết áp.")
+    match = next(item for item in found if item["icd_code"] == "I10")
+    assert match["concept_id"] == "ICD10:I10:base"
+    assert match["concept_id_source"] == "ICD10"
+    assert match["confidence"] == 1.0
+
+
+def test_fuzzy_candidate_is_review_only_and_never_highlighted():
+    highlighted, _, found, log = run_ner("Bệnh tim do tăng huyet áp.")
+    assert found == []
+    assert "<mark" not in highlighted
+    assert any(item["matched_by"] == "fuzzy_candidate" for item in log["suggestions"])
+    assert all(item["review_state"] == "UNCERTAIN" for item in log["suggestions"])
+
+
+def test_ambiguous_surface_form_is_not_auto_labeled():
+    key = next(
+        key
+        for key, values in term_candidates.items()
+        if key not in term_dict and len(key.split()) >= 2 and len(values) > 1
+    )
+    _, _, found, log = run_ner(key)
+    assert found == []
+    assert any(item["matched_by"] == "ambiguous" for item in log["suggestions"])

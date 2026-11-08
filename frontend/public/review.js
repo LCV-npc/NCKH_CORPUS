@@ -1,9 +1,12 @@
 /* Corpus review workspace. Data is always loaded from authenticated APIs. */
 
 const REVIEW_STATUS_TEXT = {
-  CORRECT: "Correct",
-  INCORRECT: "Incorrect",
-  NEEDS_REVISION: "Needs Revision",
+  CORRECT: "Đúng",
+  INCORRECT: "Sai",
+  NEEDS_REVISION: "Cần chỉnh sửa",
+  PENDING: "Chờ Expert",
+  CONFLICT: "Cần phân xử",
+  RESOLVED: "Đã chốt",
 };
 
 let reviewActiveView = "dashboard";
@@ -73,9 +76,9 @@ function initializeReviewerWorkspace() {
   const nav = document.querySelector(".sidebar-nav");
   nav.innerHTML = `
     <div class="nav-section-label">Reviewer</div>
-    <a class="nav-item" data-review-view="reviewer-dashboard" onclick="showReviewerView('dashboard')"><span class="nav-label">Dashboard</span></a>
-    <a class="nav-item" data-review-view="reviewer-reviews" onclick="showReviewerView('reviews')"><span class="nav-label">Review Dashboard</span></a>
-    <a class="nav-item" data-screen="ai-evaluation" onclick="switchScreen('ai-evaluation')"><span class="nav-label">AI Evaluation</span></a>
+    <button class="nav-item" type="button" data-review-view="reviewer-dashboard" onclick="showReviewerView('dashboard')"><span class="nav-label">Tổng quan</span></button>
+    <button class="nav-item" type="button" data-review-view="reviewer-reviews" onclick="showReviewerView('reviews')"><span class="nav-label">Các case được giao</span></button>
+    <button class="nav-item" type="button" data-screen="ai-evaluation" onclick="switchScreen('ai-evaluation')"><span class="nav-label">Đánh giá AI</span></button>
   `;
   window.addEventListener("popstate", () => {
     const documentId = reviewerReviewIdFromPath(location.pathname);
@@ -113,20 +116,20 @@ function showReviewerView(view, push = true) {
 }
 
 async function renderReviewerDashboard(screen) {
-  setReviewHeader("Reviewer Dashboard", "Overview of expert review results");
-  screen.innerHTML = '<div class="review-workspace review-loading">Loading dashboard...</div>';
+  setReviewHeader("Tổng quan Reviewer", "Tiến độ các phiên được phân công");
+  screen.innerHTML = '<div class="review-workspace review-loading">Đang tải tổng quan...</div>';
   try {
     const stats = await reviewRequest("/reviewer/dashboard");
     screen.innerHTML = `<div class="review-workspace">
       <div class="review-kpis">
-        ${reviewKpi("Total Reviews", stats.totalReviews)}
-        ${reviewKpi("Active Experts", stats.activeExperts)}
-        ${reviewKpi("Reviewed Documents", stats.reviewedDocuments)}
-        ${reviewKpi("Correct", stats.correctReviews)}
-        ${reviewKpi("Incorrect", stats.incorrectReviews)}
-        ${reviewKpi("Needs Revision", stats.needsRevision)}
+        ${reviewKpi("Phiên đang mở", stats.activeSessions)}
+        ${reviewKpi("Tài liệu được giao", stats.reviewedDocuments)}
+        ${reviewKpi("Review đã nộp", `${stats.totalReviews}/${stats.expectedReviews}`)}
+        ${reviewKpi("Review còn thiếu", stats.pendingReviews)}
+        ${reviewKpi("Case đã chốt", stats.resolvedDocuments)}
+        ${reviewKpi("Case còn mâu thuẫn", stats.conflictDocuments)}
       </div>
-      <div class="review-panel"><h3>Review Dashboard</h3><p>Reviewers can monitor expert assessments and review outcomes across the system.</p></div>
+      <div class="review-panel"><h3>Quy trình phân xử</h3><p>Mỗi case chỉ mở phân xử sau khi hai Expert khác nhau đã nộp review trong đúng phiên được giao.</p></div>
     </div>`;
   } catch (error) {
     screen.innerHTML = `<div class="review-workspace review-error">Unable to load dashboard: ${reviewEscape(error.message)}</div>`;
@@ -134,35 +137,35 @@ async function renderReviewerDashboard(screen) {
 }
 
 async function renderReviewerReviews(screen) {
-  setReviewHeader("Review Dashboard", "Review results submitted by experts");
+  setReviewHeader("Các case được giao", "Theo dõi đủ hai review và chốt nhãn cuối");
   screen.innerHTML = `<div class="review-workspace"><div class="review-panel">
-    <div class="review-filter"><input id="reviewerQuery" placeholder="Search articles or experts"><select id="reviewerStatus"><option value="">All statuses</option><option value="CORRECT">Correct</option><option value="INCORRECT">Incorrect</option><option value="NEEDS_REVISION">Needs Revision</option></select><button class="review-action" onclick="loadReviewerReviews()">Search</button></div>
-    <div id="reviewerReviewsArea" class="review-loading">Loading results...</div>
+    <div class="review-filter"><input id="reviewerQuery" placeholder="Tìm tài liệu, phiên hoặc Expert"><select id="reviewerStatus"><option value="">Tất cả trạng thái</option><option value="PENDING">Chờ Expert</option><option value="CONFLICT">Cần phân xử</option><option value="RESOLVED">Đã chốt</option></select><button class="review-action" onclick="loadReviewerReviews()">Tìm</button></div>
+    <div id="reviewerReviewsArea" class="review-loading">Đang tải case...</div>
   </div></div>`;
   await loadReviewerReviews();
 }
 
-async function loadReviewerReviews() {
+async function loadReviewerReviews(page = 1) {
   const area = document.getElementById("reviewerReviewsArea");
   if (!area) return;
-  area.innerHTML = '<div class="review-loading">Loading results...</div>';
+  area.innerHTML = '<div class="review-loading">Đang tải case...</div>';
   try {
-    const params = new URLSearchParams({ page_size: "100" });
+    const params = new URLSearchParams({ page: String(page), page_size: "30" });
     const q = document.getElementById("reviewerQuery")?.value.trim() || "";
     const status = document.getElementById("reviewerStatus")?.value || "";
     if (q) params.set("q", q);
     if (status) params.set("review_status", status);
     const data = await reviewRequest(`/reviewer/reviews?${params}`);
     const rows = (data.items || []).map(item => `<tr>
-      <td>${Number(item.id)}</td><td class="document-cell">${reviewEscape(item.document_title)}<div class="muted">#${Number(item.document_id)}</div></td>
-      <td>${reviewEscape(item.expert_name)}<div class="muted">${reviewEscape(item.expert_email)}</div></td>
-      <td>${statusBadge(item.review_status)}</td><td>${reviewEscape([item.suggested_icd10_code, item.suggested_icd10_label].filter(Boolean).join(" - ") || "—")}</td>
-      <td>${reviewEscape(item.comment)}</td><td>${reviewDate(item.created_at)}</td>
-      <td><button class="review-action" onclick="openReviewerReviewDocument(${Number(item.document_id)})">Xem</button></td>
+      <td>#${Number(item.session_id)}<div class="muted">${reviewEscape(item.session_name)}</div></td>
+      <td class="document-cell">${reviewEscape(item.document_title)}<div class="muted">#${Number(item.document_id)}</div></td>
+      <td>${reviewEscape(item.expert_names || "Chưa có review")}<div class="muted">${Number(item.expert_count || 0)}/2 Expert</div></td>
+      <td>${statusBadge(item.case_status)}</td><td>${reviewDate(item.updated_at)}</td>
+      <td><button class="review-action" ${item.case_status === "PENDING" ? "disabled" : ""} onclick="openReviewerReviewDocument(${Number(item.document_id)})">${item.case_status === "RESOLVED" ? "Xem kết quả" : "Phân xử"}</button></td>
     </tr>`).join("");
     area.innerHTML = rows
-      ? `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>ID</th><th>Document</th><th>Expert</th><th>Result</th><th>Suggested Code</th><th>Comment</th><th>Date</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
-      : '<div class="review-empty">No review results.</div>';
+      ? `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>Phiên</th><th>Tài liệu</th><th>Expert đã nộp</th><th>Trạng thái</th><th>Cập nhật</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>${renderPager(data, "loadReviewerReviews(__PAGE__)")}`
+      : '<div class="review-empty">Không có case phù hợp.</div>';
   } catch (error) {
     area.innerHTML = `<div class="review-error">Unable to load reviews: ${reviewEscape(error.message)}</div>`;
   }
@@ -173,12 +176,12 @@ function initializeExpertWorkspace() {
   nav.innerHTML = `
     <div class="nav-section-label">Chuyên gia</div>
     <button class="nav-collapse-toggle" type="button" onclick="toggleDocumentSidebar()" title="Thu gọn/mở rộng thanh tài liệu">⇔ Tài liệu</button>
-    <a class="nav-item" data-review-view="dashboard" onclick="showExpertView('dashboard')"><span class="nav-label">Dashboard</span></a>
-    <a class="nav-item" data-review-view="icd10" onclick="showExpertView('icd10')"><span class="nav-label">ICD-10 Labeled</span></a>
-    <a class="nav-item" data-review-view="ai-labeled" onclick="showExpertView('ai-labeled')"><span class="nav-label">AI Labeled</span></a>
-    <a class="nav-item" data-review-view="reviewed" onclick="showExpertView('reviewed')"><span class="nav-label">Reviewed</span></a>
-    <a class="nav-item" data-screen="ai-evaluation" onclick="switchScreen('ai-evaluation')"><span class="nav-label">Đánh giá AI</span></a>
-    <a class="nav-item" onclick="logoutCurrentUser()"><span class="nav-label">Logout</span></a>
+    <button class="nav-item" type="button" data-review-view="dashboard" onclick="showExpertView('dashboard')"><span class="nav-label">Dashboard</span></button>
+    <button class="nav-item" type="button" data-review-view="icd10" onclick="showExpertView('icd10')"><span class="nav-label">ICD-10 Labeled</span></button>
+    <button class="nav-item" type="button" data-review-view="ai-labeled" onclick="showExpertView('ai-labeled')"><span class="nav-label">AI Labeled</span></button>
+    <button class="nav-item" type="button" data-review-view="reviewed" onclick="showExpertView('reviewed')"><span class="nav-label">Reviewed</span></button>
+    <button class="nav-item" type="button" data-screen="ai-evaluation" onclick="switchScreen('ai-evaluation')"><span class="nav-label">Đánh giá AI</span></button>
+    <button class="nav-item" type="button" onclick="logoutCurrentUser()"><span class="nav-label">Logout</span></button>
   `;
   window.addEventListener("popstate", () => {
     const documentId = expertReviewIdFromPath(location.pathname);
@@ -231,6 +234,7 @@ async function renderExpertDashboard(screen) {
     const stats = await reviewRequest("/expert/dashboard");
     screen.innerHTML = `<div class="review-workspace">
       <div class="review-kpis">
+        ${reviewKpi("Phiên đang mở", stats.activeSessions)}
         ${reviewKpi("ICD-10 Labeled Documents", stats.icd10LabeledDocuments)}
         ${reviewKpi("AI Labeled Documents", stats.aiLabeledDocuments)}
         ${reviewKpi("Reviewed", stats.reviewed)}
@@ -244,7 +248,9 @@ async function renderExpertDashboard(screen) {
 }
 
 function reviewKpi(label, value) {
-  return `<article class="review-kpi"><div class="review-kpi-label">${reviewEscape(label)}</div><div class="review-kpi-value">${Number(value || 0).toLocaleString("vi-VN")}</div></article>`;
+  const numeric = typeof value === "number" || /^\d+$/.test(String(value ?? ""));
+  const display = numeric ? Number(value || 0).toLocaleString("vi-VN") : String(value ?? "0");
+  return `<article class="review-kpi"><div class="review-kpi-label">${reviewEscape(label)}</div><div class="review-kpi-value">${reviewEscape(display)}</div></article>`;
 }
 
 function listEndpoint(view) {
@@ -302,9 +308,9 @@ function renderDocumentTable(data, view) {
       ? `<td>${reviewEscape(item.icd10_codes || "—")}</td><td>${reviewEscape(item.icd10_labels || "—")}</td>`
       : `<td>${reviewEscape([item.primary_icd10_code, item.primary_icd10_label].filter(Boolean).join(" - ") || "AI entities saved (no ICD-10 code)")}</td><td>${item.confidence == null ? "Không có dữ liệu" : `${Math.round(Number(item.confidence) * 100)}%`}</td>`;
     const src = view === "icd10" ? "icd10" : "ai";
-    return `<tr><td>${item.id}</td><td class="document-cell">${reviewEscape(item.title || "Không có tiêu đề")}<div class="muted">${reviewEscape(item.authors || "")}</div></td>${middle}<td>${statusBadge(item.reviewStatus)}</td><td><button class="review-action" onclick="openExpertReview(${Number(item.id)}, true, '${src}')">Review</button></td></tr>`;
+    return `<tr><td>${item.id}</td><td class="document-cell">${reviewEscape(item.title || "Không có tiêu đề")}<div class="muted">${reviewEscape(item.authors || "")}</div></td><td>#${Number(item.session_id)}<div class="muted">${reviewEscape(item.session_name || "")}</div></td>${middle}<td>${statusBadge(item.reviewStatus)}</td><td><button class="review-action" onclick="openExpertReview(${Number(item.id)}, true, '${src}')">Review</button></td></tr>`;
   }).join("");
-  return `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>ID</th><th>Document</th>${heading}<th>Review Status</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>${renderPager(data, `loadExpertDocumentPage('${view}', __PAGE__)`)}`;
+  return `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>ID</th><th>Document</th><th>Phiên</th>${heading}<th>Review Status</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>${renderPager(data, `loadExpertDocumentPage('${view}', __PAGE__)`)}`;
 }
 
 function renderPager(data, callback) {
@@ -835,7 +841,7 @@ function initializeAdminReviewLinks() {
   if (document.getElementById("adminReviewNav")) return;
   const extra = document.createElement("div");
   extra.id = "adminReviewNav";
-  extra.innerHTML = `<div class="nav-section-label" style="margin-top:12px">Review Administration</div><a class="nav-item" onclick="showAdminReviewView('sessions')"><span class="nav-label">Labeling Sessions</span></a><a class="nav-item" onclick="showAdminReviewView('reviews')"><span class="nav-label">Expert Reviews</span></a><a class="nav-item" onclick="showAdminReviewView('users')"><span class="nav-label">Expert Accounts</span></a><a class="nav-item" onclick="showAdminReviewView('reviewers')"><span class="nav-label">Reviewer Accounts</span></a>`;
+  extra.innerHTML = `<div class="nav-section-label admin-review-heading">Quản trị review</div><button class="nav-item" type="button" onclick="showAdminReviewView('sessions')"><span class="nav-label">Phiên gán nhãn</span></button><button class="nav-item" type="button" onclick="showAdminReviewView('reviews')"><span class="nav-label">Review của Expert</span></button><button class="nav-item" type="button" onclick="showAdminReviewView('aliases')"><span class="nav-label">Alias từ điển</span></button><button class="nav-item" type="button" onclick="showAdminReviewView('users')"><span class="nav-label">Tài khoản Expert</span></button><button class="nav-item" type="button" onclick="showAdminReviewView('reviewers')"><span class="nav-label">Tài khoản Reviewer</span></button>`;
   nav.appendChild(extra);
 }
 
@@ -847,6 +853,7 @@ async function showAdminReviewView(view) {
   const screen = ensureReviewScreen("screen-admin-review-workspace");
   screen.classList.add("active");
   if (view === "sessions") return renderLabelingSessionPage(screen);
+  if (view === "aliases") return renderAliasCandidatePage(screen);
   setReviewHeader(
     view === "reviews" ? "Expert Reviews" : view === "reviewers" ? "Tài khoản Reviewer" : "Tài khoản chuyên gia",
     view === "reviews" ? "Quản trị dữ liệu review" : view === "reviewers" ? "Cấp tài khoản xem kết quả review" : "Cấp và quản lý tài khoản dành cho chuyên gia",
@@ -860,8 +867,8 @@ async function showAdminReviewView(view) {
     );
     const rows = (data.items || []).map(item => view === "reviews"
       ? `<tr><td class="document-cell">${reviewEscape(item.document_title)}</td><td>${reviewEscape(item.expert_name)}</td><td>${statusBadge(item.review_status)}</td><td>${reviewEscape([item.suggested_icd10_code, item.suggested_icd10_label].filter(Boolean).join(" - ") || "—")}</td><td>${reviewEscape(item.comment)}</td><td>${reviewDate(item.created_at)}</td><td><button class="review-action" onclick="openAdminReviewDocument(${Number(item.document_id)})">View</button></td></tr>`
-      : `<tr><td class="account-id">#${item.id}</td><td class="account-name">${reviewEscape(item.name)}</td><td>${reviewEscape(item.email)}</td><td>${userRoleBadge(item.role)}</td><td>${accountStatusBadge(item.is_active)}</td><td>${Number(item.review_count) || 0}</td><td>${reviewDate(item.created_at)}</td></tr>`).join("");
-    const headings = view === "reviews" ? "<th>Document</th><th>Expert</th><th>Review</th><th>Suggested Label</th><th>Comment</th><th>Date</th><th>Action</th>" : "<th>ID</th><th>Họ và tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Lượt review</th><th>Ngày tạo</th>";
+      : `<tr><td class="account-id">#${item.id}</td><td class="account-name">${reviewEscape(item.name)}</td><td>${reviewEscape(item.email)}</td><td>${userRoleBadge(item.role)}</td><td>${accountStatusBadge(item.is_active)}</td><td>${Number(item.review_count) || 0}</td><td>${reviewDate(item.created_at)}</td><td class="account-actions"><button class="review-action" onclick="toggleAdminUserStatus(${Number(item.id)}, ${item.is_active ? "false" : "true"}, '${view}')">${item.is_active ? "Khóa" : "Mở khóa"}</button><button class="review-action" onclick="resetAdminUserPassword(${Number(item.id)})">Đặt lại mật khẩu</button></td></tr>`).join("");
+    const headings = view === "reviews" ? "<th>Document</th><th>Expert</th><th>Review</th><th>Suggested Label</th><th>Comment</th><th>Date</th><th>Action</th>" : "<th>ID</th><th>Họ và tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Lượt review</th><th>Ngày tạo</th><th>Thao tác</th>";
     const table = rows ? `<div class="review-table-wrap"><table class="review-table"><thead><tr>${headings}</tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="review-empty">No data available.</div>';
     const area = document.getElementById("adminReviewArea");
     area.innerHTML = view === "users" || view === "reviewers"
@@ -870,16 +877,81 @@ async function showAdminReviewView(view) {
   } catch (error) { document.getElementById("adminReviewArea").innerHTML = `<div class="review-error">Unable to load: ${reviewEscape(error.message)}</div>`; }
 }
 
-async function renderLabelingSessionPage(screen) {
-  setReviewHeader("Labeling Sessions", "Assign documents to two experts and one reviewer");
-  screen.innerHTML = '<div class="review-workspace review-loading">Loading assignment options...</div>';
+async function renderAliasCandidatePage(screen) {
+  setReviewHeader("Alias từ điển", "Phát hiện và duyệt biến thể thuật ngữ có kiểm soát");
+  screen.innerHTML = `<div class="review-workspace"><div id="aliasCandidateArea" class="review-loading">Đang tải alias candidate...</div></div>`;
+  await loadAliasCandidates();
+}
+
+async function loadAliasCandidates() {
+  const area = document.getElementById("aliasCandidateArea");
+  if (!area) return;
+  area.innerHTML = '<div class="review-loading">Đang tải alias candidate...</div>';
   try {
-    const data = await reviewRequest("/admin/labeling-options");
+    const data = await reviewRequest("/dictionary/alias-candidates?status=PENDING_REVIEW");
+    const rows = (data.items || []).map(item => {
+      const evidence = (item.evidence || []).map(entry => `#${Number(entry.article_id)}: ${reviewEscape(entry.context || entry.text || "")}`).join("<br>") || "—";
+      const confidence = Number(item.confidence_score);
+      const confidenceText = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : "—";
+      const metrics = item.metrics || {};
+      const stats = `${Number(item.occurrence_count || 0)} lần / ${Number(item.document_frequency || 0)} bài`;
+      return `<tr><td>${reviewEscape(item.surface_form)}</td><td>${reviewEscape(item.canonical_term)}</td><td>${reviewEscape(item.concept_id || "—")}<br><small>${reviewEscape(item.concept_code || "")}</small></td><td>${reviewEscape(item.match_method || item.alias_type || "grammar_variant")}</td><td>${confidenceText}<br><small>${stats}</small></td><td>${evidence}<br><small>priority: ${reviewEscape(metrics.priority_score ?? "—")}</small></td><td><button class="review-action" onclick="approveAliasCandidate(${Number(item.id)})">Approve</button><button class="review-action danger-action" onclick="rejectAliasCandidate(${Number(item.id)})">Reject</button></td></tr>`;
+    }).join("");
+    area.innerHTML = `<div class="review-panel"><div class="admin-card-header"><div><h3>Alias đang chờ duyệt</h3><p>Alias được approve mới được dùng để highlight. Candidate chỉ là đề xuất, chưa thay đổi NER.</p></div><button class="review-save" type="button" onclick="discoverAliasCandidates()">Quét candidate mới</button></div>${rows ? `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>Candidate</th><th>Canonical term</th><th>Concept</th><th>Loại</th><th>Confidence</th><th>Bằng chứng</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="review-empty">Chưa có alias candidate. Bấm “Quét candidate mới” để bắt đầu.</div>'}</div>`;
+  } catch (error) {
+    area.innerHTML = `<div class="review-error">Không thể tải alias candidate: ${reviewEscape(error.message)}</div>`;
+  }
+}
+
+async function discoverAliasCandidates() {
+  try {
+    const result = await reviewRequest("/dictionary/alias-candidates/discover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ limit: 1000 }),
+    });
+    if (typeof showToast === "function") showToast(`Đã quét ${Number(result.discovered || 0)} candidate.`, "success");
+    await loadAliasCandidates();
+  } catch (error) {
+    if (typeof showToast === "function") showToast(error.message, "error");
+  }
+}
+
+async function approveAliasCandidate(candidateId) {
+  if (!window.confirm("Duyệt alias này vào dictionary?")) return;
+  try {
+    await reviewRequest(`/dictionary/alias-candidates/${candidateId}/approve`, { method: "POST" });
+    if (typeof showToast === "function") showToast("Đã approve alias và reload NER dictionary.", "success");
+    await loadAliasCandidates();
+  } catch (error) {
+    if (typeof showToast === "function") showToast(error.message, "error");
+  }
+}
+
+async function rejectAliasCandidate(candidateId) {
+  if (!window.confirm("Từ chối alias candidate này?")) return;
+  try {
+    await reviewRequest(`/dictionary/alias-candidates/${candidateId}/reject`, { method: "POST" });
+    if (typeof showToast === "function") showToast("Đã từ chối alias candidate.", "success");
+    await loadAliasCandidates();
+  } catch (error) {
+    if (typeof showToast === "function") showToast(error.message, "error");
+  }
+}
+
+async function renderLabelingSessionPage(screen) {
+  setReviewHeader("Phiên gán nhãn", "Phân công hai Expert và một Reviewer cho mỗi tài liệu");
+  screen.innerHTML = '<div class="review-workspace review-loading">Đang tải dữ liệu phân công...</div>';
+  try {
+    const [data, sessions] = await Promise.all([
+      reviewRequest("/admin/labeling-options"),
+      reviewRequest("/admin/labeling-sessions?page_size=50"),
+    ]);
     window.labelingSessionData = data;
     const articleRows = renderSessionArticles(data.articles || []);
     const expertRows = renderSessionExperts(data.experts || []);
     const reviewerOptions = (data.reviewers || []).map(user => `<option value="${Number(user.id)}">${reviewEscape(user.name)} · ${reviewEscape(user.email)}</option>`).join("");
-    screen.innerHTML = `<div class="review-workspace"><section class="review-panel session-card"><div class="session-card-heading"><h2>Create Labeling Session</h2><p class="muted">Assign documents to two experts and one reviewer.</p></div><form id="labelingSessionForm" class="review-form session-form"><div class="session-form-grid"><div class="session-left"><label class="session-field">Session name <span class="required">*</span><input id="sessionName" maxlength="255" placeholder="Medical NER batch 01" aria-required="true"><small class="field-error" id="sessionNameError"></small></label><label class="session-field">Description<textarea id="sessionDescription" maxlength="4000" placeholder="Optional instructions"></textarea></label><div class="session-field"><div class="field-heading"><span>Documents <span class="required">*</span></span><span id="documentCount" class="selection-count">0 selected</span></div><div class="session-toolbar"><input id="documentSearch" type="search" placeholder="Search by title or ID" aria-label="Search documents"><button type="button" class="review-action" onclick="toggleAllSessionDocuments(true)">Select all</button><button type="button" class="review-action" onclick="toggleAllSessionDocuments(false)">Clear</button></div><div id="sessionDocuments" class="checkbox-list" role="group" aria-label="Documents">${articleRows}</div><small class="field-error" id="documentsError"></small></div></div><div class="session-right"><div class="session-field"><div class="field-heading"><span>Experts <span class="required">*</span></span><span class="muted selection-help">Select exactly two</span><span id="expertCount" class="selection-count">0/2 selected</span></div><div id="sessionExperts" class="checkbox-list experts-list" role="group" aria-label="Experts">${expertRows}</div><small class="field-error" id="expertsError"></small></div><label class="session-field">Reviewer <span class="required">*</span><select id="sessionReviewer" aria-required="true"><option value="">Select reviewer</option>${reviewerOptions}</select><small class="field-error" id="reviewerError"></small></label><div class="session-summary" id="sessionSummary">0 documents · 0 experts · 0 reviewers</div></div></div><div class="session-actions"><label class="email-toggle"><input id="sendAssignmentEmail" type="checkbox" checked> Send email notifications to experts</label><span id="sessionMessage" class="session-message"></span><button class="review-save" type="submit">Create session</button></div></form></section></div>`;
+    screen.innerHTML = `<div class="review-workspace"><section class="review-panel session-card"><div class="session-card-heading"><h2>Tạo phiên gán nhãn</h2><p class="muted">Mỗi tài liệu chỉ thuộc một phiên đang mở.</p></div><form id="labelingSessionForm" class="review-form session-form"><div class="session-form-grid"><div class="session-left"><label class="session-field">Tên phiên <span class="required">*</span><input id="sessionName" maxlength="255" placeholder="Đợt gán nhãn y khoa 01" aria-required="true"><small class="field-error" id="sessionNameError"></small></label><label class="session-field">Mô tả<textarea id="sessionDescription" maxlength="4000" placeholder="Hướng dẫn hoặc phạm vi của phiên"></textarea></label><div class="session-field"><div class="field-heading"><span>Tài liệu <span class="required">*</span></span><span id="documentCount" class="selection-count">0 đã chọn</span></div><div class="session-toolbar"><input id="documentSearch" type="search" placeholder="Tìm theo tiêu đề hoặc ID" aria-label="Tìm tài liệu"><button type="button" class="review-action" onclick="toggleAllSessionDocuments(true)">Chọn tất cả</button><button type="button" class="review-action" onclick="toggleAllSessionDocuments(false)">Bỏ chọn</button></div><div id="sessionDocuments" class="checkbox-list" role="group" aria-label="Tài liệu">${articleRows}</div><small class="field-error" id="documentsError"></small></div></div><div class="session-right"><div class="session-field"><div class="field-heading"><span>Expert <span class="required">*</span></span><span class="muted selection-help">Chọn đúng hai người</span><span id="expertCount" class="selection-count">0/2 đã chọn</span></div><div id="sessionExperts" class="checkbox-list experts-list" role="group" aria-label="Expert">${expertRows}</div><small class="field-error" id="expertsError"></small></div><label class="session-field">Reviewer <span class="required">*</span><select id="sessionReviewer" aria-required="true"><option value="">Chọn Reviewer</option>${reviewerOptions}</select><small class="field-error" id="reviewerError"></small></label><div class="session-summary" id="sessionSummary">0 tài liệu · 0 Expert · 0 Reviewer</div></div></div><div class="session-actions"><label class="email-toggle"><input id="sendAssignmentEmail" type="checkbox" checked> Gửi email cho hai Expert</label><span id="sessionMessage" class="session-message" role="status"></span><button class="review-save" type="submit">Tạo phiên</button></div></form></section><section class="review-panel session-list-card"><div class="admin-card-header"><div><h3>Các phiên gần đây</h3><p>Tiến độ review và phân xử được tính trong đúng phiên.</p></div></div>${renderLabelingSessionList(sessions)}</section></div>`;
     document.getElementById("labelingSessionForm").onsubmit = submitLabelingSession;
     document.getElementById("documentSearch").oninput = event => filterSessionDocuments(event.target.value);
     document.getElementById("sessionDocuments").onchange = updateSessionControls;
@@ -892,7 +964,35 @@ async function renderLabelingSessionPage(screen) {
 }
 
 function renderSessionArticles(articles) {
-  return articles.map(article => { const assigned = Number(article.assigned_sessions || 0) > 0; return `<label class="checkbox-row document-row" data-search="${reviewEscape(`#${article.id} ${article.title || ""}`.toLowerCase())}"><input type="checkbox" name="sessionArticle" value="${Number(article.id)}"><span class="checkbox-copy" title="${reviewEscape(article.title || "Untitled")}"><strong>#${Number(article.id)}</strong> ${reviewEscape(article.title || "Untitled")}</span><span class="assignment-status ${assigned ? "assigned" : "available"}">${assigned ? "Assigned" : "Available"}</span></label>`; }).join("") || '<div class="session-empty">No documents available.</div>';
+  return articles.map(article => { const assigned = Number(article.assigned_sessions || 0) > 0; return `<label class="checkbox-row document-row" data-search="${reviewEscape(`#${article.id} ${article.title || ""}`.toLowerCase())}"><input type="checkbox" name="sessionArticle" value="${Number(article.id)}" ${assigned ? "disabled" : ""}><span class="checkbox-copy" title="${reviewEscape(article.title || "Không có tiêu đề")}"><strong>#${Number(article.id)}</strong> ${reviewEscape(article.title || "Không có tiêu đề")}</span><span class="assignment-status ${assigned ? "assigned" : "available"}">${assigned ? "Đang được giao" : "Sẵn sàng"}</span></label>`; }).join("") || '<div class="session-empty">Không có tài liệu.</div>';
+}
+
+function renderLabelingSessionList(data) {
+  const rows = (data.items || []).map(item => {
+    const expected = Number(item.expectedReviews || 0);
+    const submitted = Number(item.submitted_reviews || 0);
+    const action = item.status === "OPEN"
+      ? `<button class="review-action" onclick="updateLabelingSessionStatus(${Number(item.id)}, 'CLOSED')">Đóng phiên</button><button class="review-action danger-action" onclick="updateLabelingSessionStatus(${Number(item.id)}, 'CANCELLED')">Hủy</button>`
+      : "—";
+    return `<tr><td>#${Number(item.id)}<div class="muted">${reviewEscape(item.name)}</div></td><td>${statusBadge(item.status)}</td><td>${Number(item.document_count || 0)}</td><td>${submitted}/${expected}</td><td>${Number(item.resolved_documents || 0)}/${Number(item.document_count || 0)}</td><td>${reviewEscape(item.reviewer_name || "—")}</td><td>${reviewDate(item.updated_at || item.created_at)}</td><td class="session-row-actions">${action}</td></tr>`;
+  }).join("");
+  return rows ? `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>Phiên</th><th>Trạng thái</th><th>Tài liệu</th><th>Review</th><th>Đã chốt</th><th>Reviewer</th><th>Cập nhật</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="review-empty">Chưa có phiên gán nhãn.</div>';
+}
+
+async function updateLabelingSessionStatus(sessionId, status) {
+  const label = status === "CANCELLED" ? "hủy" : "đóng";
+  if (!window.confirm(`Xác nhận ${label} phiên #${sessionId}?`)) return;
+  try {
+    await reviewRequest(`/admin/labeling-sessions/${sessionId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (typeof showToast === "function") showToast("Đã cập nhật trạng thái phiên.", "success");
+    await showAdminReviewView("sessions");
+  } catch (error) {
+    if (typeof showToast === "function") showToast(error.message, "error");
+  }
 }
 
 function renderSessionExperts(experts) {
@@ -905,20 +1005,20 @@ function filterSessionDocuments(query) {
 }
 
 function toggleAllSessionDocuments(checked) {
-  document.querySelectorAll("#sessionDocuments input[name=sessionArticle]").forEach(input => { if (!input.closest(".document-row").hidden) input.checked = checked; });
+  document.querySelectorAll("#sessionDocuments input[name=sessionArticle]:not(:disabled)").forEach(input => { if (!input.closest(".document-row").hidden) input.checked = checked; });
   updateSessionControls();
 }
 
 function updateSessionControls() {
   const articles = [...document.querySelectorAll("#sessionDocuments input:checked")];
   const experts = [...document.querySelectorAll("#sessionExperts input:checked")];
-  document.getElementById("documentCount").textContent = `${articles.length} selected`;
-  document.getElementById("expertCount").textContent = `${experts.length}/2 selected`;
+  document.getElementById("documentCount").textContent = `${articles.length} đã chọn`;
+  document.getElementById("expertCount").textContent = `${experts.length}/2 đã chọn`;
   document.querySelectorAll("#sessionExperts input:not(:checked)").forEach(input => { input.disabled = experts.length >= 2; });
   const reviewer = document.getElementById("sessionReviewer");
   [...reviewer.options].forEach(option => { option.disabled = experts.some(expert => expert.value === option.value); });
   if (reviewer.selectedOptions[0]?.disabled) reviewer.value = "";
-  document.getElementById("sessionSummary").textContent = `${articles.length} documents · ${experts.length} experts · ${reviewer.value ? 1 : 0} reviewer`;
+  document.getElementById("sessionSummary").textContent = `${articles.length} tài liệu · ${experts.length} Expert · ${reviewer.value ? 1 : 0} Reviewer`;
 }
 
 async function submitLabelingSession(event) {
@@ -934,19 +1034,21 @@ async function submitLabelingSession(event) {
   const sessionName = document.getElementById("sessionName");
   const reviewer = document.getElementById("sessionReviewer");
   sessionName.removeAttribute("aria-invalid"); reviewer.removeAttribute("aria-invalid");
-  if (!sessionName.value.trim()) { document.getElementById("sessionNameError").textContent = "Session name is required."; sessionName.setAttribute("aria-invalid", "true"); valid = false; }
-  if (!articleIds.length) { document.getElementById("documentsError").textContent = "Select at least one document."; valid = false; }
-  if (expertIds.length !== 2) { document.getElementById("expertsError").textContent = "Select exactly two experts."; valid = false; }
-  if (!reviewerId) { document.getElementById("reviewerError").textContent = "Select a reviewer."; reviewer.setAttribute("aria-invalid", "true"); valid = false; }
+  if (!sessionName.value.trim()) { document.getElementById("sessionNameError").textContent = "Vui lòng nhập tên phiên."; sessionName.setAttribute("aria-invalid", "true"); valid = false; }
+  if (!articleIds.length) { document.getElementById("documentsError").textContent = "Chọn ít nhất một tài liệu."; valid = false; }
+  if (expertIds.length !== 2) { document.getElementById("expertsError").textContent = "Cần chọn đúng hai Expert."; valid = false; }
+  if (!reviewerId) { document.getElementById("reviewerError").textContent = "Vui lòng chọn Reviewer."; reviewer.setAttribute("aria-invalid", "true"); valid = false; }
   if (!valid) return false;
   submitButton.disabled = true;
-  submitButton.textContent = "Creating...";
+  submitButton.textContent = "Đang tạo...";
   try {
     const result = await reviewRequest("/admin/labeling-sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: document.getElementById("sessionName").value.trim(), description: document.getElementById("sessionDescription").value.trim(), articleIds, expertIds, reviewerId, sendEmail: document.getElementById("sendAssignmentEmail").checked }) });
     message.className = "reviewer-save-success";
-    message.textContent = result.emailStatus === "sent" ? "Session created. Email notifications sent to both experts." : "Session created. SMTP is not configured, so no email was sent.";
+    message.textContent = result.emailStatus === "sent" ? "Đã tạo phiên và gửi email cho hai Expert." : "Đã tạo phiên; email chưa được gửi.";
+    if (typeof showToast === "function") showToast("Đã tạo phiên gán nhãn.", "success");
+    await showAdminReviewView("sessions");
   } catch (error) { message.textContent = error.message; }
-  finally { submitButton.disabled = false; submitButton.textContent = "Create session"; }
+  finally { submitButton.disabled = false; submitButton.textContent = "Tạo phiên"; }
   return false;
 }
 
@@ -962,6 +1064,46 @@ function accountStatusBadge(isActive) {
     : '<span class="account-status account-status-inactive"><i></i>Đã khóa</span>';
 }
 
+async function toggleAdminUserStatus(userId, isActive, view) {
+  const action = isActive ? "mở khóa" : "khóa";
+  if (!window.confirm(`Xác nhận ${action} tài khoản #${userId}?`)) return;
+  try {
+    await reviewRequest(`/admin/users/${userId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive }),
+    });
+    if (typeof showToast === "function") showToast(`Đã ${action} tài khoản.`, "success");
+    await showAdminReviewView(view);
+  } catch (error) {
+    if (typeof showToast === "function") showToast(error.message, "error");
+  }
+}
+
+async function resetAdminUserPassword(userId) {
+  const password = window.prompt("Nhập mật khẩu tạm thời mới (tối thiểu 10 ký tự):");
+  if (password == null) return;
+  if (password.length < 10) {
+    if (typeof showToast === "function") showToast("Mật khẩu cần tối thiểu 10 ký tự.", "error");
+    return;
+  }
+  const confirmation = window.prompt("Nhập lại mật khẩu tạm thời:");
+  if (confirmation !== password) {
+    if (typeof showToast === "function") showToast("Xác nhận mật khẩu không khớp.", "error");
+    return;
+  }
+  try {
+    await reviewRequest(`/admin/users/${userId}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, confirmPassword: confirmation }),
+    });
+    if (typeof showToast === "function") showToast("Đã đặt lại mật khẩu và thu hồi phiên đăng nhập.", "success");
+  } catch (error) {
+    if (typeof showToast === "function") showToast(error.message, "error");
+  }
+}
+
 function renderAdminUsersPage(table, total, view = "users") {
   const reviewer = view === "reviewers";
   return `<div class="admin-accounts-page">
@@ -969,7 +1111,7 @@ function renderAdminUsersPage(table, total, view = "users") {
       <div class="admin-summary-icon" aria-hidden="true">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
       </div>
-      <div><h2>${reviewer ? "Quản lý tài khoản Reviewer" : "Quản lý tài khoản chuyên gia"}</h2><p>${reviewer ? "Cấp tài khoản chỉ đọc để theo dõi kết quả review của các chuyên gia." : "Cấp tài khoản truy cập khu vực đánh giá corpus và theo dõi hoạt động review."}</p></div>
+      <div><h2>${reviewer ? "Quản lý tài khoản Reviewer" : "Quản lý tài khoản chuyên gia"}</h2><p>${reviewer ? "Cấp tài khoản phân xử các case được giao và quản lý trạng thái truy cập." : "Cấp tài khoản đánh giá corpus và theo dõi hoạt động review."}</p></div>
       <div class="admin-account-total"><strong>${total}</strong><span>Tổng tài khoản</span></div>
     </section>
     ${reviewer ? renderCreateReviewerForm() : renderCreateExpertForm()}

@@ -19,7 +19,11 @@ class _FakeCursor:
         self.executions.append((normalized, params))
         if normalized.startswith("SELECT id FROM articles"):
             self._result = {"id": 9}
-        elif normalized.startswith("SELECT id, expert_id FROM expert_reviews"):
+        elif normalized.startswith("SELECT abstract FROM articles"):
+            self._result = {"abstract": "Nhãn A"}
+        elif normalized.startswith("SELECT DISTINCT ls.id, ls.name, ls.status FROM labeling_sessions"):
+            self._result = {"id": 44, "name": "Phiên kiểm thử", "status": "OPEN"}
+        elif normalized.startswith("SELECT r.id, r.expert_id FROM expert_reviews"):
             self._result = list(self._expert_rows)
         elif normalized.startswith("INSERT INTO reviewer_adjudications"):
             self._result = None
@@ -63,6 +67,7 @@ class ReviewerAdjudicationTests(unittest.TestCase):
                     "expertB": {"text": "Nhãn B", "code": "B00"},
                 }
             ],
+            finalLabels=[{"text": "Nhãn A", "code": "A00", "start": 0, "end": 6, "type": "Bệnh lý"}],
             note="Đã đối chiếu",
         )
 
@@ -77,13 +82,13 @@ class ReviewerAdjudicationTests(unittest.TestCase):
                 {"id": 33, "role": "reviewer"},
             )
 
-        self.assertEqual(result["message"], "Đã lưu thành công.")
-        self.assertTrue(result["saved"])
+        self.assertEqual(result["message"], "Đã lưu quyết định reviewer.")
+        self.assertIn("id", result)
         self.assertTrue(connection.committed)
         insert_sql, insert_params = connection.fake_cursor.executions[-1]
-        self.assertIn("ON DUPLICATE KEY UPDATE", insert_sql)
-        self.assertEqual(insert_params[:4], (9, 33, 101, 202))
-        self.assertIn('"expertA"', insert_params[4])
+        self.assertIn("INSERT INTO reviewer_adjudications", insert_sql)
+        self.assertEqual(insert_params[:5], (9, 44, 33, 101, 202))
+        self.assertIn('"expertA"', insert_params[5])
 
     def test_rejects_reviews_from_the_same_expert(self):
         connection = _FakeConnection(
@@ -97,7 +102,7 @@ class ReviewerAdjudicationTests(unittest.TestCase):
                     {"id": 33, "role": "reviewer"},
                 )
 
-        self.assertEqual(raised.exception.status_code, 422)
+        self.assertEqual(raised.exception.status_code, 409)
         self.assertFalse(connection.committed)
 
 

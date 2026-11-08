@@ -1,12 +1,4 @@
-"""Build the versioned rule-and-dictionary resources used by manual NER.
-
-The builder is intentionally separate from application startup.  Source files are
-never modified; validated JSON artifacts are written atomically next to the legacy
-dictionaries and selected through ``manifest_v1.json``.
-"""
-
 from __future__ import annotations
-
 import argparse
 import hashlib
 import json
@@ -18,27 +10,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent #Khai báo đường dẫn
 BACKEND_DIR = BASE_DIR.parent
 PROJECT_DIR = BACKEND_DIR.parent
 DATA_DIR = PROJECT_DIR / "data"
 DICT_DIR = BASE_DIR / "Tu Dien Y Hoc"
-CUSTOM_DIR = BACKEND_DIR / "Kho Ngữ Liệu Y Học Tiếng Việt"
-
 ICD_SOURCE = DATA_DIR / "phu-lu-c-1-danh-mu-c-icd-10-thay-the-dmdc-phie-n-ba-n-6.xlsx"
 YHCT_SOURCE = DATA_DIR / "PhuLuc1.pdf"
-LEGACY_CUSTOM = CUSTOM_DIR / "Từ_Điển.json"
-
 ICD_OUTPUT = DICT_DIR / "icd10_v1.json"
 YHCT_OUTPUT = DICT_DIR / "yhct_v1.json"
-CUSTOM_OUTPUT = CUSTOM_DIR / "Từ_Điển_v1.json"
 MANIFEST_OUTPUT = DICT_DIR / "manifest_v1.json"
 
 SCHEMA_VERSION = "1.0"
 DICTIONARY_VERSION = "2026.08.09-v1"
 
 
-def _sha256(path: Path) -> str:
+def _sha256(path: Path) -> str: #Hàm nhận vào đường dẫn file và trả về chuỗi SHA-256.
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
@@ -316,60 +303,6 @@ def build_yhct(source: Path = YHCT_SOURCE) -> dict[str, Any]:
         "kind": "yhct_clinical_forms",
         "source": {"file": source.name, "sha256": _sha256(source), "pages": 11},
         "counts": {"all": len(entries), "base": base_count, "clinical_forms": form_count},
-        "entries": entries,
-    }
-
-
-def build_custom_aliases(legacy_path: Path = LEGACY_CUSTOM) -> dict[str, Any]:
-    from core.custom_entities import inject_custom_entities
-
-    collected: dict[tuple[str, str], dict[str, Any]] = {}
-
-    def collect(term: str, category: str, code: str, label: str = "", source: str = "") -> None:
-        clean_term = _clean(term)
-        if not clean_term or len(clean_term) < 3:
-            return
-        normalized_category = "Triệu Chứng" if category.casefold() == "triệu chứng" else category
-        if normalized_category not in {"Bệnh Lý", "Triệu Chứng", "Đông Y / YHCT"}:
-            normalized_category = "Bệnh Lý"
-        key = (clean_term.casefold(), code.strip().upper())
-        collected[key] = {
-            "term": clean_term,
-            "canonical_term": _clean(label) or clean_term,
-            "type": normalized_category,
-            "code": code.strip().upper(),
-            "active_for_ner": True,
-            "ambiguous": False,
-            "case_sensitive": clean_term.isupper() and len(clean_term) <= 6,
-            "source": source or "legacy_custom_entities",
-        }
-
-    inject_custom_entities(collect)
-    if legacy_path.exists():
-        legacy = json.loads(legacy_path.read_text(encoding="utf-8-sig"))
-        for item in legacy:
-            collect(item.get("term", ""), item.get("type", "Bệnh Lý"), item.get("code", ""), source="legacy_json")
-
-    ambiguous_terms = {"giang mai", "u ác tính", "tổn thương"}
-    entries = sorted(collected.values(), key=lambda item: (item["term"].casefold(), item["code"]))
-    for item in entries:
-        if item["term"].casefold() in ambiguous_terms:
-            item["active_for_ner"] = False
-            item["ambiguous"] = True
-
-    return {
-        "schema_version": SCHEMA_VERSION,
-        "dictionary_version": DICTIONARY_VERSION,
-        "kind": "custom_aliases",
-        "source": {
-            "legacy_file": legacy_path.name,
-            "legacy_sha256": _sha256(legacy_path) if legacy_path.exists() else "",
-        },
-        "counts": {
-            "all": len(entries),
-            "active": sum(bool(e["active_for_ner"]) for e in entries),
-            "ambiguous": sum(bool(e["ambiguous"]) for e in entries),
-        },
         "entries": entries,
     }
 

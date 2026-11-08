@@ -18,8 +18,14 @@ function installAuthenticatedFetch() {
 
   window.fetch = (input, init = {}) => {
     const url = typeof input === "string" ? input : (input && input.url) || "";
-    const needsToken = authToken && (url.startsWith("/api/") || url.includes("/api/"))
-      && !url.includes("/api/auth/login");
+    let isSameOriginApi = false;
+    try {
+      const parsed = new URL(url, window.location.origin);
+      isSameOriginApi = parsed.origin === window.location.origin && parsed.pathname.startsWith("/api/");
+    } catch {
+      isSameOriginApi = false;
+    }
+    const needsToken = authToken && isSameOriginApi && !url.includes("/api/auth/login");
     if (!needsToken) return nativeFetch(input, init);
 
     const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
@@ -89,11 +95,24 @@ async function logoutCurrentUser() {
 }
 
 function bindAuthForms() {
+  const passwordInput = document.getElementById("loginPassword");
+  const togglePassword = document.getElementById("toggleLoginPassword");
+  if (passwordInput && togglePassword) {
+    togglePassword.addEventListener("click", () => {
+      const visible = passwordInput.type === "text";
+      passwordInput.type = visible ? "password" : "text";
+      togglePassword.textContent = visible ? "Hiện" : "Ẩn";
+      togglePassword.setAttribute("aria-label", visible ? "Hiện mật khẩu" : "Ẩn mật khẩu");
+    });
+  }
   document.getElementById("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     showAuthError("loginError");
+    const submitButton = document.getElementById("loginSubmit");
     const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value;
+    submitButton.disabled = true;
+    submitButton.textContent = "Đang đăng nhập...";
     try {
       const response = await nativeFetch(`${API_BASE}/auth/login`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -112,9 +131,28 @@ function bindAuthForms() {
       location.assign(target);
     } catch (error) {
       showAuthError("loginError", error.message);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Đăng nhập";
     }
   });
 
+}
+
+function toggleMobileNavigation() {
+  const open = document.body.classList.toggle("mobile-nav-open");
+  const button = document.getElementById("mobileMenuButton");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  if (button) button.setAttribute("aria-expanded", String(open));
+  if (backdrop) backdrop.hidden = !open;
+}
+
+function closeMobileNavigation() {
+  document.body.classList.remove("mobile-nav-open");
+  const button = document.getElementById("mobileMenuButton");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  if (button) button.setAttribute("aria-expanded", "false");
+  if (backdrop) backdrop.hidden = true;
 }
 
 // ============================================================
@@ -202,6 +240,7 @@ const SCREENS = {
 };
 
 function switchScreen(name) {
+  closeMobileNavigation();
   // Deactivate all
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
@@ -539,7 +578,11 @@ function showToast(msg, type = "info", duration = 3000) {
   const icons = { success: "✅", error: "❌", info: "ℹ️" };
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.innerHTML = `<span>${icons[type] || "ℹ️"}</span><span>${msg}</span>`;
+  const icon = document.createElement("span");
+  const message = document.createElement("span");
+  icon.textContent = icons[type] || "ℹ️";
+  message.textContent = String(msg ?? "");
+  toast.append(icon, message);
   container.appendChild(toast);
   setTimeout(() => {
     toast.style.animation = "toastOut 0.3s ease forwards";
@@ -638,7 +681,7 @@ function renderBarChart(data) {
     const col = ENTITY_COLORS[d.concept_type] || { cls: "other" };
     return `
       <div class="bar-row" style="animation-delay:${i * 0.05}s">
-        <div class="bar-label" title="${d.concept_name}">${d.concept_name}</div>
+        <div class="bar-label" title="${escapeHtml(d.concept_name)}">${escapeHtml(d.concept_name)}</div>
         <div class="bar-track">
           <div class="bar-fill" style="width:${pct}%; background: ${barColor(d.concept_type)};"></div>
         </div>
@@ -737,8 +780,8 @@ async function loadRecentArticles() {
         <div class="recent-item" onclick="switchScreen('labeling'); setTimeout(()=>selectArticle(${a.id}),300)">
           <div class="recent-num">${i + 1}</div>
           <div class="recent-info">
-            <div class="recent-title">${a.title || "Untitled"}</div>
-            <div class="recent-meta">${a.publication_year || "—"} · ${(a.authors || "").split(",")[0]}</div>
+            <div class="recent-title">${escapeHtml(a.title || "Untitled")}</div>
+            <div class="recent-meta">${escapeHtml(a.publication_year || "—")} · ${escapeHtml((a.authors || "").split(",")[0])}</div>
           </div>
           <span class="recent-badge ${isLabeled ? "badge-labeled" : "badge-unlabeled"}">
             ${isLabeled ? "Annotated" : "Not processed"}
@@ -807,7 +850,7 @@ function appendLog(msg, type = "") {
     else if (/bắt đầu|start|kết nối|connect|đang/i.test(msg)) lineType = "info";
   }
   line.className = `log-line ${lineType}`;
-  line.innerHTML = `<span class="log-ts">[${now}]</span> ${msg}`;
+  line.innerHTML = `<span class="log-ts">[${now}]</span> ${escapeHtml(msg)}`;
   term.appendChild(line);
 
   if (autoScroll) term.scrollTop = term.scrollHeight;
@@ -826,6 +869,12 @@ function updateProgressUI(s) {
   document.getElementById("prog-saved").textContent = saved;
   document.getElementById("prog-dup").textContent   = dup;
   document.getElementById("prog-skip").textContent  = skip;
+  const progressFill = document.getElementById("crawlProgressFill");
+  const progressBar = document.querySelector(".crawl-progress-track");
+  const progressPercent = document.getElementById("crawlProgressPercent");
+  if (progressFill) progressFill.style.width = `${pct}%`;
+  if (progressBar) progressBar.setAttribute("aria-valuenow", String(pct));
+  if (progressPercent) progressPercent.textContent = `${pct}%`;
 
 
   if (s.current_url) {
@@ -1026,11 +1075,11 @@ function renderArticleList() {
   const isActive  = String(a.id) === String(currentArticleId);
     return `
       <div class="article-list-item ${isActive ? "active" : ""}" onclick="selectArticle(${a.id})">
-        <div class="ali-title">${a.title || "Untitled"}</div>
-        <div class="ali-authors">${a.authors || "Unknown author"}</div>
+        <div class="ali-title">${escapeHtml(a.title || "Untitled")}</div>
+        <div class="ali-authors">${escapeHtml(a.authors || "Unknown author")}</div>
         <div class="ali-meta">
           <span class="ali-dot ${isLabeled ? "labeled" : "unlabeled"}"></span>
-          <span>${a.publication_year || "—"}</span>
+          <span>${escapeHtml(a.publication_year || "—")}</span>
           <span>·</span>
           <span>${isLabeled ? "Annotated" : "Not processed"}</span>
         </div>
@@ -1081,6 +1130,7 @@ async function selectArticle(id) {
   const btnSave  = document.getElementById("btnSaveNer");
   const nerStatus = document.getElementById("nerStatus");
   const entPanel  = document.getElementById("entitiesPanel");
+  const suggestionPanel = document.getElementById("nerSuggestionsPanel");
   const legend    = document.getElementById("entityLegend");
 
   btnNer.className   = "btn-ner";
@@ -1088,6 +1138,7 @@ async function selectArticle(id) {
   btnSave.style.display = "none";
   nerStatus.textContent = "";
   entPanel.style.display = "none";
+  if (suggestionPanel) suggestionPanel.style.display = "none";
   legend.style.display   = "none";
 
   // If already analyzed — show
@@ -1105,7 +1156,7 @@ async function selectArticle(id) {
     }
   } else {
     // Show raw text
-    textBody.innerHTML = article.abstract ? article.abstract.replace(/\n/g, "<br>") : "<em>No abstract content.</em>";
+    textBody.innerHTML = article.abstract ? escapeHtml(article.abstract).replace(/\n/g, "<br>") : "<em>Không có nội dung tóm tắt.</em>";
   }
 }
 
@@ -1122,10 +1173,12 @@ async function toggleNer() {
     btnNer.className = "btn-ner";
     btnNer.textContent = "Enable annotation";
     document.getElementById("textBody").innerHTML =
-      article.abstract ? article.abstract.replace(/\n/g, "<br>") : "";
+      article.abstract ? escapeHtml(article.abstract).replace(/\n/g, "<br>") : "";
     document.getElementById("btnNer").classList.remove("active");
   document.getElementById("btnNer").textContent = "Enable annotation";
   document.getElementById("btnSaveNer").style.display = "none";
+    const suggestionPanel = document.getElementById("nerSuggestionsPanel");
+    if (suggestionPanel) suggestionPanel.style.display = "none";
   document.getElementById("btnAiNer").style.display = "inline-flex"; // Hiển thị nút AI
   document.getElementById("aiPanel").style.display = "none"; // Ẩn panel AI cũ
     nerStatus.textContent = "";
@@ -1154,6 +1207,7 @@ async function toggleNer() {
     if (res.ok) {
       article.highlighted_html = result.highlighted_html;
       article.matched_concepts = result.matched_concepts || [];
+      article.ner_suggestions = result.suggestions || [];
       article.ner_note         = result.note || "";
       isNerActive = true;
 
@@ -1171,6 +1225,7 @@ async function toggleNer() {
       // Preprocessing log
       const preprocLog = result.preprocessing_log;
       _renderPreprocLog(preprocLog, 'preprocPanel', 'preprocBody');
+      renderNerSuggestions(result.suggestions || []);
 
       if (count > 0) {
         renderEntities(result.matched_concepts);
@@ -1206,15 +1261,85 @@ function renderEntities(concepts) {
     .map(c => {
       const cls = entityClass(c.type || "DISEASE");
       const matchedBy = c.matched_by || 'exact';
-      const badgeCls  = matchedBy === 'noun_phrase' ? 'matched-noun-phrase' : 'matched-exact';
-      const badgeLbl  = matchedBy === 'noun_phrase' ? 'NP' : 'EM';
-      const codeHtml  = c.code ? `<span class="entity-code">${c.code}</span>` : '';
-      return `<div class="entity-tag ${cls}" title="${c.code || ''}">
-        ${c.name}
+      const badgeCls  = matchedBy === 'exact' ? 'matched-exact' : 'matched-noun-phrase';
+      const badgeLbl  = matchedBy === 'exact' ? 'EXACT' : matchedBy.toUpperCase();
+      const codeHtml  = c.code ? `<span class="entity-code">${escapeHtml(c.code)}</span>` : '';
+      const conceptTitle = [c.concept_id, c.canonical_term, c.confidence != null ? `confidence=${c.confidence}` : ''].filter(Boolean).join(' · ');
+      return `<div class="entity-tag ${cls}" title="${escapeHtml(conceptTitle || c.code || '')}">
+        ${escapeHtml(c.name)}
         ${codeHtml}
         <span class="matched-badge ${badgeCls}">${badgeLbl}</span>
       </div>`;
     }).join("");
+}
+
+function renderNerSuggestions(suggestions) {
+  const panel = document.getElementById("nerSuggestionsPanel");
+  const grid = document.getElementById("nerSuggestionsGrid");
+  if (!panel || !grid) return;
+  if (!Array.isArray(suggestions) || suggestions.length === 0) {
+    panel.style.display = "none";
+    grid.innerHTML = "";
+    return;
+  }
+  panel.style.display = "";
+  grid.innerHTML = suggestions.map((item, itemIndex) => {
+    const candidates = (item.candidate_concepts || []).map(candidate => {
+      const code = candidate.concept_code ? ` · ${escapeHtml(candidate.concept_code)}` : "";
+      return `${escapeHtml(candidate.canonical_term || candidate.concept_id || "Unknown concept")}${code}`;
+    }).join("<br>") || "Không có Concept duy nhất";
+    const confidence = Number(item.confidence);
+    const score = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : "—";
+    const actions = (item.candidate_concepts || []).map((candidate, candidateIndex) => `
+      <button type="button" class="ner-suggestion-action" onclick="approveNerSuggestion(${itemIndex}, ${candidateIndex})">
+        ${item.candidate_concepts.length > 1 ? `Chọn ${escapeHtml(candidate.concept_code || candidate.canonical_term || "Concept")}` : "Approve as alias"}
+      </button>`).join("");
+    return `<div class="ner-suggestion-card">
+      <strong>${escapeHtml(item.text || "")}</strong>
+      <span>${escapeHtml(item.matched_by || "uncertain")} · confidence ${score}</span>
+      <small>${candidates}</small>
+      ${actions ? `<div class="ner-suggestion-actions">${actions}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+async function approveNerSuggestion(suggestionIndex, candidateIndex) {
+  const article = currentArticlesData.find(a => String(a.id) === String(currentArticleId));
+  const suggestion = article?.ner_suggestions?.[suggestionIndex];
+  const candidate = suggestion?.candidate_concepts?.[candidateIndex];
+  if (!article || !suggestion || !candidate) return;
+  const sourceText = article.abstract || "";
+  const contextStart = Math.max(0, Number(suggestion.start || 0) - 300);
+  const contextEnd = Math.min(sourceText.length, Number(suggestion.end || 0) + 300);
+  try {
+    const response = await fetch(`${API_BASE}/dictionary/alias-candidates/approve-suggestion`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        surface_form: suggestion.text,
+        concept_id: candidate.concept_id,
+        concept_code: candidate.concept_code,
+        canonical_term: candidate.canonical_term || suggestion.text,
+        concept_type: candidate.entity_type || "Bệnh Lý",
+        match_method: suggestion.matched_by || "fuzzy_candidate",
+        confidence_score: Number.isFinite(Number(suggestion.confidence)) ? Number(suggestion.confidence) : null,
+        article_id: article.id,
+        start: suggestion.start,
+        end: suggestion.end,
+        context: sourceText.slice(contextStart, contextEnd),
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+    showToast("Alias đã được duyệt và nạp vào runtime dictionary.", "success");
+    article.highlighted_html = null;
+    article.matched_concepts = [];
+    article.ner_suggestions = [];
+    await selectArticle(article.id);
+    await toggleNer();
+  } catch (error) {
+    showToast(error.message || "Không thể duyệt alias.", "error");
+  }
 }
 
 
@@ -1295,18 +1420,18 @@ async function loadCrawlLogs() {
       return `
         <tr>
           <td>${date}</td>
-          <td class="text-ellipsis" title="${log.target_url}">${log.target_url || "—"}</td>
-          <td style="text-align:center; font-weight:500;">${log.start_year || "—"}</td>
-          <td style="text-align:center; font-weight:500;">${log.end_year || "—"}</td>
-          <td style="text-align:center;">${log.total_urls}</td>
-          <td style="text-align:center; color:var(--success); font-weight:500;">${log.success_count}</td>
-          <td style="text-align:center; color:var(--warning); font-weight:500;">${log.duplicate_count}</td>
-          <td style="text-align:center; color:var(--danger); font-weight:500;">${log.error_count}</td>
+          <td class="text-ellipsis" title="${escapeHtml(log.target_url || "")}">${escapeHtml(log.target_url || "—")}</td>
+          <td style="text-align:center; font-weight:500;">${escapeHtml(log.start_year || "—")}</td>
+          <td style="text-align:center; font-weight:500;">${escapeHtml(log.end_year || "—")}</td>
+          <td style="text-align:center;">${escapeHtml(log.total_urls)}</td>
+          <td style="text-align:center; color:var(--success); font-weight:500;">${escapeHtml(log.success_count)}</td>
+          <td style="text-align:center; color:var(--warning); font-weight:500;">${escapeHtml(log.duplicate_count)}</td>
+          <td style="text-align:center; color:var(--danger); font-weight:500;">${escapeHtml(log.error_count)}</td>
         </tr>
       `;
     }).join("");
   } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Error loading history: ${e.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Lỗi tải lịch sử: ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
@@ -1481,7 +1606,7 @@ async function executeSplitPdf() {
       if (data.duplicate) {
         duplicateCount++;
         const existingPath = escapeHtml(data.outputDirectory || data.duplicateOf?.outputDirectory || 'kho PDF đã tách');
-        filesList.innerHTML += `<li><div style="margin-top:15px; margin-bottom:5px; color:var(--text-2);"><strong style="color:var(--warning); font-size:15px;">↪ ${escapeHtml(file.webkitRelativePath || file.name)}</strong> — Đã bỏ qua vì nội dung PDF trùng (SHA-256); không tạo file TXT/JSON mới.<div style="margin:4px 0 0 20px; font-size:12px;">Bản đã có: ${existingPath}</div></div></li>`;
+        filesList.innerHTML += `<li><div style="margin-top:15px; margin-bottom:5px; color:var(--text-2);"><strong style="color:var(--warning); font-size:15px;">↪ ${escapeHtml(file.webkitRelativePath || file.name)}</strong> — Đã bỏ qua vì nội dung PDF trùng (SHA-256); không tạo file TXT/JSON mới.<div style="margin:4px 0 0 20px; font-size:12px;">Bản đã có: ${escapeHtml(existingPath)}</div></div></li>`;
         continue;
       }
       successCount++;
@@ -1512,15 +1637,15 @@ async function executeSplitPdf() {
         typeof f === 'string' || !(f.label === 'abstract' && f.json_file_path)
       );
       const innerList = displayFiles.map((f) => {
-        if (typeof f === 'string') return `<div style="margin-left:20px; font-size:13px; margin-bottom:4px;">- ${f}</div>`;
+        if (typeof f === 'string') return `<div style="margin-left:20px; font-size:13px; margin-bottom:4px;">- ${escapeHtml(f)}</div>`;
         return `
           <div style="margin-left:20px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; overflow: hidden;">
             <div style="background: var(--bg-soft); padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const content = this.nextElementSibling; content.style.display = content.style.display === 'none' ? 'block' : 'none';">
-              <strong style="color: var(--primary); font-size: 13px;">📑 ${f.section_name}${f.canonical_type ? ` · ${f.canonical_type}` : ''}</strong>
-              <span style="font-size: 12px; color: var(--text-3); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${f.file_path}">${f.file_path.split(/[\\/\\\\]/).pop()}</span>
+              <strong style="color: var(--primary); font-size: 13px;">📑 ${escapeHtml(f.section_name)}${f.canonical_type ? ` · ${escapeHtml(f.canonical_type)}` : ''}</strong>
+              <span style="font-size: 12px; color: var(--text-3); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(f.file_path)}">${escapeHtml(f.file_path.split(/[\\/\\\\]/).pop())}</span>
             </div>
             <div style="padding: 14px; font-size: 12px; color: var(--text-2); background: white; display: none; line-height: 1.5;">
-              ${f.content_preview ? f.content_preview.replace(/\\n/g, '<br>') : 'Không có nội dung preview'}
+              ${f.content_preview ? escapeHtml(f.content_preview).replace(/\\n/g, '<br>') : 'Không có nội dung preview'}
             </div>
           </div>
         `;
@@ -1534,7 +1659,7 @@ async function executeSplitPdf() {
         filesList.innerHTML += `<li><div style="margin-top:15px; margin-bottom:5px; color:var(--warning);"><strong>⏹ ${escapeHtml(file.webkitRelativePath || file.name)}</strong> — Đã dừng theo yêu cầu; không chờ kết quả file này.</div></li>`;
         break;
       }
-      filesList.innerHTML += `<li><div style="margin-top:15px; margin-bottom: 5px;"><strong style="color:var(--danger); font-size:15px;">❌ ${file.name}</strong> - Lỗi: ${e.message}</div></li>`;
+      filesList.innerHTML += `<li><div style="margin-top:15px; margin-bottom: 5px;"><strong style="color:var(--danger); font-size:15px;">❌ ${escapeHtml(file.name)}</strong> - Lỗi: ${escapeHtml(e.message)}</div></li>`;
     } finally {
       _splitPdfAbortController = null;
     }
@@ -1577,9 +1702,9 @@ function _renderPreprocLog(log, panelId, bodyId) {
       <div class="preproc-step">
         <div class="preproc-step-header">
           <span class="preproc-step-icon">⚡</span>
-          <span class="preproc-step-title">${step.step}</span>
+          <span class="preproc-step-title">${escapeHtml(step.step)}</span>
         </div>
-        <div class="preproc-step-desc">${step.description}</div>
+        <div class="preproc-step-desc">${escapeHtml(step.description)}</div>
     `;
     
     if (step.changes && step.changes.length > 0) {
@@ -1590,13 +1715,13 @@ function _renderPreprocLog(log, panelId, bodyId) {
           // Highlight before/after
           html += `
             <div class="preproc-item">
-              <span class="preproc-before">${parts[0].trim()}</span>
+              <span class="preproc-before">${escapeHtml(parts[0].trim())}</span>
               <span class="preproc-arrow">→</span>
-              <span class="preproc-after">${parts[1].trim()}</span>
+              <span class="preproc-after">${escapeHtml(parts[1].trim())}</span>
             </div>
           `;
         } else {
-          html += `<div class="preproc-item" style="font-size:11px">${change}</div>`;
+          html += `<div class="preproc-item" style="font-size:11px">${escapeHtml(change)}</div>`;
         }
       });
       html += `</div>`;
@@ -1639,9 +1764,9 @@ function _renderEntitiesGrid(concepts, gridId) {
     const matchedBy = c.matched_by || 'exact';
     const badgeCls  = matchedBy === 'noun_phrase' ? 'matched-noun-phrase' : 'matched-exact';
     const badgeLbl  = matchedBy === 'noun_phrase' ? 'NP'                  : 'EM';
-    const codeHtml  = c.code ? `<span class="entity-code">${c.code}</span>` : '';
+    const codeHtml  = c.code ? `<span class="entity-code">${escapeHtml(c.code)}</span>` : '';
     return `<div class="entity-tag ${cls}">
-      ${c.name}
+      ${escapeHtml(c.name)}
       ${codeHtml}
       <span class="matched-badge ${badgeCls}">${badgeLbl}</span>
     </div>`;
@@ -1651,7 +1776,9 @@ function _renderEntitiesGrid(concepts, gridId) {
 async function verifyData() {
     const modal = document.getElementById('verifyModal');
     const body = document.getElementById('verifyModalBody');
+    verifyModalPreviousFocus = document.activeElement;
     modal.style.display = 'flex';
+    modal.querySelector('.modal-content')?.focus();
     body.innerHTML = '<div style="text-align:center; padding: 20px;">⏳ Đang kiểm chứng dữ liệu, vui lòng đợi...</div>';
     
     try {
@@ -1684,8 +1811,8 @@ async function verifyData() {
                 html += `<ul style="list-style:none; padding:0;">`;
                 data.missing_pdfs.forEach(m => {
                     html += `<li style="padding:8px; border-bottom:1px solid var(--border); font-size:13px;">
-                        <strong>[ID: ${m.id}] ${m.title}</strong> (${m.year})<br>
-                        <span style="color:var(--danger);">${m.reason}</span>
+                        <strong>[ID: ${escapeHtml(m.id)}] ${escapeHtml(m.title)}</strong> (${escapeHtml(m.year)})<br>
+                        <span style="color:var(--danger);">${escapeHtml(m.reason)}</span>
                     </li>`;
                 });
                 html += `</ul>`;
@@ -1696,8 +1823,8 @@ async function verifyData() {
                 html += `<ul style="list-style:none; padding:0;">`;
                 data.missing_txts.forEach(m => {
                     html += `<li style="padding:8px; border-bottom:1px solid var(--border); font-size:13px;">
-                        <strong>[ID: ${m.id}] ${m.title}</strong> (${m.year})<br>
-                        <span style="color:var(--danger);">${m.reason}</span>
+                        <strong>[ID: ${escapeHtml(m.id)}] ${escapeHtml(m.title)}</strong> (${escapeHtml(m.year)})<br>
+                        <span style="color:var(--danger);">${escapeHtml(m.reason)}</span>
                     </li>`;
                 });
                 html += `</ul>`;
@@ -1709,9 +1836,26 @@ async function verifyData() {
         body.innerHTML = html;
         
     } catch (err) {
-        body.innerHTML = `<div style="color:var(--danger); text-align:center; padding:20px;">❌ Lỗi: ${err.message}</div>`;
+        body.innerHTML = `<div style="color:var(--danger); text-align:center; padding:20px;">❌ Lỗi: ${escapeHtml(err.message)}</div>`;
     }
 }
+
+let verifyModalPreviousFocus = null;
+
+function closeVerifyModal() {
+  const modal = document.getElementById("verifyModal");
+  if (!modal) return;
+  modal.style.display = "none";
+  verifyModalPreviousFocus?.focus?.();
+  verifyModalPreviousFocus = null;
+}
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closeVerifyModal();
+    closeMobileNavigation();
+  }
+});
 
 // ============================================================
 // AI LABEL UI
@@ -1728,7 +1872,7 @@ async function loadAiLabelData() {
     renderAiArticleList();
     if (currentAiArticleId) selectAiArticle(currentAiArticleId);
   } catch (e) {
-    listEl.innerHTML = `<div style="padding:20px; color:var(--danger)">Lỗi tải dữ liệu: ${e.message}</div>`;
+    listEl.innerHTML = `<div style="padding:20px; color:var(--danger)">Lỗi tải dữ liệu: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -1758,10 +1902,10 @@ function filterAiArticles() {
     const isLabeled = a.is_ai_labeled || a._aiSaved;
     return `
       <div class="article-list-item ${isActive}" onclick="selectAiArticle(${a.id})">
-        <div class="ali-title">${a.title || "Untitled"}</div>
+        <div class="ali-title">${escapeHtml(a.title || "Untitled")}</div>
         <div class="ali-meta">
           <span class="ali-dot ${isLabeled ? "labeled" : "unlabeled"}"></span>
-          <span>${a.publication_year || "—"}</span>
+          <span>${escapeHtml(a.publication_year || "—")}</span>
           <span>·</span>
           <span>${isLabeled ? "AI annotated" : "Not processed"}</span>
         </div>
@@ -1905,7 +2049,11 @@ async function runAiLabel() {
         if (!item?.term) continue;
 
         totalCount += 1;
-        const markClass = mapping.key.toLowerCase().replace("_", "");
+        // Keep the DOM class aligned with the shared palette.  Without this
+        // normalization DIAGNOSTIC_PROCEDURE became `ner-diagnosticprocedure`,
+        // which did not match the `.ner-diagnostic` CSS rule and fell back to
+        // the browser's default yellow <mark> styling.
+        const markClass = entityClass(mapping.key);
         const tooltip = buildEntityTooltip(item, vnCat);
         const codeHtml = item.code
           ? `<span class="entity-code">${escapeHtml(item.code)}</span>`
@@ -1918,7 +2066,7 @@ async function runAiLabel() {
           : item.source === "gemini"
             ? "Gemini"
             : item.source === "ai+dictionary" ? "AI + Từ điển" : "AI";
-        entitiesHtml += `<div class="entity-tag ${mapping.key.toLowerCase()}" title="${escapeHtml(tooltip)}">
+        entitiesHtml += `<div class="entity-tag ${markClass}" title="${escapeHtml(tooltip)}">
           <span>${escapeHtml(item.term)}</span>
           ${codeHtml}
           ${confidenceHtml}
@@ -1971,7 +2119,7 @@ async function runAiLabel() {
     }
     
   } catch (e) {
-    document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state" style="color:var(--danger)">Error: ${e.message}</div>`;
+    document.getElementById("aiEntitiesList").innerHTML = `<div class="empty-state" style="color:var(--danger)">Lỗi: ${escapeHtml(e.message)}</div>`;
     showToast("AI analysis error", "error");
   } finally {
     btn.disabled = false;

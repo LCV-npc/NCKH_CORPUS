@@ -1,0 +1,5 @@
+# Preserve reference documents as opaque binary files in Git.
+*.pdf binary
+*.xlsx binary
+*.pptx binary
+*.docx binary
