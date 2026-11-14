@@ -1283,63 +1283,20 @@ function renderNerSuggestions(suggestions) {
     return;
   }
   panel.style.display = "";
-  grid.innerHTML = suggestions.map((item, itemIndex) => {
+  grid.innerHTML = suggestions.map(item => {
     const candidates = (item.candidate_concepts || []).map(candidate => {
       const code = candidate.concept_code ? ` · ${escapeHtml(candidate.concept_code)}` : "";
       return `${escapeHtml(candidate.canonical_term || candidate.concept_id || "Unknown concept")}${code}`;
     }).join("<br>") || "Không có Concept duy nhất";
     const confidence = Number(item.confidence);
     const score = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : "—";
-    const actions = (item.candidate_concepts || []).map((candidate, candidateIndex) => `
-      <button type="button" class="ner-suggestion-action" onclick="approveNerSuggestion(${itemIndex}, ${candidateIndex})">
-        ${item.candidate_concepts.length > 1 ? `Chọn ${escapeHtml(candidate.concept_code || candidate.canonical_term || "Concept")}` : "Approve as alias"}
-      </button>`).join("");
     return `<div class="ner-suggestion-card">
       <strong>${escapeHtml(item.text || "")}</strong>
       <span>${escapeHtml(item.matched_by || "uncertain")} · confidence ${score}</span>
       <small>${candidates}</small>
-      ${actions ? `<div class="ner-suggestion-actions">${actions}</div>` : ""}
+      <em>Chỉ là gợi ý; không tự động highlight hoặc gán Concept.</em>
     </div>`;
   }).join("");
-}
-
-async function approveNerSuggestion(suggestionIndex, candidateIndex) {
-  const article = currentArticlesData.find(a => String(a.id) === String(currentArticleId));
-  const suggestion = article?.ner_suggestions?.[suggestionIndex];
-  const candidate = suggestion?.candidate_concepts?.[candidateIndex];
-  if (!article || !suggestion || !candidate) return;
-  const sourceText = article.abstract || "";
-  const contextStart = Math.max(0, Number(suggestion.start || 0) - 300);
-  const contextEnd = Math.min(sourceText.length, Number(suggestion.end || 0) + 300);
-  try {
-    const response = await fetch(`${API_BASE}/dictionary/alias-candidates/approve-suggestion`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        surface_form: suggestion.text,
-        concept_id: candidate.concept_id,
-        concept_code: candidate.concept_code,
-        canonical_term: candidate.canonical_term || suggestion.text,
-        concept_type: candidate.entity_type || "Bệnh Lý",
-        match_method: suggestion.matched_by || "fuzzy_candidate",
-        confidence_score: Number.isFinite(Number(suggestion.confidence)) ? Number(suggestion.confidence) : null,
-        article_id: article.id,
-        start: suggestion.start,
-        end: suggestion.end,
-        context: sourceText.slice(contextStart, contextEnd),
-      }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
-    showToast("Alias đã được duyệt và nạp vào runtime dictionary.", "success");
-    article.highlighted_html = null;
-    article.matched_concepts = [];
-    article.ner_suggestions = [];
-    await selectArticle(article.id);
-    await toggleNer();
-  } catch (error) {
-    showToast(error.message || "Không thể duyệt alias.", "error");
-  }
 }
 
 

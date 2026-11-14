@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0",
-  "dictionary_version": "2026.08.09-v1",
-  "generated_at": "2026-11-02T17:40:48+00:00",
+  "schema_version": "1.1",
+  "dictionary_version": "2026.11.14-cv2",
+  "generated_at": "2026-11-14T10:02:39+00:00",
   "scope": [
     "Bệnh Lý",
     "Triệu Chứng",
@@ -10,13 +10,18 @@
   "files": {
     "icd10": {
       "path": "icd10_v1.json",
-      "sha256": "242f349f5e44a7fa1567796d938c73949cecdbfe467cb48b128423a2e3f5096e",
+      "sha256": "b413dc14b6a86f497a80d5469bd89d0d3a0674d8a353e69177f221c8f1b069c3",
       "count": 12219
     },
     "yhct": {
       "path": "yhct_v1.json",
-      "sha256": "cda29a0da97dd5031105f4a3734fcaeec70d18ff5860a44ac090d5a53808e0b1",
+      "sha256": "0d1413a8f48754c40ce6209d231798839ae2ca7671ca0bf9669fe38222773134",
       "count": 228
+    },
+    "controlled_vocabulary": {
+      "path": "controlled_vocabulary_v1.json",
+      "sha256": "08d0dce34ebbf24973d69517402a42acbac5d28e0b464d417707cb9c23bdd32f",
+      "count": 672
     }
   }
 }

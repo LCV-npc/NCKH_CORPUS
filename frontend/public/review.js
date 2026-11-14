@@ -878,7 +878,7 @@ async function showAdminReviewView(view) {
 }
 
 async function renderAliasCandidatePage(screen) {
-  setReviewHeader("Alias từ điển", "Phát hiện và duyệt biến thể thuật ngữ có kiểm soát");
+  setReviewHeader("Alias từ điển", "Biến thể ngữ pháp được kích hoạt tự động từ ICD-10/YHCT");
   screen.innerHTML = `<div class="review-workspace"><div id="aliasCandidateArea" class="review-loading">Đang tải alias candidate...</div></div>`;
   await loadAliasCandidates();
 }
@@ -888,16 +888,16 @@ async function loadAliasCandidates() {
   if (!area) return;
   area.innerHTML = '<div class="review-loading">Đang tải alias candidate...</div>';
   try {
-    const data = await reviewRequest("/dictionary/alias-candidates?status=PENDING_REVIEW");
+    const data = await reviewRequest("/dictionary/alias-candidates?status=AUTO_APPROVED");
     const rows = (data.items || []).map(item => {
       const evidence = (item.evidence || []).map(entry => `#${Number(entry.article_id)}: ${reviewEscape(entry.context || entry.text || "")}`).join("<br>") || "—";
       const confidence = Number(item.confidence_score);
       const confidenceText = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : "—";
       const metrics = item.metrics || {};
       const stats = `${Number(item.occurrence_count || 0)} lần / ${Number(item.document_frequency || 0)} bài`;
-      return `<tr><td>${reviewEscape(item.surface_form)}</td><td>${reviewEscape(item.canonical_term)}</td><td>${reviewEscape(item.concept_id || "—")}<br><small>${reviewEscape(item.concept_code || "")}</small></td><td>${reviewEscape(item.match_method || item.alias_type || "grammar_variant")}</td><td>${confidenceText}<br><small>${stats}</small></td><td>${evidence}<br><small>priority: ${reviewEscape(metrics.priority_score ?? "—")}</small></td><td><button class="review-action" onclick="approveAliasCandidate(${Number(item.id)})">Approve</button><button class="review-action danger-action" onclick="rejectAliasCandidate(${Number(item.id)})">Reject</button></td></tr>`;
+      return `<tr><td>${reviewEscape(item.surface_form)}</td><td>${reviewEscape(item.canonical_term)}</td><td>${reviewEscape(item.concept_id || "—")}<br><small>${reviewEscape(item.concept_code || "")}</small></td><td>${reviewEscape(item.match_method || item.alias_type || "grammar_variant")}</td><td>${confidenceText}<br><small>${stats}</small></td><td>${evidence}<br><small>priority: ${reviewEscape(metrics.priority_score ?? "—")}</small></td><td><span class="status-badge approved">Đang dùng</span></td></tr>`;
     }).join("");
-    area.innerHTML = `<div class="review-panel"><div class="admin-card-header"><div><h3>Alias đang chờ duyệt</h3><p>Alias được approve mới được dùng để highlight. Candidate chỉ là đề xuất, chưa thay đổi NER.</p></div><button class="review-save" type="button" onclick="discoverAliasCandidates()">Quét candidate mới</button></div>${rows ? `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>Candidate</th><th>Canonical term</th><th>Concept</th><th>Loại</th><th>Confidence</th><th>Bằng chứng</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="review-empty">Chưa có alias candidate. Bấm “Quét candidate mới” để bắt đầu.</div>'}</div>`;
+    area.innerHTML = `<div class="review-panel"><div class="admin-card-header"><div><h3>Controlled vocabulary đang hoạt động</h3><p>Variant an toàn như “các X” → “X” được map cùng Concept ID và highlight ngay. Không cần Reviewer/Admin duyệt.</p></div><button class="review-save" type="button" onclick="discoverAliasCandidates()">Quét bằng chứng corpus</button></div>${rows ? `<div class="review-table-wrap"><table class="review-table"><thead><tr><th>Surface form</th><th>Canonical term</th><th>Concept</th><th>Loại</th><th>Confidence</th><th>Bằng chứng</th><th>Trạng thái</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="review-empty">Chưa có bản ghi evidence. Luật variant vẫn hoạt động trực tiếp từ JSON.</div>'}</div>`;
   } catch (error) {
     area.innerHTML = `<div class="review-error">Không thể tải alias candidate: ${reviewEscape(error.message)}</div>`;
   }
@@ -910,29 +910,7 @@ async function discoverAliasCandidates() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ limit: 1000 }),
     });
-    if (typeof showToast === "function") showToast(`Đã quét ${Number(result.discovered || 0)} candidate.`, "success");
-    await loadAliasCandidates();
-  } catch (error) {
-    if (typeof showToast === "function") showToast(error.message, "error");
-  }
-}
-
-async function approveAliasCandidate(candidateId) {
-  if (!window.confirm("Duyệt alias này vào dictionary?")) return;
-  try {
-    await reviewRequest(`/dictionary/alias-candidates/${candidateId}/approve`, { method: "POST" });
-    if (typeof showToast === "function") showToast("Đã approve alias và reload NER dictionary.", "success");
-    await loadAliasCandidates();
-  } catch (error) {
-    if (typeof showToast === "function") showToast(error.message, "error");
-  }
-}
-
-async function rejectAliasCandidate(candidateId) {
-  if (!window.confirm("Từ chối alias candidate này?")) return;
-  try {
-    await reviewRequest(`/dictionary/alias-candidates/${candidateId}/reject`, { method: "POST" });
-    if (typeof showToast === "function") showToast("Đã từ chối alias candidate.", "success");
+    if (typeof showToast === "function") showToast(`Đã ghi ${Number(result.auto_approved || 0)} variant tự động và ${Number(result.suggestion_only || 0)} gợi ý fuzzy.`, "success");
     await loadAliasCandidates();
   } catch (error) {
     if (typeof showToast === "function") showToast(error.message, "error");

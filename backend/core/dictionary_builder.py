@@ -2,6 +2,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import tempfile
 import unicodedata
@@ -10,19 +11,51 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+try:
+    from config.env import load_backend_env
+
+    load_backend_env()
+except (ImportError, OSError):
+    # The builder is also importable as a small standalone utility in tests.
+    # In that case process environment variables remain the source of config.
+    pass
+
 BASE_DIR = Path(__file__).resolve().parent #Khai báo đường dẫn
 BACKEND_DIR = BASE_DIR.parent
 PROJECT_DIR = BACKEND_DIR.parent
-DATA_DIR = PROJECT_DIR / "data"
-DICT_DIR = BASE_DIR / "Tu Dien Y Hoc"
+
+
+def _configured_path(name: str, default: Path) -> Path:
+    """Resolve configured paths relative to ``backend/`` unless absolute."""
+    raw_value = os.getenv(name, "").strip()
+    path = Path(raw_value).expanduser() if raw_value else default
+    if not path.is_absolute():
+        path = BACKEND_DIR / path
+    return path.resolve()
+
+
+DATA_DIR = _configured_path("NCKH_DATA_DIR", PROJECT_DIR / "data")
+DICT_DIR = _configured_path("NCKH_DICTIONARY_DIR", BASE_DIR / "Tu Dien Y Hoc")
 ICD_SOURCE = DATA_DIR / "phu-lu-c-1-danh-mu-c-icd-10-thay-the-dmdc-phie-n-ba-n-6.xlsx"
 YHCT_SOURCE = DATA_DIR / "PhuLuc1.pdf"
 ICD_OUTPUT = DICT_DIR / "icd10_v1.json"
 YHCT_OUTPUT = DICT_DIR / "yhct_v1.json"
+CONTROLLED_OUTPUT = DICT_DIR / "controlled_vocabulary_v1.json"
 MANIFEST_OUTPUT = DICT_DIR / "manifest_v1.json"
 
-SCHEMA_VERSION = "1.0"
-DICTIONARY_VERSION = "2026.08.09-v1"
+SCHEMA_VERSION = "1.1"
+DICTIONARY_VERSION = "2026.11.14-cv2"
+CONTROLLED_VARIANT_RULES = (
+    ("các ", "grammar_variant", "remove_cac_prefix", 0.98),
+    ("những ", "grammar_variant", "remove_nhung_prefix", 0.98),
+    # ICD-10 Vietnamese labels sometimes carry the catalog headword
+    # ``Bệnh lý`` while abstracts use the shorter, still complete disease
+    # phrase (for example ``tăng huyết áp``).  This remains a deterministic
+    # controlled variant; it is not substring or semantic matching.
+    ("bệnh lý ", "headword_variant", "remove_benh_ly_prefix", 0.97),
+)
+CONTROLLED_VARIANT_PREFIXES = tuple(rule[0] for rule in CONTROLLED_VARIANT_RULES)
+CONTROLLED_VARIANT_MIN_TOKENS = 2
 
 
 def _sha256(path: Path) -> str: #Hàm nhận vào đường dẫn file và trả về chuỗi SHA-256.
@@ -40,6 +73,13 @@ def _clean(value: Any) -> str:
     if text.lower() in {"nan", "none"}:
         return ""
     return unicodedata.normalize("NFC", re.sub(r"\s+", " ", text))
+
+
+def _normalize_match_text(value: Any) -> str:
+    """Keep the generated controlled vocabulary in the same lookup form as NER."""
+    normalized = unicodedata.normalize("NFC", _clean(value)).casefold()
+    words = re.findall(r"[^\W_]+", normalized, flags=re.UNICODE)
+    return " ".join(words)
 
 
 def _atomic_json(path: Path, payload: Any) -> None:
@@ -307,13 +347,115 @@ def build_yhct(source: Path = YHCT_SOURCE) -> dict[str, Any]:
     }
 
 
+def build_controlled_vocabulary(
+    icd: dict[str, Any],
+    yhct: dict[str, Any],
+) -> dict[str, Any]:
+    """Build deterministic surface forms from validated dictionary entries.
+
+    The controlled vocabulary is a derived artifact: it may change the text
+    surface that is matched, but it never introduces a new Concept ID.  This
+    first version intentionally supports only omission of a leading Vietnamese
+    determiner from a complete multi-word canonical term.
+    """
+    # The controlled vocabulary for the NER training corpus intentionally uses
+    # ICD-10 as its only Concept authority.  YHCT remains available to the
+    # runtime dictionary, but cannot introduce a surface-to-concept mapping in
+    # this corpus artifact.
+    del yhct
+    sources = (("ICD10", "icd10_v1.json", icd),)
+    variants: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for concept_source, dictionary_file, payload in sources:
+        for entry in payload.get("entries", []):
+            if not entry.get("active_for_ner") or entry.get("ambiguous"):
+                continue
+            canonical = _clean(entry.get("canonical_term"))
+            canonical_key = _normalize_match_text(canonical)
+            for prefix, match_method, rule_id, rule_score in CONTROLLED_VARIANT_RULES:
+                if not canonical_key.startswith(prefix):
+                    continue
+                variant = canonical[len(prefix):].strip()
+                normalized_variant = _normalize_match_text(variant)
+                if len(normalized_variant.split()) < CONTROLLED_VARIANT_MIN_TOKENS:
+                    continue
+
+                concept_id = _clean(entry.get("id"))
+                category = _clean(entry.get("category")) or "Bệnh Lý"
+                identity = (normalized_variant, concept_id, category)
+                variants.setdefault(
+                    identity,
+                    {
+                        "surface_form": variant,
+                        "normalized_form": normalized_variant,
+                        "canonical_term": canonical,
+                        "concept_id": concept_id,
+                        "concept_id_source": concept_source,
+                        "concept_code": _clean(entry.get("code")),
+                        "code": _clean(entry.get("code")),
+                        "display_code": _clean(entry.get("display_code")),
+                        "entity_type": "DISEASE" if category == "Bệnh Lý" else "SYMPTOM",
+                        "category": category,
+                        "match_method": match_method,
+                        "rule_id": rule_id,
+                        "rule_score": rule_score,
+                        "score_type": "heuristic",
+                        "score_calibrated": False,
+                        "case_sensitive": False,
+                        "allow_accentless": False,
+                        "active_for_ner": True,
+                        "ambiguous": False,
+                        "status": "ACTIVE",
+                        "dictionary_source": dictionary_file,
+                        "source_concept_id": concept_id,
+                        "icd_chapter_code": _clean((entry.get("chapter") or {}).get("code")) if isinstance(entry.get("chapter"), dict) else "",
+                        "icd_chapter_name": _clean((entry.get("chapter") or {}).get("name")) if isinstance(entry.get("chapter"), dict) else "",
+                        "dictionary_file": dictionary_file,
+                    },
+                )
+
+    entries = sorted(
+        variants.values(),
+        key=lambda item: (item["normalized_form"], item["concept_id"], item["category"]),
+    )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "dictionary_version": DICTIONARY_VERSION,
+        "kind": "controlled_vocabulary",
+        "source": {
+            "dictionaries": ["icd10_v1.json"],
+            "rule": "omit_leading_controlled_prefix",
+        },
+        "rules": {
+            "allowed_prefixes": list(CONTROLLED_VARIANT_PREFIXES),
+            "prefix_rules": [
+                {
+                    "prefix": prefix,
+                    "match_method": match_method,
+                    "rule_id": rule_id,
+                    "rule_score": rule_score,
+                }
+                for prefix, match_method, rule_id, rule_score in CONTROLLED_VARIANT_RULES
+            ],
+            "minimum_variant_tokens": CONTROLLED_VARIANT_MIN_TOKENS,
+            "ambiguous_entries": "excluded",
+            "fuzzy_or_semantic_matching": "excluded",
+            "concept_authority": "icd10_v1.json",
+        },
+        "counts": {"entries": len(entries)},
+        "entries": entries,
+    }
+
+
 def build_all() -> dict[str, Any]:
     icd = build_icd10()
     yhct = build_yhct()
+    controlled = build_controlled_vocabulary(icd, yhct)
     generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
     _atomic_json(ICD_OUTPUT, icd)
     _atomic_json(YHCT_OUTPUT, yhct)
+    _atomic_json(CONTROLLED_OUTPUT, controlled)
 
     manifest = {
         "schema_version": SCHEMA_VERSION,
@@ -323,6 +465,11 @@ def build_all() -> dict[str, Any]:
         "files": {
             "icd10": {"path": ICD_OUTPUT.name, "sha256": _sha256(ICD_OUTPUT), "count": len(icd["entries"])},
             "yhct": {"path": YHCT_OUTPUT.name, "sha256": _sha256(YHCT_OUTPUT), "count": len(yhct["entries"])},
+            "controlled_vocabulary": {
+                "path": CONTROLLED_OUTPUT.name,
+                "sha256": _sha256(CONTROLLED_OUTPUT),
+                "count": len(controlled["entries"]),
+            },
         },
     }
     _atomic_json(MANIFEST_OUTPUT, manifest)

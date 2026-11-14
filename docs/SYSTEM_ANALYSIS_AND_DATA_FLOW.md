@@ -122,7 +122,9 @@ Alias phát hiện từ corpus được lưu trong:
 dictionary_alias_candidates
 ```
 
-Chỉ dòng `status = 'APPROVED'` mới được load bởi `load_runtime_aliases()`. Các dòng `PENDING_REVIEW` hoặc `REJECTED` không ảnh hưởng đến HTML highlight.
+Chỉ dòng `status IN ('APPROVED', 'AUTO_APPROVED')` mới được load bởi
+`load_runtime_aliases()`. Các dòng `PENDING_REVIEW` hoặc `REJECTED` không ảnh
+hưởng đến HTML highlight.
 
 ### 4.4 Annotation và provenance
 
@@ -137,6 +139,12 @@ concept_id
 match_method
 confidence_score
 dictionary_version
+dictionary_generation
+manifest_sha256
+alias_rows_sha256
+score_type
+icd_chapter_code
+icd_chapter_name
 concept_start
 concept_end
 ```
@@ -152,19 +160,21 @@ Start uvicorn
 load_backend_env()
     |
     +--> Kiểm tra DB_PASSWORD
-    +--> load_ner_dictionary()
-    |       +--> verify manifest/checksum
-    |       +--> load ICD-10
-    |       +--> load YHCT
-    |       +--> build exact/ambiguous/accentless index
-    |
     +--> init_router(db_config, output_folder)
-    |       +--> đọc approved aliases từ MySQL nếu bảng đã tồn tại
-    |
     +--> ensure schema auth/review/language audit
     +--> kiểm tra migration crawl_logs
     +--> FastAPI ready
+             |
+             +--> request annotation đầu tiên
+                     +--> verify manifest/checksum
+                     +--> load ICD-10/YHCT + controlled vocabulary
+                     +--> đọc APPROVED/AUTO_APPROVED aliases nếu bảng tồn tại
+                     +--> publish immutable snapshot
 ```
+
+Nếu lần load đầu thất bại, API annotation trả `503 DICTIONARY_UNAVAILABLE`.
+Nếu reload sau đó thất bại, snapshot generation đang chạy được giữ nguyên và
+lỗi được phản ánh ở dictionary status.
 
 Authentication dùng session token qua `Authorization`. Các endpoint quản trị/manual yêu cầu Admin; endpoint review được giới hạn theo role. Backend cũng thêm `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, CSP và `Cache-Control: no-store` cho API.
 
@@ -349,7 +359,9 @@ Backend:
 POST /api/dictionary/alias-candidates/discover
 ```
 
-Mặc định chỉ sinh grammar variant an toàn, ví dụ loại determiner đầu cụm nếu canonical term xuất hiện thực tế trong abstract. Candidate được kiểm tra boundary và phải xuất hiện trong corpus.
+Mặc định chỉ sinh controlled variant an toàn (grammar/headword) nếu surface
+form xuất hiện thực tế trong abstract. Candidate được kiểm tra boundary và
+phải xuất hiện trong corpus.
 
 Các thống kê được lưu:
 
@@ -385,9 +397,13 @@ priority_score = 0.6 * uncertainty_score
 
 Điều này ưu tiên candidate vừa không chắc chắn vừa có khả năng bao phủ nhiều document, nhưng không biến điểm thống kê thành Concept ID tự động.
 
-### 9.3 Duyệt alias
+### 9.3 Trạng thái runtime
 
-Admin/Reviewer có thể duyệt trong `Alias từ điển` hoặc từ panel suggestion. Backend kiểm tra:
+Grammar/headword variant đã được sinh từ artifact checksum và được ghi nhận là
+`AUTO_APPROVED`; không cần thêm bước duyệt để highlight. Fuzzy/ambiguous vẫn
+chỉ là `PENDING_REVIEW`/`UNCERTAIN`, không được nạp runtime. Alias explicit từ
+MySQL chỉ được nạp khi có trạng thái `APPROVED` hoặc `AUTO_APPROVED`. Backend
+kiểm tra:
 
 - Concept ID/code còn tồn tại trong JSON.
 - Dictionary version không bị cũ.
@@ -395,19 +411,17 @@ Admin/Reviewer có thể duyệt trong `Alias từ điển` hoặc từ panel su
 - Alias không trỏ tới một Concept ambiguous.
 - Boundary và dữ liệu evidence hợp lệ.
 
-Sau khi approve:
+Khi runtime alias được reload thành công:
 
 ```text
-PENDING_REVIEW → APPROVED
-    ↓
 load_runtime_aliases()
     ↓
-reset_ner_engine()
+publish snapshot generation mới
     ↓
 alias được dùng trong lần highlight tiếp theo
 ```
 
-Reject không nạp alias vào runtime.
+`PENDING_REVIEW` và `REJECTED` không nạp alias vào runtime.
 
 ## 10. Luồng AI Annotation
 
@@ -642,8 +656,6 @@ F1 phải được đo trên gold labels đã Reviewer xác nhận. Không đư�
 | Dictionary | `/api/dictionary`, `/api/dictionary/status` | - | manifest/status |
 | Alias discovery | `/api/dictionary/alias-candidates/discover` | limit/options | pending candidates |
 | Alias review | `/api/dictionary/alias-candidates` | filters | candidate/evidence/metrics |
-| Alias approve | `.../{id}/approve`, `/approve-suggestion` | candidate/concept | APPROVED + runtime reload |
-| Alias reject | `.../{id}/reject` | candidate id | REJECTED |
 | AI | `/api/ai-ner`, `/api/xlmr-ner`, `/api/ai-label` | text/model | AI entities |
 | AI save | `/api/ai-label/save` | article/labels | `ai_document_labels` |
 | PDF | `/api/extract-pdf` | PDF bytes | structured extraction |

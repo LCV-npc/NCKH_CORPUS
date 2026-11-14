@@ -43,6 +43,7 @@ ner_finetuning/experiment_runs/
 ner_finetuning/error_driven_runs/
 ner_finetuning/error_driven_preview/
 ner_finetuning/reports/
+backend/reports/dictionary/
 text/
 
 # External dataset checkouts and temporary analysis artifacts
@@ -61,6 +62,7 @@ _pptx_build/
 _pptx_output/
 .codex-finalizer/
 data/~$*
+~$*
 
 # =========================
 # OS

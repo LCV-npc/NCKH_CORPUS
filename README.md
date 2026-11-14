@@ -6,6 +6,8 @@ Repository: <https://github.com/LCV-npc/NCKH_CORPUS>
 
 Tài liệu phân tích chi tiết kiến trúc, data lineage, API, user flow và đối chiếu kỹ thuật với các bài báo trong `Newspaper/`: [docs/SYSTEM_ANALYSIS_AND_DATA_FLOW.md](docs/SYSTEM_ANALYSIS_AND_DATA_FLOW.md).
 
+Tài liệu riêng về controlled vocabulary/lexical variant generation và các bài báo nền tảng: [docs/CONTROLLED_VOCABULARY_REFERENCES.md](docs/CONTROLLED_VOCABULARY_REFERENCES.md).
+
 ## Chức năng chính
 
 - Thu thập PDF bài báo từ các tạp chí y học Việt Nam theo nguồn và khoảng năm.
@@ -355,14 +357,38 @@ Nguồn từ điển runtime chính:
 backend/core/Tu Dien Y Hoc/
 ├── manifest_v1.json
 ├── icd10_v1.json
-└── yhct_v1.json
+├── yhct_v1.json
+└── controlled_vocabulary_v1.json
 ```
 
-Runtime NER chỉ sử dụng hai nguồn đã kiểm định là ICD-10 và YHCT. Các alias
-tùy chỉnh không được nạp vào `term_dict` và API thêm thuật ngữ đã bị vô hiệu hóa
-để kết quả luôn truy nguyên được về hai nguồn này.
+Runtime NER của toàn hệ thống vẫn sử dụng Concept ID từ ICD-10 và YHCT.
+Controlled vocabulary phục vụ corpus NER + Concept ID mới được sinh riêng từ
+`icd10_v1.json`; YHCT không được phép tạo mapping trong artifact này. Alias runtime trong
+MySQL chỉ được nạp khi có `APPROVED`/`AUTO_APPROVED`, còn `PENDING_REVIEW` và
+`REJECTED` không ảnh hưởng highlight. API thêm Concept tùy ý vẫn bị vô hiệu
+hóa để mọi nhãn cuối có thể truy nguyên về Concept JSON chuẩn.
 
 `ner_engine.py` chuẩn hóa mục từ, đối chiếu theo ranh giới từ/cụm từ và ưu tiên cụm dài nhằm hạn chế việc khớp một phần giữa từ như `ho` trong `học` hoặc `u mô` bên trong một tên bệnh dài.
+
+### Sinh corpus NER + Concept ID từ abstract
+
+Script `backend/scripts/build_ner_corpus.py` chạy pre-annotation trên trường
+`articles.abstract`. Script giữ đồng thời `surface_form`, `canonical_term`,
+`concept_id`, mã ICD-10, offset gốc và provenance của dictionary snapshot; dữ
+liệu sinh ra luôn có trạng thái `PROVISIONAL`, chưa phải `gold`.
+
+```powershell
+cd backend
+python scripts/build_ner_corpus.py --limit 100
+```
+
+Kết quả được ghi vào `text/corpus/` (đã loại khỏi Git), gồm JSONL cho toàn bộ
+corpus và các split `train/dev/test`, cùng file CoNLL/BIO tương ứng. Split được
+tính theo `article_id` để tránh đưa các occurrence của cùng bài báo vào nhiều
+tập. Có thể chạy thử không cần MySQL bằng `--input-jsonl`; mỗi dòng cần có
+`article_id`/`id` và `abstract` hoặc `text`. Chỉ các Concept ICD-10 thuộc nhóm
+`DISEASE`/`SYMPTOM` được đưa vào corpus này; mọi record tự động sinh phải được
+Reviewer/Expert xác nhận trước khi dùng làm gold hoặc huấn luyện chính thức.
 
 ### Gemini AI labeling
 

@@ -2,7 +2,7 @@ import html
 import re
 
 from core.ner_engine import run_ner
-from core.ner_dict import load_runtime_aliases, term_candidates, term_dict
+from core.ner_dict import get_snapshot, load_runtime_aliases
 
 
 def entities(text):
@@ -24,10 +24,23 @@ def test_output_is_deterministic():
 
 
 def test_case_sensitive_abbreviation_does_not_match_common_lowercase_word():
-    found = entities("Người bệnh tha thuốc nhưng có THA.")
-    matches = [item for item in found if item["icd_code"] == "I10"]
-    assert [item["text"] for item in matches] == ["THA"]
-    assert matches[0]["matched_by"] == "abbreviation"
+    load_runtime_aliases([
+        {
+            "surface_form": "THA",
+            "concept_id": "ICD10:I10:base",
+            "concept_code": "I10",
+            "canonical_term": "Bệnh lý tăng huyết áp",
+            "alias_type": "abbreviation",
+            "case_sensitive": True,
+        }
+    ])
+    try:
+        found = entities("Người bệnh tha thuốc nhưng có THA.")
+        matches = [item for item in found if item["icd_code"] == "I10"]
+        assert [item["text"] for item in matches] == ["THA"]
+        assert matches[0]["matched_by"] == "abbreviation"
+    finally:
+        load_runtime_aliases([])
 
 
 def test_entities_in_parentheses_are_kept():
@@ -38,6 +51,17 @@ def test_entities_in_parentheses_are_kept():
 def test_controlled_multiword_accentless_alias_matches():
     found = entities("Benh nhan tang huyet ap.")
     assert any(item["text"] == "tang huyet ap" and item["icd_code"] == "I10" for item in found)
+
+
+def test_controlled_grammar_variant_is_generated_from_json():
+    canonical = "Các thể khác của nhiễm actinomyces"
+    variant = "thể khác của nhiễm actinomyces"
+    found = entities(f"Người bệnh có {variant}.")
+    match = next(item for item in found if item["text"] == variant)
+    assert match["icd_code"] == "A428"
+    assert match["concept_id"] == "ICD10:A428:base"
+    assert match["canonical_term"] == canonical
+    assert match["matched_by"] == "grammar_variant"
 
 
 def test_pipeline_never_returns_noun_phrase_or_fuzzy_entities():
@@ -95,10 +119,11 @@ def test_fuzzy_candidate_is_review_only_and_never_highlighted():
 
 
 def test_ambiguous_surface_form_is_not_auto_labeled():
+    snapshot = get_snapshot()
     key = next(
         key
-        for key, values in term_candidates.items()
-        if key not in term_dict and len(key.split()) >= 2 and len(values) > 1
+        for key, values in snapshot.term_candidates.items()
+        if key not in snapshot.term_dict and len(key.split()) >= 2 and len(values) > 1
     )
     _, _, found, log = run_ner(key)
     assert found == []

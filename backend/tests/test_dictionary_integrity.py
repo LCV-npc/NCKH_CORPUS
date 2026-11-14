@@ -5,7 +5,7 @@ import json
 import unicodedata
 import unittest
 
-from core.ner_dict import DATA_DIR, DICT_DIR, dictionary_metadata
+from core.ner_dict import DATA_DIR, DICT_DIR, get_dictionary_metadata
 from core.ner_engine import run_ner
 from core.ai_label import _find_spans, _merge_ai_and_dictionary
 
@@ -62,14 +62,15 @@ class DictionaryIntegrityTests(unittest.TestCase):
                 )
 
     def test_runtime_metadata_lists_validated_sources_and_coverage(self):
-        self.assertEqual(dictionary_metadata["dictionary_version"], "2026.08.09-v1")
-        self.assertGreater(dictionary_metadata["loaded_terms"], 12_000)
+        metadata = get_dictionary_metadata()
+        self.assertEqual(metadata["dictionary_version"], "2026.11.14-cv2")
+        self.assertGreater(metadata["loaded_terms"], 12_000)
         self.assertEqual(
-            set(dictionary_metadata["categories"]),
+            set(metadata["categories"]),
             {"Bệnh Lý", "Triệu Chứng", "Đông Y / YHCT"},
         )
         self.assertEqual(
-            set(dictionary_metadata["source_files"]),
+            set(metadata["source_files"]),
             {"icd10", "yhct"},
         )
 

@@ -46,6 +46,9 @@ COLLATE = utf8mb4_unicode_ci;
 -- ALTER TABLE dictionary_alias_candidates
 --     ADD COLUMN match_method VARCHAR(40) NOT NULL DEFAULT 'grammar_variant' AFTER evidence_json,
 --     ADD COLUMN confidence_score DECIMAL(6,5) NULL AFTER match_method,
+--     ADD COLUMN score_type VARCHAR(32) NOT NULL DEFAULT 'heuristic' AFTER confidence_score,
+--     ADD COLUMN case_sensitive TINYINT(1) NOT NULL DEFAULT 0 AFTER score_type,
+--     ADD COLUMN allow_accentless TINYINT(1) NOT NULL DEFAULT 0 AFTER case_sensitive,
 --     ADD COLUMN uncertainty_score DECIMAL(6,5) NULL AFTER confidence_score,
 --     ADD COLUMN occurrence_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER uncertainty_score,
 --     ADD COLUMN document_frequency INT UNSIGNED NOT NULL DEFAULT 0 AFTER occurrence_count,
@@ -68,7 +71,13 @@ CREATE TABLE IF NOT EXISTS extracted_concepts (
     concept_id VARCHAR(255) NOT NULL DEFAULT '',
     match_method VARCHAR(40) NOT NULL DEFAULT 'exact',
     confidence_score DECIMAL(6,5) NULL,
+    score_type VARCHAR(32) NULL,
     dictionary_version VARCHAR(64) NULL,
+    dictionary_generation BIGINT UNSIGNED NULL,
+    manifest_sha256 CHAR(64) NULL,
+    alias_rows_sha256 CHAR(64) NULL,
+    icd_chapter_code VARCHAR(32) NULL,
+    icd_chapter_name VARCHAR(255) NULL,
     concept_start INT NULL,
     concept_end INT NULL,
 
@@ -103,14 +112,22 @@ COLLATE = utf8mb4_unicode_ci;
 --     ADD COLUMN concept_id VARCHAR(255) NOT NULL DEFAULT '' AFTER concept_code,
 --     ADD COLUMN match_method VARCHAR(40) NOT NULL DEFAULT 'exact' AFTER concept_id,
 --     ADD COLUMN confidence_score DECIMAL(6,5) NULL AFTER match_method,
---     ADD COLUMN dictionary_version VARCHAR(64) NULL AFTER confidence_score;
+--     ADD COLUMN score_type VARCHAR(32) NULL AFTER confidence_score,
+--     ADD COLUMN dictionary_version VARCHAR(64) NULL AFTER score_type,
+--     ADD COLUMN dictionary_generation BIGINT UNSIGNED NULL AFTER dictionary_version,
+--     ADD COLUMN manifest_sha256 CHAR(64) NULL AFTER dictionary_generation,
+--     ADD COLUMN alias_rows_sha256 CHAR(64) NULL AFTER manifest_sha256,
+--     ADD COLUMN icd_chapter_code VARCHAR(32) NULL AFTER alias_rows_sha256,
+--     ADD COLUMN icd_chapter_name VARCHAR(255) NULL AFTER icd_chapter_code;
 
 
 -- ============================================================
 -- Alias candidates discovered from the corpus.
--- Run this block manually before using the Dictionary Alias UI.
--- APPROVED rows are loaded by the NER engine at backend startup;
--- PENDING_REVIEW rows never affect highlighting.
+-- Run this block manually to persist corpus evidence/metrics.
+-- AUTO_APPROVED rows are deterministic controlled variants recorded for
+-- provenance; the same variants are generated directly from the validated
+-- ICD-10/YHCT JSON at backend startup. PENDING_REVIEW rows are fuzzy or
+-- ambiguous suggestions and never affect highlighting.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS dictionary_alias_candidates (
@@ -125,6 +142,9 @@ CREATE TABLE IF NOT EXISTS dictionary_alias_candidates (
     evidence_json LONGTEXT NULL,
     match_method VARCHAR(40) NOT NULL DEFAULT 'grammar_variant',
     confidence_score DECIMAL(6,5) NULL,
+    score_type VARCHAR(32) NOT NULL DEFAULT 'heuristic',
+    case_sensitive TINYINT(1) NOT NULL DEFAULT 0,
+    allow_accentless TINYINT(1) NOT NULL DEFAULT 0,
     uncertainty_score DECIMAL(6,5) NULL,
     occurrence_count INT UNSIGNED NOT NULL DEFAULT 0,
     document_frequency INT UNSIGNED NOT NULL DEFAULT 0,

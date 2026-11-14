@@ -16,11 +16,11 @@ if not DB_PASSWORD:
 from api import routes as api_routes
 from core.auth import ensure_auth_review_schema
 from core.language_audit import ensure_language_audit_schema
-from core.ner_dict import load_ner_dictionary
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ── Khởi tạo từ điển NER ngay khi app start ───────────────────
-load_ner_dictionary()
+# Dictionary NER is loaded lazily on the first dictionary-backed request.
+# A failed first load is reported as HTTP 503 instead of preventing the app
+# from starting or silently producing zero entities.
 
 # ── Cấu hình DB ───────────────────────────────────────────────
 db_config = {

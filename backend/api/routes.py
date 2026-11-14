@@ -18,16 +18,15 @@ from urllib.parse import urlparse
 import mysql.connector
 from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile, File, Form, Request
 from pydantic import BaseModel, ConfigDict, Field
-from core.ner_engine import ner_with_fuzzy, reset_ner_engine, run_ner
+from core.ner_engine import ner_with_fuzzy, run_ner
 from core.ner_dict import (
     DICT_DIR,
+    DictionaryError,
     MANIFEST_PATH,
-    dictionary_metadata,
+    get_dictionary_runtime_status,
+    get_snapshot,
     normalize_match_text,
     load_runtime_aliases,
-    reload_ner_dictionary,
-    term_candidates,
-    term_dict,
 )
 from core.scraper import scrape_status, run_scraping, clean_filename, stop_scraping
 from core.ai_ner import extract_entities_with_ai
@@ -62,6 +61,8 @@ _db_config: dict = {}
 _output_folder: str = ""
 tamanh_job_manager = TamanhCrawlerJobManager()
 _scrape_start_lock = Lock()
+_alias_refresh_lock = Lock()
+_runtime_aliases_initialized = False
 
 # Guardrails for browser/API inputs. These are intentionally conservative
 # defaults for an admin tool and prevent accidental or malicious resource
@@ -72,24 +73,26 @@ MAX_PDF_UPLOAD_BYTES = 50 * 1024 * 1024
 
 def init_router(db_config: dict, output_folder: str) -> None:
     """Khởi tạo các biến cấu hình cho router."""
-    global _db_config, _output_folder
+    global _db_config, _output_folder, _runtime_aliases_initialized
     _db_config = db_config
     _output_folder = output_folder
+    _runtime_aliases_initialized = False
     tamanh_job_manager.configure_db(db_config)
     ner_experiment_manager.configure_db(db_config)
-    _refresh_runtime_aliases()
 
 class HighlightRequest(BaseModel):
     text:                str = Field(..., max_length=MAX_API_TEXT_CHARS)
     threshold:           int  = 100
     enable_tone_restore: bool = False
     enable_noun_phrase:  bool = False
+    include_suggestions: bool = True
 
 class NerRequest(BaseModel):
     text:                str = Field(..., max_length=MAX_API_TEXT_CHARS)
     threshold:           int  = 100
     enable_tone_restore: bool = False
     enable_noun_phrase:  bool = False
+    include_suggestions: bool = True
 
 class AiLabelRequest(BaseModel):
     text: str = Field(..., max_length=MAX_API_TEXT_CHARS)
@@ -171,20 +174,6 @@ class AliasDiscoveryRequest(BaseModel):
     include_context: bool = True
 
 
-class AliasSuggestionApprovalRequest(BaseModel):
-    surface_form: str = Field(..., min_length=2, max_length=500)
-    concept_id: str = Field(..., min_length=1, max_length=255)
-    concept_code: str = Field(..., min_length=1, max_length=100)
-    canonical_term: str = Field(..., min_length=1, max_length=500)
-    concept_type: str = Field("Bệnh Lý", max_length=100)
-    match_method: str = Field("fuzzy_candidate", max_length=40)
-    confidence_score: float | None = Field(None, ge=0, le=1)
-    article_id: int | None = None
-    start: int | None = Field(None, ge=0)
-    end: int | None = Field(None, ge=0)
-    context: str = Field("", max_length=2000)
-
-
 class NerExperimentCreateRequest(BaseModel):
     limit: int = Field(100, ge=1, le=100)
     note: str = ""
@@ -209,27 +198,89 @@ def _get_conn():
     return mysql.connector.connect(**_db_config)
 
 
+def _dictionary_unavailable(exc: Exception) -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail={
+            "code": "DICTIONARY_UNAVAILABLE",
+            "message": str(exc) or "Từ điển ICD-10/YHCT chưa sẵn sàng.",
+            "retryable": True,
+        },
+    )
+
+
+def _ensure_runtime_dictionary() -> None:
+    """Lazily load the base snapshot and the optional DB alias overlay."""
+    global _runtime_aliases_initialized
+    if _runtime_aliases_initialized:
+        return
+    with _alias_refresh_lock:
+        if _runtime_aliases_initialized:
+            return
+        _refresh_runtime_aliases()
+        # _refresh_runtime_aliases deliberately records failures instead of
+        # making app startup fail; annotation requests must still fail closed.
+        get_snapshot()
+        _runtime_aliases_initialized = True
+
+
 def _refresh_runtime_aliases() -> int:
-    """Load only reviewer-approved aliases from the optional MySQL table."""
+    """Load legacy/explicit aliases from the optional MySQL table.
+
+    Controlled grammar variants are generated directly from the validated
+    ICD-10/YHCT JSON during dictionary startup.  The table is retained for
+    compatibility with aliases created by older deployments.
+    """
     connection = cursor = None
     try:
         connection = _get_conn()
         cursor = connection.cursor(dictionary=True)
-        cursor.execute(
-            """
-            SELECT surface_form, concept_id, canonical_term, concept_code, alias_type
-            FROM dictionary_alias_candidates
-            WHERE status = 'APPROVED'
-            ORDER BY id
-            """
-        )
-        return load_runtime_aliases(cursor.fetchall())
+        try:
+            cursor.execute(
+                """
+                SELECT surface_form, concept_id, canonical_term, concept_code,
+                       alias_type, case_sensitive, allow_accentless,
+                       status, dictionary_version
+                FROM dictionary_alias_candidates
+                WHERE status IN ('APPROVED', 'AUTO_APPROVED')
+                ORDER BY id
+                """
+            )
+            rows = cursor.fetchall()
+        except mysql.connector.Error:
+            # Older installations may not have the optional flag columns yet.
+            # Preserve their aliases with safe defaults until mysql.txt is run.
+            logger.warning("Alias table chưa có metadata flags; dùng schema tương thích cũ.")
+            cursor.execute(
+                """
+                SELECT surface_form, concept_id, canonical_term, concept_code,
+                       alias_type, status, dictionary_version
+                FROM dictionary_alias_candidates
+                WHERE status IN ('APPROVED', 'AUTO_APPROVED')
+                ORDER BY id
+                """
+            )
+            rows = cursor.fetchall()
+            for row in rows:
+                row.setdefault("case_sensitive", None)
+                row.setdefault("allow_accentless", False)
+        try:
+            return load_runtime_aliases(rows)
+        except DictionaryError as exc:
+            logger.error("Dictionary snapshot chưa sẵn sàng khi nạp alias: %s", exc)
+            return 0
     except mysql.connector.Error as exc:
         # The table is intentionally a manual migration. A deployment that
-        # has not run the SQL keeps the base dictionary fully functional.
-        logger.warning("Approved alias table is unavailable: %s", exc)
-        load_runtime_aliases([])
-        return 0
+        # has not run the SQL keeps the current validated dictionary fully
+        # functional.  Do not publish an empty alias overlay over an already
+        # running snapshot just because MySQL is temporarily unavailable.
+        logger.warning("Alias overlay table is unavailable: %s", exc)
+        try:
+            snapshot = get_snapshot()
+            return int(snapshot.metadata.get("explicit_aliases") or 0)
+        except DictionaryError as dictionary_exc:
+            logger.error("Dictionary snapshot chưa sẵn sàng: %s", dictionary_exc)
+            return 0
     finally:
         if cursor:
             cursor.close()
@@ -237,29 +288,16 @@ def _refresh_runtime_aliases() -> int:
             connection.close()
 
 
-def _dictionary_concept_for_identity(concept_id: str = "", code: str = "") -> dict[str, Any] | None:
-    identities = {
-        str(value or "").strip().casefold()
-        for value in (concept_id, code)
-        if str(value or "").strip()
-    }
-    for values in term_candidates.values():
-        for info in values:
-            if any(
-                str(info.get(field) or "").strip().casefold() in identities
-                for field in ("concept_id", "code")
-            ):
-                return info
-    return None
-
-
 def _candidate_variant_rows(limit: int, include_context: bool = True) -> list[dict[str, Any]]:
     """Find conservative grammar variants actually present in article text.
 
-    This first discovery pass only removes Vietnamese leading determiners
-    such as ``các``/``những``. It creates review candidates; it never activates
-    an alias automatically.
+    This discovery pass inspects the already validated controlled variants
+    (grammar/headword variants). Runtime activation is handled by the
+    validated dictionary loader; this function only records corpus evidence
+    and metrics.
     """
+    _ensure_runtime_dictionary()
+    snapshot = get_snapshot()
     connection = cursor = None
     try:
         connection = _get_conn()
@@ -271,20 +309,23 @@ def _candidate_variant_rows(limit: int, include_context: bool = True) -> list[di
             (limit,),
         )
         articles = cursor.fetchall()
-        concepts: dict[tuple[str, str], dict[str, Any]] = {}
+        concepts: dict[tuple[str, str, str], dict[str, Any]] = {}
         token_counts: Counter[str] = Counter()
         bigram_counts: Counter[tuple[str, str]] = Counter()
         total_tokens = 0
-        for info in term_dict.values():
+        for info in snapshot.term_dict.values():
+            alias_type = str(info.get("alias_type") or "").strip()
+            if alias_type not in {"grammar_variant", "headword_variant"}:
+                continue
             code = str(info.get("code") or "").strip()
             concept_id = str(info.get("concept_id") or code).strip()
             canonical = str(info.get("canonical_term") or info.get("label_vn") or "").strip()
-            key = (concept_id, normalize_match_text(canonical))
-            if code and canonical and key not in concepts:
+            surface = str(info.get("match_term") or "").strip()
+            key = (concept_id, normalize_match_text(canonical), normalize_match_text(surface))
+            if code and canonical and surface and key not in concepts:
                 concepts[key] = info
 
         candidates: dict[tuple[str, str], dict[str, Any]] = {}
-        determiners = ("các ", "những ", "một ")
         for article in articles:
             raw_text = str(article.get("abstract") or "")
             normalized_text = normalize_match_text(raw_text)
@@ -294,55 +335,52 @@ def _candidate_variant_rows(limit: int, include_context: bool = True) -> list[di
             total_tokens += len(article_tokens)
             for info in concepts.values():
                 canonical = str(info.get("canonical_term") or info.get("label_vn") or "").strip()
-                canonical_key = normalize_match_text(canonical)
-                for prefix in determiners:
-                    if not canonical_key.startswith(prefix):
-                        continue
-                    alias = canonical[len(prefix):].strip()
-                    alias_key = normalize_match_text(alias)
-                    if len(alias_key) < 8:
-                        continue
-                    boundary_re = re.compile(rf"(?<!\w){re.escape(alias_key)}(?!\w)", re.UNICODE)
-                    occurrences = list(boundary_re.finditer(normalized_text))
-                    if not occurrences:
-                        continue
-                    concept_id = str(info.get("concept_id") or info.get("code") or "").strip()
-                    code = str(info.get("code") or "").strip()
-                    candidate_key = (alias_key, concept_id)
-                    item = candidates.setdefault(candidate_key, {
-                        "surface_form": alias,
-                        "concept_id": concept_id,
-                        "canonical_term": canonical,
-                        "concept_code": code,
-                        "concept_type": info.get("cat") or "Bệnh Lý",
-                        "alias_type": "grammar_variant",
-                        "discovery_source": "corpus_leading_determiner",
-                        "occurrence_count": 0,
-                        "document_frequency": 0,
-                        "evidence": [],
-                        "_evidence_keys": set(),
-                    })
-                    item["occurrence_count"] += len(occurrences)
-                    item["document_frequency"] += 1
-                    if len(item["evidence"]) < 3:
-                        for occurrence in occurrences:
-                            evidence_key = (int(article["id"]), occurrence.start())
-                            if evidence_key in item["_evidence_keys"]:
-                                continue
-                            item["_evidence_keys"].add(evidence_key)
-                            evidence = {
-                                "article_id": int(article["id"]),
-                                "start": occurrence.start(),
-                                "end": occurrence.end(),
-                                "text": alias,
-                            }
-                            if include_context:
-                                start = max(0, occurrence.start() - 120)
-                                end = min(len(normalized_text), occurrence.end() + 120)
-                                evidence["context"] = normalized_text[start:end]
-                            item["evidence"].append(evidence)
-                            if len(item["evidence"]) >= 3:
-                                break
+                alias = str(info.get("match_term") or "").strip()
+                alias_key = normalize_match_text(alias)
+                if len(alias_key) < 8:
+                    continue
+                boundary_re = re.compile(rf"(?<!\w){re.escape(alias_key)}(?!\w)", re.UNICODE)
+                occurrences = list(boundary_re.finditer(normalized_text))
+                if not occurrences:
+                    continue
+                concept_id = str(info.get("concept_id") or info.get("code") or "").strip()
+                code = str(info.get("code") or "").strip()
+                alias_type = str(info.get("alias_type") or "grammar_variant")
+                candidate_key = (alias_key, concept_id)
+                item = candidates.setdefault(candidate_key, {
+                    "surface_form": alias,
+                    "concept_id": concept_id,
+                    "canonical_term": canonical,
+                    "concept_code": code,
+                    "concept_type": info.get("cat") or "Bệnh Lý",
+                    "alias_type": alias_type,
+                    "discovery_source": "corpus_controlled_variant",
+                    "occurrence_count": 0,
+                    "document_frequency": 0,
+                    "evidence": [],
+                    "_evidence_keys": set(),
+                })
+                item["occurrence_count"] += len(occurrences)
+                item["document_frequency"] += 1
+                if len(item["evidence"]) < 3:
+                    for occurrence in occurrences:
+                        evidence_key = (int(article["id"]), occurrence.start())
+                        if evidence_key in item["_evidence_keys"]:
+                            continue
+                        item["_evidence_keys"].add(evidence_key)
+                        evidence = {
+                            "article_id": int(article["id"]),
+                            "start": occurrence.start(),
+                            "end": occurrence.end(),
+                            "text": alias,
+                        }
+                        if include_context:
+                            start = max(0, occurrence.start() - 120)
+                            end = min(len(normalized_text), occurrence.end() + 120)
+                            evidence["context"] = normalized_text[start:end]
+                        item["evidence"].append(evidence)
+                        if len(item["evidence"]) >= 3:
+                            break
 
         def mean_phrase_mi(phrase: str) -> float:
             words = phrase.split()
@@ -647,12 +685,17 @@ def logout_endpoint(
 @router.post("/api/highlight-text")
 def highlight_text_endpoint(req: HighlightRequest, _: dict[str, Any] = Depends(_require_admin)):
     """Phân tích văn bản — trả về HTML highlight + danh sách khái niệm."""
-    highlighted, concepts, _, preproc_log = run_ner(
-        req.text,
-        req.threshold,
-        enable_tone_restore=req.enable_tone_restore,
-        enable_noun_phrase=req.enable_noun_phrase,
-    )
+    try:
+        _ensure_runtime_dictionary()
+        highlighted, concepts, _, preproc_log = run_ner(
+            req.text,
+            req.threshold,
+            enable_tone_restore=req.enable_tone_restore,
+            enable_noun_phrase=req.enable_noun_phrase,
+            include_suggestions=req.include_suggestions,
+        )
+    except DictionaryError as exc:
+        raise _dictionary_unavailable(exc) from exc
     suggestions = preproc_log.get("suggestions", [])
     note = "" if concepts else (
         "Có candidate không chắc chắn cần Reviewer kiểm tra."
@@ -670,12 +713,17 @@ def highlight_text_endpoint(req: HighlightRequest, _: dict[str, Any] = Depends(_
 @router.post("/api/ner")
 def ner_endpoint(req: NerRequest, _: dict[str, Any] = Depends(_require_admin)):
     """Endpoint NER chuẩn — trả về JSON entities theo schema nghiên cứu."""
-    highlighted, concepts, entities, preproc_log = run_ner(
-        req.text,
-        req.threshold,
-        enable_tone_restore=req.enable_tone_restore,
-        enable_noun_phrase=req.enable_noun_phrase,
-    )
+    try:
+        _ensure_runtime_dictionary()
+        highlighted, concepts, entities, preproc_log = run_ner(
+            req.text,
+            req.threshold,
+            enable_tone_restore=req.enable_tone_restore,
+            enable_noun_phrase=req.enable_noun_phrase,
+            include_suggestions=req.include_suggestions,
+        )
+    except DictionaryError as exc:
+        raise _dictionary_unavailable(exc) from exc
     suggestions = preproc_log.get("suggestions", [])
     note = "" if entities else (
         "Có candidate không chắc chắn cần Reviewer kiểm tra."
@@ -695,7 +743,12 @@ def ner_endpoint(req: NerRequest, _: dict[str, Any] = Depends(_require_admin)):
                 "concept_id_source": e.get("concept_id_source", ""),
                 "icd_label_vn": e.get("icd_label_vn", ""),
                 "matched_by":   e.get("matched_by", "exact"),
+                "rule_score":   e.get("rule_score", e.get("confidence")),
+                "score_type":   e.get("score_type", "heuristic"),
+                "score_calibrated": e.get("score_calibrated", False),
                 "confidence":   e.get("confidence", 1.0),
+                "icd_chapter_code": e.get("icd_chapter_code", ""),
+                "icd_chapter_name": e.get("icd_chapter_name", ""),
             }
             for e in entities
         ],
@@ -1281,11 +1334,17 @@ def save_highlight_endpoint(req: SaveHighlightRequest, _: dict[str, Any] = Depen
         if not article:
             raise HTTPException(404, f"Không tìm thấy bài báo id={req.article_id}")
 
-        canonical_html, canonical_concepts, _, _ = run_ner(
-            article.get("abstract") or "",
-            enable_tone_restore=False,
-            enable_noun_phrase=False,
-        )
+        try:
+            _ensure_runtime_dictionary()
+            canonical_html, _, canonical_entities, preprocessing_log = run_ner(
+                article.get("abstract") or "",
+                enable_tone_restore=False,
+                enable_noun_phrase=False,
+                include_suggestions=False,
+            )
+        except DictionaryError as exc:
+            raise _dictionary_unavailable(exc) from exc
+        dictionary_info = preprocessing_log.get("dictionary") or {}
 
         cursor.execute(
             "UPDATE articles SET highlighted_html = %s WHERE id = %s",
@@ -1297,14 +1356,14 @@ def save_highlight_endpoint(req: SaveHighlightRequest, _: dict[str, Any] = Depen
         )
 
         seen, rows = set(), []
-        for c in canonical_concepts:
-            name  = (c.get("name") or "").strip()
-            ctype = (c.get("type") or "DISEASE").strip()
-            code  = (c.get("code") or "").strip()
+        for entity in canonical_entities:
+            name  = (entity.get("text") or "").strip()
+            ctype = (entity.get("entity_type") or "DISEASE").strip()
+            code  = (entity.get("icd_code") or "").strip()
             identity = (
                 name.casefold(),
-                int(c.get("start", -1)),
-                int(c.get("end", -1)),
+                int(entity.get("start", -1)),
+                int(entity.get("end", -1)),
                 ctype.casefold(),
                 code.casefold(),
             )
@@ -1315,20 +1374,28 @@ def save_highlight_endpoint(req: SaveHighlightRequest, _: dict[str, Any] = Depen
                     name,
                     ctype,
                     code,
-                    c.get("concept_id") or code,
-                    c.get("matched_by") or "exact",
-                    c.get("confidence"),
-                    dictionary_metadata.get("dictionary_version"),
-                    c.get("start"),
-                    c.get("end"),
+                    entity.get("concept_id") or code,
+                    entity.get("matched_by") or "exact",
+                    entity.get("rule_score", entity.get("confidence")),
+                    entity.get("score_type") or "heuristic",
+                    dictionary_info.get("dictionary_version"),
+                    dictionary_info.get("snapshot_generation"),
+                    dictionary_info.get("manifest_sha256"),
+                    dictionary_info.get("alias_rows_sha256"),
+                    entity.get("icd_chapter_code") or None,
+                    entity.get("icd_chapter_name") or None,
+                    entity.get("start"),
+                    entity.get("end"),
                 ))
 
         if rows:
             cursor.executemany(
                 "INSERT INTO extracted_concepts "
                 "(article_id, concept_name, concept_type, concept_code, concept_id, "
-                "match_method, confidence_score, dictionary_version, concept_start, concept_end) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "match_method, confidence_score, score_type, dictionary_version, "
+                "dictionary_generation, manifest_sha256, alias_rows_sha256, "
+                "icd_chapter_code, icd_chapter_name, concept_start, concept_end) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 rows,
             )
         conn.commit()
@@ -1336,7 +1403,10 @@ def save_highlight_endpoint(req: SaveHighlightRequest, _: dict[str, Any] = Depen
             "message": "Lưu thành công bằng luật + từ điển",
             "article_id": req.article_id,
             "concepts_saved": len(rows),
-            "dictionary_version": dictionary_metadata.get("dictionary_version"),
+            "dictionary_version": dictionary_info.get("dictionary_version"),
+            "snapshot_generation": dictionary_info.get("snapshot_generation"),
+            "manifest_sha256": dictionary_info.get("manifest_sha256"),
+            "alias_rows_sha256": dictionary_info.get("alias_rows_sha256"),
         }
 
     except HTTPException:
@@ -1352,6 +1422,7 @@ def save_highlight_endpoint(req: SaveHighlightRequest, _: dict[str, Any] = Depen
 def get_dictionary(_: dict[str, Any] = Depends(_require_admin)):
     """Trả về các mục từ hai nguồn ICD-10 và YHCT đã xác thực."""
     try:
+        get_snapshot()
         manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
         entries = []
         for source_key in ("icd10", "yhct"):
@@ -1368,6 +1439,8 @@ def get_dictionary(_: dict[str, Any] = Depends(_require_admin)):
                     "source": source_key,
                 })
         return entries
+    except DictionaryError as exc:
+        raise _dictionary_unavailable(exc) from exc
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -1375,130 +1448,7 @@ def get_dictionary(_: dict[str, Any] = Depends(_require_admin)):
 @router.get("/api/dictionary/status")
 def get_dictionary_status(_: dict[str, Any] = Depends(_require_admin)):
     """Return the validated sources and current coverage of rule-based NER."""
-    try:
-        # Import-time loading verifies artifact and original-source hashes.
-        return dictionary_metadata
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
-
-@router.post("/api/dictionary/alias-candidates/approve-suggestion")
-def approve_dictionary_suggestion(
-    req: AliasSuggestionApprovalRequest,
-    user: dict[str, Any] = Depends(_require_admin),
-):
-    """Promote an explicit reviewer choice into the approved runtime alias set."""
-    allowed_methods = {"fuzzy_candidate", "ambiguous", "grammar_variant", "accentless"}
-    if req.match_method not in allowed_methods:
-        raise HTTPException(422, "Phương pháp match của suggestion không hợp lệ.")
-    concept = _dictionary_concept_for_identity(req.concept_id, req.concept_code)
-    if not concept:
-        raise HTTPException(422, "Concept ID không tồn tại trong dictionary hiện tại.")
-    key = normalize_match_text(req.surface_form)
-    if not key:
-        raise HTTPException(422, "Surface form không hợp lệ sau khi chuẩn hóa.")
-    requested_identity = {
-        str(value or "").strip().casefold()
-        for value in (req.concept_id, req.concept_code)
-        if str(value or "").strip()
-    }
-    conflicting_values = [
-        value
-        for value in term_candidates.get(key, [])
-        if not requested_identity.intersection({
-            str(value.get("concept_id") or "").strip().casefold(),
-            str(value.get("code") or "").strip().casefold(),
-        })
-    ]
-    if conflicting_values:
-        raise HTTPException(409, "Surface form đang xung đột với một concept khác.")
-    if key in term_dict:
-        return {
-            "approved": True,
-            "already_present": True,
-            "concept_id": concept.get("concept_id") or req.concept_id,
-            "dictionary_version": dictionary_metadata.get("dictionary_version"),
-        }
-
-    evidence = []
-    if req.article_id is not None:
-        evidence.append({
-            "article_id": req.article_id,
-            "start": req.start,
-            "end": req.end,
-            "text": req.surface_form,
-            "context": req.context,
-        })
-    connection = cursor = None
-    try:
-        connection = _get_conn()
-        cursor = connection.cursor()
-        confidence = req.confidence_score
-        cursor.execute(
-            """
-            INSERT INTO dictionary_alias_candidates
-                (surface_form, concept_id, canonical_term, concept_code,
-                 concept_type, alias_type, discovery_source, evidence_json,
-                 match_method, confidence_score, uncertainty_score,
-                 occurrence_count, document_frequency, context_json,
-                 dictionary_version, status, reviewed_by, reviewed_at)
-            VALUES (%s, %s, %s, %s, %s, 'approved_alias',
-                    'manual_suggestion', %s, %s, %s, %s, 1, %s, %s,
-                    %s, 'APPROVED', %s, CURRENT_TIMESTAMP)
-            ON DUPLICATE KEY UPDATE
-                concept_id = VALUES(concept_id),
-                canonical_term = VALUES(canonical_term),
-                concept_type = VALUES(concept_type),
-                alias_type = 'approved_alias',
-                discovery_source = 'manual_suggestion',
-                evidence_json = VALUES(evidence_json),
-                match_method = VALUES(match_method),
-                confidence_score = VALUES(confidence_score),
-                uncertainty_score = VALUES(uncertainty_score),
-                occurrence_count = VALUES(occurrence_count),
-                document_frequency = VALUES(document_frequency),
-                context_json = VALUES(context_json),
-                dictionary_version = VALUES(dictionary_version),
-                status = 'APPROVED',
-                reviewed_by = VALUES(reviewed_by),
-                reviewed_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (
-                req.surface_form.strip(),
-                concept.get("concept_id") or req.concept_id,
-                req.canonical_term.strip(),
-                concept.get("code") or req.concept_code,
-                req.concept_type.strip() or concept.get("cat") or "Bệnh Lý",
-                json.dumps(evidence, ensure_ascii=False),
-                req.match_method,
-                confidence,
-                round(1 - confidence, 5) if confidence is not None else None,
-                1 if req.article_id is not None else 0,
-                json.dumps({"source": "manual_suggestion", "article_id": req.article_id}, ensure_ascii=False),
-                dictionary_metadata.get("dictionary_version"),
-                int(user["id"]),
-            ),
-        )
-        connection.commit()
-        _refresh_runtime_aliases()
-        reset_ner_engine()
-        return {
-            "approved": True,
-            "already_present": False,
-            "surface_form": req.surface_form.strip(),
-            "concept_id": concept.get("concept_id") or req.concept_id,
-            "dictionary_version": dictionary_metadata.get("dictionary_version"),
-        }
-    except mysql.connector.Error as exc:
-        if connection:
-            connection.rollback()
-        raise HTTPException(503, "Chưa có bảng alias candidate. Hãy chạy migration trong mysql.txt.") from exc
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
+    return get_dictionary_runtime_status()
 
 
 @router.post("/api/dictionary/alias-candidates/discover")
@@ -1506,40 +1456,72 @@ def discover_dictionary_aliases(
     req: AliasDiscoveryRequest,
     _: dict[str, Any] = Depends(_require_admin),
 ):
-    """Create pending alias candidates from conservative corpus variants."""
+    """Record controlled-variant evidence without a manual approval step.
+
+    Grammar variants are already active in the runtime dictionary. Fuzzy
+    candidates remain ``PENDING_REVIEW`` for audit/analysis only and never
+    enter the highlight result.
+    """
     connection = cursor = None
     try:
+        snapshot = get_snapshot()
         candidates = _candidate_variant_rows(req.limit, include_context=req.include_context)
         if req.include_fuzzy_candidates:
             candidates.extend(_fuzzy_candidate_rows(req.limit, include_context=req.include_context))
         connection = _get_conn()
         cursor = connection.cursor()
         inserted = 0
+        auto_approved = 0
+        suggestion_only = 0
         for item in candidates:
+            match_method = item.get("match_method") or item["alias_type"]
+            status = (
+                "AUTO_APPROVED"
+                if match_method in {"grammar_variant", "headword_variant"}
+                else "PENDING_REVIEW"
+            )
+            auto_approved += status == "AUTO_APPROVED"
+            suggestion_only += status == "PENDING_REVIEW"
             cursor.execute(
                 """
                 INSERT INTO dictionary_alias_candidates
                     (surface_form, concept_id, canonical_term, concept_code,
                      concept_type, alias_type, discovery_source, evidence_json,
                      match_method, confidence_score, uncertainty_score,
+                     case_sensitive, allow_accentless, score_type,
                      occurrence_count, document_frequency, context_json,
                      dictionary_version, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'PENDING_REVIEW')
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
+                    concept_id = VALUES(concept_id),
+                    canonical_term = VALUES(canonical_term),
+                    concept_type = VALUES(concept_type),
+                    alias_type = VALUES(alias_type),
+                    discovery_source = VALUES(discovery_source),
                     evidence_json = VALUES(evidence_json),
+                    match_method = VALUES(match_method),
                     confidence_score = VALUES(confidence_score),
                     uncertainty_score = VALUES(uncertainty_score),
+                    case_sensitive = VALUES(case_sensitive),
+                    allow_accentless = VALUES(allow_accentless),
+                    score_type = VALUES(score_type),
                     occurrence_count = VALUES(occurrence_count),
                     document_frequency = VALUES(document_frequency),
                     context_json = VALUES(context_json),
                     dictionary_version = VALUES(dictionary_version),
+                    status = CASE
+                        WHEN VALUES(match_method) IN ('grammar_variant', 'headword_variant')
+                            THEN 'AUTO_APPROVED'
+                        ELSE status
+                    END,
                     updated_at = CURRENT_TIMESTAMP
                 """,
                 (
                     item["surface_form"], item["concept_id"], item["canonical_term"],
                     item["concept_code"], item["concept_type"], item["alias_type"],
                     item["discovery_source"], json.dumps(item["evidence"], ensure_ascii=False),
-                    item.get("match_method") or item["alias_type"], item["confidence_score"], item["uncertainty_score"],
+                    match_method, item["confidence_score"], item["uncertainty_score"],
+                    False, False, "heuristic",
                     item["occurrence_count"], item["document_frequency"],
                     json.dumps({
                         "mi_score": item["mi_score"],
@@ -1548,12 +1530,20 @@ def discover_dictionary_aliases(
                         "density_score": item["density_score"],
                         "priority_score": item["priority_score"],
                     }, ensure_ascii=False),
-                    dictionary_metadata.get("dictionary_version"),
+                    snapshot.metadata.get("dictionary_version"),
+                    status,
                 ),
             )
             inserted += cursor.rowcount > 0
         connection.commit()
-        return {"discovered": len(candidates), "inserted_or_updated": inserted}
+        return {
+            "discovered": len(candidates),
+            "inserted_or_updated": inserted,
+            "auto_approved": auto_approved,
+            "suggestion_only": suggestion_only,
+        }
+    except DictionaryError as exc:
+        raise _dictionary_unavailable(exc) from exc
     except mysql.connector.Error as exc:
         logger.exception("Alias candidate discovery failed")
         raise HTTPException(503, "Chưa có bảng alias candidate. Hãy chạy migration trong mysql.txt.") from exc
@@ -1566,14 +1556,14 @@ def discover_dictionary_aliases(
 
 @router.get("/api/dictionary/alias-candidates")
 def list_dictionary_aliases(
-    status: str = "PENDING_REVIEW",
+    status: str = "AUTO_APPROVED",
     match_method: str | None = None,
     concept_code: str | None = None,
     min_confidence: float | None = None,
     max_confidence: float | None = None,
     _: dict[str, Any] = Depends(_require_admin),
 ):
-    allowed = {"PENDING_REVIEW", "APPROVED", "REJECTED"}
+    allowed = {"PENDING_REVIEW", "AUTO_APPROVED", "APPROVED", "REJECTED"}
     normalized = status.strip().upper()
     if normalized not in allowed:
         raise HTTPException(422, "Trạng thái alias không hợp lệ.")
@@ -1606,6 +1596,7 @@ def list_dictionary_aliases(
             SELECT id, surface_form, concept_id, canonical_term, concept_code,
                    concept_type, alias_type, discovery_source, evidence_json,
                    match_method, confidence_score, uncertainty_score,
+                   case_sensitive, allow_accentless, score_type,
                    occurrence_count, document_frequency, context_json,
                    dictionary_version,
                    status, reviewed_by, reviewed_at, created_at, updated_at
@@ -1628,107 +1619,6 @@ def list_dictionary_aliases(
                 row["metrics"] = {}
         return {"items": rows, "total": len(rows), "status": normalized}
     except mysql.connector.Error as exc:
-        raise HTTPException(503, "Chưa có bảng alias candidate. Hãy chạy migration trong mysql.txt.") from exc
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-
-@router.post("/api/dictionary/alias-candidates/{candidate_id}/approve")
-def approve_dictionary_alias(candidate_id: int, user: dict[str, Any] = Depends(_require_admin)):
-    connection = cursor = None
-    try:
-        connection = _get_conn()
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute(
-            "SELECT * FROM dictionary_alias_candidates WHERE id = %s FOR UPDATE",
-            (candidate_id,),
-        )
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(404, "Không tìm thấy alias candidate.")
-        if row["status"] != "PENDING_REVIEW":
-            raise HTTPException(409, "Alias candidate đã được xử lý.")
-        concept = _dictionary_concept_for_identity(row.get("concept_id"), row.get("concept_code"))
-        if not concept:
-            raise HTTPException(422, "Concept ID không tồn tại trong dictionary hiện tại.")
-        candidate_version = str(row.get("dictionary_version") or "").strip()
-        current_version = str(dictionary_metadata.get("dictionary_version") or "").strip()
-        if candidate_version and current_version and candidate_version != current_version:
-            raise HTTPException(409, "Candidate được tạo từ phiên bản dictionary cũ.")
-        key = normalize_match_text(row["surface_form"])
-        existing_values = term_candidates.get(key, [])
-        requested_identity = {
-            str(value or "").strip().casefold()
-            for value in (row.get("concept_id"), row.get("concept_code"))
-            if str(value or "").strip()
-        }
-        conflicting_values = [
-            value
-            for value in existing_values
-            if not requested_identity.intersection({
-                str(value.get("concept_id") or "").strip().casefold(),
-                str(value.get("code") or "").strip().casefold(),
-            })
-        ]
-        if conflicting_values:
-            raise HTTPException(409, "Alias đang xung đột với một concept khác.")
-        cursor.execute(
-            """
-            UPDATE dictionary_alias_candidates
-            SET status = 'APPROVED', reviewed_by = %s, reviewed_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-            """,
-            (int(user["id"]), candidate_id),
-        )
-        connection.commit()
-        _refresh_runtime_aliases()
-        reset_ner_engine()
-        return {"approved": True, "candidate_id": candidate_id, "dictionary_version": dictionary_metadata.get("dictionary_version")}
-    except HTTPException:
-        if connection:
-            connection.rollback()
-        raise
-    except mysql.connector.Error as exc:
-        if connection:
-            connection.rollback()
-        raise HTTPException(503, "Chưa có bảng alias candidate. Hãy chạy migration trong mysql.txt.") from exc
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
-
-
-@router.post("/api/dictionary/alias-candidates/{candidate_id}/reject")
-def reject_dictionary_alias(candidate_id: int, user: dict[str, Any] = Depends(_require_admin)):
-    connection = cursor = None
-    try:
-        connection = _get_conn()
-        cursor = connection.cursor()
-        cursor.execute(
-            """
-            UPDATE dictionary_alias_candidates
-            SET status = 'REJECTED', reviewed_by = %s, reviewed_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s AND status = 'PENDING_REVIEW'
-            """,
-            (int(user["id"]), candidate_id),
-        )
-        if cursor.rowcount != 1:
-            raise HTTPException(404, "Alias candidate không tồn tại hoặc đã được xử lý.")
-        connection.commit()
-        return {"rejected": True, "candidate_id": candidate_id}
-    except HTTPException:
-        if connection:
-            connection.rollback()
-        raise
-    except mysql.connector.Error as exc:
-        if connection:
-            connection.rollback()
         raise HTTPException(503, "Chưa có bảng alias candidate. Hãy chạy migration trong mysql.txt.") from exc
     finally:
         if cursor:
@@ -2002,7 +1892,9 @@ def _stored_ner_result(cursor, document_id: int) -> dict[str, Any]:
     cursor.execute(
         """
         SELECT concept_name AS name, concept_type AS type, concept_code AS code,
-               concept_id, match_method, confidence_score, dictionary_version,
+               concept_id, match_method, confidence_score, score_type,
+               dictionary_version, dictionary_generation, manifest_sha256,
+               alias_rows_sha256, icd_chapter_code, icd_chapter_name,
                concept_start AS start, concept_end AS end
         FROM extracted_concepts
         WHERE article_id = %s
@@ -2020,6 +1912,14 @@ def _stored_ner_result(cursor, document_id: int) -> dict[str, Any]:
             "type": item["type"],
             "code": item["code"] or "",
             "label": item["name"],
+            "rule_score": item.get("confidence_score"),
+            "score_type": item.get("score_type") or "heuristic",
+            "dictionary_version": item.get("dictionary_version"),
+            "dictionary_generation": item.get("dictionary_generation"),
+            "manifest_sha256": item.get("manifest_sha256"),
+            "alias_rows_sha256": item.get("alias_rows_sha256"),
+            "icd_chapter_code": item.get("icd_chapter_code"),
+            "icd_chapter_name": item.get("icd_chapter_name"),
             "action": "KEEP",
         }
         for item in stored
